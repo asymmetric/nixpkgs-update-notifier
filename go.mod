@@ -1,4 +1,4 @@
-module example.com/go-hello
+module github.com/asymmetric/nixpkgs-update-notify
 
 go 1.22.3
 
@@ -7,7 +7,6 @@ toolchain go1.22.5
 require (
 	github.com/gocolly/colly v1.2.0
 	github.com/mattn/go-sqlite3 v1.14.22
-	github.com/velebak/colly-sqlite3-storage v0.0.0-20240410181914-45e8d740b550
 )
 
 require (
@@ -31,5 +30,3 @@ require (
 	google.golang.org/protobuf v1.26.0 // indirect
 	gopkg.in/yaml.v2 v2.2.5 // indirect
 )
-
-replace github.com/velebak/colly-sqlite3-storage => /home/asymmetric/code/colly-sqlite3-storage

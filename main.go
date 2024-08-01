@@ -3,7 +3,6 @@ package main
 import (
 	"database/sql"
 	"fmt"
-	"hash/fnv"
 	"net/http"
 	"regexp"
 	"strings"
@@ -11,7 +10,6 @@ import (
 	"io"
 
 	"github.com/gocolly/colly"
-	"github.com/velebak/colly-sqlite3-storage/colly/sqlite3"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -19,7 +17,7 @@ import (
 func main() {
 	fmt.Println("Hello Nix!")
 	url := "https://nixpkgs-update-logs.nix-community.org/"
-	filename := "data.sql"
+	filename := "data.db"
 
 	db, err := sql.Open("sqlite3", filename)
 	if err != nil {
@@ -32,13 +30,7 @@ func main() {
 		panic(err)
 	}
 
-	statement, _ := db.Prepare("CREATE TABLE IF NOT EXISTS visited (id INTEGER PRIMARY KEY, pathID INTEGER) STRICT")
-	_, err = statement.Exec()
-	if err != nil {
-		panic(err)
-	}
-
-	statement, _ = db.Prepare("CREATE INDEX IF NOT EXISTS idx_visited ON visited (pathID)")
+	statement, _ := db.Prepare("CREATE TABLE IF NOT EXISTS visited (id INTEGER PRIMARY KEY, package TEXT, date TEXT, error INTEGER) STRICT")
 	_, err = statement.Exec()
 	if err != nil {
 		panic(err)
@@ -47,24 +39,12 @@ func main() {
 	c := colly.NewCollector(
 		colly.UserAgent("asymmetric"),
 		// colly.AllowedDomains(url),
-		// colly.Debugger(&debug.LogDebugger{}),
 		// colly.AllowURLRevisit(),
 	)
 
-	storage := &sqlite3.Storage{
-		Filename: "./results.db",
-	}
-
-	defer storage.Close()
-
-	// err := c.SetStorage(storage)
-	// if err != nil {
-	// 	panic(err)
-	// }
-
-	// c.OnRequest(func(r *colly.Request) {
-	// 	fmt.Println("Visiting", r.URL.String())
-	// })
+	c.OnRequest(func(r *colly.Request) {
+		fmt.Println("Visiting", r.URL.String())
+	})
 	c.OnHTML("a[href]", func(e *colly.HTMLElement) {
 		link := e.Attr("href")
 
@@ -79,6 +59,10 @@ func main() {
 		}
 
 		fullpath := e.Request.AbsoluteURL(link)
+		components := strings.Split(fullpath, "/")
+		pkg := components[len(components)-2]
+		date := strings.Trim(components[len(components)-1], ".log")
+		fmt.Printf("pkg: %s; date: %s\n", pkg, date)
 
 		// if it's a link to a log file:
 		// - did we already know this file?
@@ -88,36 +72,18 @@ func main() {
 			fmt.Printf("log file: %s\n", fullpath)
 
 			var count int
-			h := fnv.New64a()
-			io.WriteString(h, fullpath)
-			pathID := h.Sum64()
-
-			statement, err := db.Prepare("SELECT COUNT(*) FROM visited where pathId = ?")
+			statement, err := db.Prepare("SELECT COUNT(*) FROM visited where package = ? AND date = ?")
 			if err != nil {
 				panic(err)
 			}
-			// [golang/go/issues/6113] we can't use uint64 with the high bit set
-			// but we can cast it and store as an int64 without data loss
-			err = statement.QueryRow(int64(pathID)).Scan(&count)
+			err = statement.QueryRow(pkg, date).Scan(&count)
 			if err != nil {
-				panic(err)
-			}
-			if count > 1 {
 				panic(err)
 			}
 			// we've found this log already, skip next steps
 			if count == 1 {
 				fmt.Printf("  link already there: %s\n", fullpath)
 				return
-			}
-
-			statement, err = db.Prepare("INSERT INTO visited (pathID) VALUES (?)")
-			if err != nil {
-				panic(err)
-			}
-			_, err = statement.Exec(int64(pathID))
-			if err != nil {
-				panic(err)
 			}
 
 			resp, err := http.Get(e.Request.AbsoluteURL(link))
@@ -131,12 +97,22 @@ func main() {
 				panic(err)
 			}
 
+			var hasError bool
 			if strings.Contains(string(body[:]), "error") {
 				fmt.Printf("> error found for link %s", link)
+				hasError = true
 				// TODO notify everyone who subscribed
 			} else {
 				fmt.Printf("< error not found for link %s", link)
 			}
+
+			// we haven't seen this log yet, so add it to the list of seen ones
+			statement, _ = db.Prepare("INSERT INTO visited (package, date, error) VALUES (?, ?, ?)")
+			_, err = statement.Exec(pkg, date, hasError)
+			if err != nil {
+				panic(err)
+			}
+
 		}
 
 		c.Visit(e.Request.AbsoluteURL(link))
