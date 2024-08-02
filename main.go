@@ -19,7 +19,7 @@ func main() {
 	url := "https://nixpkgs-update-logs.nix-community.org/"
 	filename := "data.db"
 
-	db, err := sql.Open("sqlite3", filename)
+	db, err := sql.Open("sqlite3", fmt.Sprintf("%s?_journal_mode=WAL&_synchronous=NORMAL", filename))
 	if err != nil {
 		panic(err)
 	}
