@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 	"github.com/gocolly/colly"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
+	"maunium.net/go/mautrix"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -21,6 +23,7 @@ var homeserver = pflag.String("homeserver", "matrix.org", "Matrix homeserver for
 var url = pflag.String("url", "https://nixpkgs-update-logs.nix-community.org/", "Webpage with logs")
 var filename = pflag.String("db", "data.db", "Path to the DB file")
 var config = pflag.String("config", "config.toml", "Config file")
+var username = pflag.String("username", "", "Matrix bot username")
 
 func main() {
 	pflag.Parse()
@@ -35,7 +38,6 @@ func main() {
 			panic(err)
 		}
 	}
-
 	db, err := sql.Open("sqlite3", fmt.Sprintf("%s?_journal_mode=WAL&_synchronous=NORMAL", viper.GetString("db")))
 	if err != nil {
 		panic(err)
@@ -58,7 +60,19 @@ func main() {
 		// colly.AllowURLRevisit(),
 	)
 
+	var client *mautrix.Client
+	if viper.GetBool("matrix.enabled") {
+		client = setupMatrix()
+	} else {
+		client = &mautrix.Client{}
+	}
+
 	fmt.Println("Initialized")
+
+	startParse(c, db, client)
+}
+
+func startParse(c *colly.Collector, db *sql.DB, client *mautrix.Client) {
 
 	// c.OnRequest(func(r *colly.Request) {
 	// 	fmt.Println("Visiting", r.URL.String())
@@ -81,7 +95,7 @@ func main() {
 		// - download file
 		// - grep for failure
 		if match {
-			visitLog(link, e, db)
+			visitLog(link, e, db, client)
 		} else {
 			c.Visit(e.Request.AbsoluteURL(link))
 		}
@@ -93,8 +107,7 @@ func main() {
 
 	c.Visit(viper.GetString("url"))
 }
-
-func visitLog(link string, e *colly.HTMLElement, db *sql.DB) {
+func visitLog(link string, e *colly.HTMLElement, db *sql.DB, client *mautrix.Client) {
 	fullpath := e.Request.AbsoluteURL(link)
 	components := strings.Split(fullpath, "/")
 	pkg := components[len(components)-2]
@@ -106,6 +119,8 @@ func visitLog(link string, e *colly.HTMLElement, db *sql.DB) {
 	if err != nil {
 		panic(err)
 	}
+	defer statement.Close()
+
 	err = statement.QueryRow(pkg, date).Scan(&count)
 	if err != nil {
 		panic(err)
@@ -129,12 +144,25 @@ func visitLog(link string, e *colly.HTMLElement, db *sql.DB) {
 
 	var hasError bool
 	if strings.Contains(string(body[:]), "error") {
-		// fmt.Printf("> error found for link %s\n", link)
 		hasError = true
-		// TODO notify everyone who subscribed
+		if viper.GetBool("matrix.enabled") {
+			// TODO: handle 429
+			_, err := client.SendText(context.TODO(), "!MenOKIzGKBfJIaUlTC:matrix.dapp.org.uk", fmt.Sprintf("logfile contains an error: %s", fullpath))
+			if err != nil {
+				panic(err)
+			}
+		} else {
+			fmt.Printf("> error found for link %s\n", link)
+		}
+
 	}
 	// we haven't seen this log yet, so add it to the list of seen ones
-	statement, _ = db.Prepare("INSERT INTO visited (package, date, error) VALUES (?, ?, ?)")
+	statement, err = db.Prepare("INSERT INTO visited (package, date, error) VALUES (?, ?, ?)")
+	if err != nil {
+		panic(err)
+	}
+	defer statement.Close()
+
 	_, err = statement.Exec(pkg, date, hasError)
 	if err != nil {
 		panic(err)
@@ -142,4 +170,24 @@ func visitLog(link string, e *colly.HTMLElement, db *sql.DB) {
 
 	time.Sleep(500 * time.Millisecond)
 
+}
+
+func setupMatrix() *mautrix.Client {
+	client, err := mautrix.NewClient(viper.GetString("homeserver"), "", "")
+	if err != nil {
+		panic(err)
+	}
+
+	_, err = client.Login(context.TODO(), &mautrix.ReqLogin{
+		Type:               mautrix.AuthTypePassword,
+		Identifier:         mautrix.UserIdentifier{Type: mautrix.IdentifierTypeUser, User: viper.GetString("matrix.username")},
+		Password:           viper.GetString("matrix.password"),
+		StoreCredentials:   true,
+		StoreHomeserverURL: true,
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	return client
 }
