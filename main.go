@@ -162,7 +162,7 @@ func visitLog(link string, e *colly.HTMLElement, db *sql.DB, client *mautrix.Cli
 				panic(err)
 			}
 		} else {
-			fmt.Printf("> error found for link %s\n", link)
+			fmt.Printf("> error found for link %s\n", fullpath)
 		}
 
 	}
@@ -198,6 +198,21 @@ func setupMatrix() *mautrix.Client {
 	if err != nil {
 		panic(err)
 	}
+
+	syncer := mautrix.NewDefaultSyncer()
+	syncer.OnEventType(event.EventMessage, func(ctx context.Context, evt *event.Event) {
+		msg := evt.Content.AsMessage().Body
+		sender := evt.Sender.String()
+
+		fmt.Printf("rcv: %s; from: %s\n", msg, sender)
+	})
+	syncer.OnEventType(event.EventEncrypted, func(ctx context.Context, evt *event.Event) {
+		msg := evt.Content.AsMessage().Body
+		sender := evt.Sender.String()
+
+		fmt.Printf("rcv(enc): %s; from: %s\n", msg, sender)
+	})
+	client.Syncer = syncer
 
 	return client
 }
