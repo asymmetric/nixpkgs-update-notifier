@@ -42,9 +42,9 @@ func main() {
 		// colly.AllowURLRevisit(),
 	)
 
-	c.OnRequest(func(r *colly.Request) {
-		fmt.Println("Visiting", r.URL.String())
-	})
+	// c.OnRequest(func(r *colly.Request) {
+	// 	fmt.Println("Visiting", r.URL.String())
+	// })
 	c.OnHTML("a[href]", func(e *colly.HTMLElement) {
 		link := e.Attr("href")
 
@@ -58,18 +58,16 @@ func main() {
 			panic(err)
 		}
 
-		fullpath := e.Request.AbsoluteURL(link)
-		components := strings.Split(fullpath, "/")
-		pkg := components[len(components)-2]
-		date := strings.Trim(components[len(components)-1], ".log")
-		fmt.Printf("pkg: %s; date: %s\n", pkg, date)
-
 		// if it's a link to a log file:
 		// - did we already know this file?
 		// - download file
 		// - grep for failure
 		if match {
-			fmt.Printf("log file: %s\n", fullpath)
+			fullpath := e.Request.AbsoluteURL(link)
+			components := strings.Split(fullpath, "/")
+			pkg := components[len(components)-2]
+			date := strings.Trim(components[len(components)-1], ".log")
+			fmt.Printf("pkg: %s; date: %s\n", pkg, date)
 
 			var count int
 			statement, err := db.Prepare("SELECT COUNT(*) FROM visited where package = ? AND date = ?")
@@ -82,7 +80,7 @@ func main() {
 			}
 			// we've found this log already, skip next steps
 			if count == 1 {
-				fmt.Printf("  link already there: %s\n", fullpath)
+				fmt.Printf("  log already there: %s\n", fullpath)
 				return
 			}
 
@@ -99,13 +97,10 @@ func main() {
 
 			var hasError bool
 			if strings.Contains(string(body[:]), "error") {
-				fmt.Printf("> error found for link %s", link)
+				// fmt.Printf("> error found for link %s\n", link)
 				hasError = true
 				// TODO notify everyone who subscribed
-			} else {
-				fmt.Printf("< error not found for link %s", link)
 			}
-
 			// we haven't seen this log yet, so add it to the list of seen ones
 			statement, _ = db.Prepare("INSERT INTO visited (package, date, error) VALUES (?, ?, ?)")
 			_, err = statement.Exec(pkg, date, hasError)
@@ -115,6 +110,7 @@ func main() {
 
 		}
 
+		// fmt.Printf("about to visit %s\n", e.Request.AbsoluteURL(link))
 		c.Visit(e.Request.AbsoluteURL(link))
 	})
 
