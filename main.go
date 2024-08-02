@@ -55,7 +55,7 @@ func main() {
 	}
 
 	c := colly.NewCollector(
-		colly.UserAgent("asymmetric"),
+		colly.UserAgent("github.com/asymmetric/nixpkgs-update-notifier"),
 		// colly.AllowedDomains(url),
 		// colly.AllowURLRevisit(),
 	)

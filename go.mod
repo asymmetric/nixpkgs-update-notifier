@@ -1,4 +1,4 @@
-module github.com/asymmetric/nixpkgs-update-notify
+module github.com/asymmetric/nixpkgs-update-notifier
 
 go 1.22.3
 

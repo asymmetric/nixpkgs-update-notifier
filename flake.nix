@@ -1,5 +1,5 @@
 {
-  description = "A simple Go package";
+  description = "nixpkgs-update-notifier flake";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.05";
 
@@ -31,7 +31,7 @@
         in
         {
           go-hello = pkgs.buildGoModule {
-            pname = "go-hello";
+            pname = "nixpkgs-update-notify-notifier";
             inherit version;
             # In 'nix develop', we don't need a copy of the source tree
             # in the Nix store.
