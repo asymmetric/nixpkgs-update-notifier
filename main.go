@@ -11,16 +11,32 @@ import (
 	"io"
 
 	"github.com/gocolly/colly"
+	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
 
 	_ "github.com/mattn/go-sqlite3"
 )
 
-func main() {
-	fmt.Println("Hello Nix!")
-	url := "https://nixpkgs-update-logs.nix-community.org/"
-	filename := "data.db"
+var homeserver = pflag.String("homeserver", "matrix.org", "Matrix homeserver for the bot account")
+var url = pflag.String("url", "https://nixpkgs-update-logs.nix-community.org/", "Webpage with logs")
+var filename = pflag.String("db", "data.db", "Path to the DB file")
+var config = pflag.String("config", "config.toml", "Config file")
 
-	db, err := sql.Open("sqlite3", fmt.Sprintf("%s?_journal_mode=WAL&_synchronous=NORMAL", filename))
+func main() {
+	pflag.Parse()
+	viper.BindPFlags(pflag.CommandLine)
+
+	viper.SetConfigFile(*config)
+	if err := viper.ReadInConfig(); err != nil {
+		// FIXME: broken if file missing
+		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+			fmt.Println("config file not found, using defaults")
+		} else {
+			panic(err)
+		}
+	}
+
+	db, err := sql.Open("sqlite3", fmt.Sprintf("%s?_journal_mode=WAL&_synchronous=NORMAL", viper.GetString("db")))
 	if err != nil {
 		panic(err)
 	}
@@ -41,6 +57,8 @@ func main() {
 		// colly.AllowedDomains(url),
 		// colly.AllowURLRevisit(),
 	)
+
+	fmt.Println("Initialized")
 
 	// c.OnRequest(func(r *colly.Request) {
 	// 	fmt.Println("Visiting", r.URL.String())
@@ -73,7 +91,7 @@ func main() {
 		fmt.Println("Request URL:", r.Request.URL, "failed with response:", r, "\nError:", err)
 	})
 
-	c.Visit(url)
+	c.Visit(viper.GetString("url"))
 }
 
 func visitLog(link string, e *colly.HTMLElement, db *sql.DB) {
