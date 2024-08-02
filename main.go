@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"time"
 
 	"io"
 
@@ -120,5 +121,7 @@ func visitLog(link string, e *colly.HTMLElement, db *sql.DB) {
 	if err != nil {
 		panic(err)
 	}
+
+	time.Sleep(500 * time.Millisecond)
 
 }
