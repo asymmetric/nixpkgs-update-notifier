@@ -30,8 +30,7 @@ func main() {
 		panic(err)
 	}
 
-	statement, _ := db.Prepare("CREATE TABLE IF NOT EXISTS visited (id INTEGER PRIMARY KEY, package TEXT, date TEXT, error INTEGER) STRICT")
-	_, err = statement.Exec()
+	_, err = db.Exec("CREATE TABLE IF NOT EXISTS visited (id INTEGER PRIMARY KEY, package TEXT, date TEXT, error INTEGER) STRICT")
 	if err != nil {
 		panic(err)
 	}
