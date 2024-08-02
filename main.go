@@ -12,11 +12,9 @@ import (
 	"io"
 
 	"github.com/gocolly/colly"
-	"github.com/gocolly/colly/queue"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	"maunium.net/go/mautrix"
-	"maunium.net/go/mautrix/event"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -62,11 +60,6 @@ func main() {
 		// colly.AllowURLRevisit(),
 	)
 
-	q, err := queue.New(1, nil)
-	if err != nil {
-		panic(err)
-	}
-
 	var client *mautrix.Client
 	if viper.GetBool("matrix.enabled") {
 		client = setupMatrix()
@@ -76,13 +69,10 @@ func main() {
 
 	fmt.Println("Initialized")
 
-	startParse(c, q, db, client)
-
-	// this is blocking
-	q.Run(c)
+	startParse(c, db, client)
 }
 
-func startParse(c *colly.Collector, q *queue.Queue, db *sql.DB, client *mautrix.Client) {
+func startParse(c *colly.Collector, db *sql.DB, client *mautrix.Client) {
 
 	// c.OnRequest(func(r *colly.Request) {
 	// 	fmt.Println("Visiting", r.URL.String())
@@ -107,7 +97,7 @@ func startParse(c *colly.Collector, q *queue.Queue, db *sql.DB, client *mautrix.
 		if match {
 			visitLog(link, e, db, client)
 		} else {
-			q.AddURL(e.Request.AbsoluteURL(link))
+			c.Visit(e.Request.AbsoluteURL(link))
 		}
 	})
 
@@ -115,7 +105,7 @@ func startParse(c *colly.Collector, q *queue.Queue, db *sql.DB, client *mautrix.
 		fmt.Println("Request URL:", r.Request.URL, "failed with response:", r, "\nError:", err)
 	})
 
-	q.AddURL(viper.GetString("url"))
+	c.Visit(viper.GetString("url"))
 }
 func visitLog(link string, e *colly.HTMLElement, db *sql.DB, client *mautrix.Client) {
 	fullpath := e.Request.AbsoluteURL(link)
