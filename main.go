@@ -3,11 +3,11 @@ package main
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"net/http"
 	"regexp"
 	"strings"
-	"time"
 
 	"io"
 
@@ -15,6 +15,7 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	"maunium.net/go/mautrix"
+	"maunium.net/go/mautrix/event"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -38,7 +39,7 @@ func main() {
 			panic(err)
 		}
 	}
-	db, err := sql.Open("sqlite3", fmt.Sprintf("%s?_journal_mode=WAL&_synchronous=NORMAL", viper.GetString("db")))
+	db, err := sql.Open("sqlite3", fmt.Sprintf("%s?_journal_mode=WAL&_synchronous=NORMAL&_foreign_keys=true", viper.GetString("db")))
 	if err != nil {
 		panic(err)
 	}
@@ -49,7 +50,16 @@ func main() {
 		panic(err)
 	}
 
-	_, err = db.Exec("CREATE TABLE IF NOT EXISTS visited (id INTEGER PRIMARY KEY, package TEXT, date TEXT, error INTEGER) STRICT")
+	_, err = db.Exec("CREATE TABLE IF NOT EXISTS packages (id INTEGER PRIMARY KEY, name TEXT UNIQUE) STRICT")
+	if err != nil {
+		panic(err)
+	}
+	_, err = db.Exec("CREATE TABLE IF NOT EXISTS visited (id INTEGER PRIMARY KEY, pkgid INTEGER, date TEXT, error INTEGER, UNIQUE(pkgid, date) FOREIGN KEY(pkgid) REFERENCES packages(id)) STRICT")
+	if err != nil {
+		panic(err)
+	}
+
+	_, err = db.Exec("CREATE TABLE IF NOT EXISTS subscriptions (id INTEGER PRIMARY KEY, mxid TEXT, pkgid INTEGER, UNIQUE(mxid, pkgid), FOREIGN KEY(pkgid) REFERENCES packages(id)) STRICT")
 	if err != nil {
 		panic(err)
 	}
@@ -110,18 +120,50 @@ func startParse(c *colly.Collector, db *sql.DB, client *mautrix.Client) {
 func visitLog(link string, e *colly.HTMLElement, db *sql.DB, client *mautrix.Client) {
 	fullpath := e.Request.AbsoluteURL(link)
 	components := strings.Split(fullpath, "/")
-	pkg := components[len(components)-2]
+	pkgName := components[len(components)-2]
 	date := strings.Trim(components[len(components)-1], ".log")
-	fmt.Printf("pkg: %s; date: %s\n", pkg, date)
+	fmt.Printf("pkg: %s; date: %s\n", pkgName, date)
 
-	var count int
-	statement, err := db.Prepare("SELECT COUNT(*) FROM visited where package = ? AND date = ?")
+	// pkgName -> pkgID
+	var pkgID int64
+	statement, err := db.Prepare("SELECT id from packages WHERE name = ?")
 	if err != nil {
 		panic(err)
 	}
 	defer statement.Close()
 
-	err = statement.QueryRow(pkg, date).Scan(&count)
+	err = statement.QueryRow(pkgName).Scan(&pkgID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			fmt.Printf("package %s not there yet, inserting\n", pkgName)
+			statement, err := db.Prepare("INSERT INTO packages(name) VALUES (?)")
+			if err != nil {
+				panic(err)
+			}
+
+			result, err := statement.Exec(pkgName)
+			if err != nil {
+				panic(err)
+			}
+			pkgID, err = result.LastInsertId()
+			if err != nil {
+				panic(err)
+			}
+
+		} else {
+			panic(err)
+		}
+	}
+
+	var count int
+	// TODO: use SELECT 1 here instead
+	statement, err = db.Prepare("SELECT COUNT(*) FROM visited where pkgid = ? AND date = ?")
+	if err != nil {
+		panic(err)
+	}
+	defer statement.Close()
+
+	err = statement.QueryRow(pkgName, date).Scan(&count)
 	if err != nil {
 		panic(err)
 	}
@@ -142,6 +184,7 @@ func visitLog(link string, e *colly.HTMLElement, db *sql.DB, client *mautrix.Cli
 		panic(err)
 	}
 
+	// check for error in logs
 	var hasError bool
 	if strings.Contains(string(body[:]), "error") {
 		hasError = true
@@ -156,19 +199,20 @@ func visitLog(link string, e *colly.HTMLElement, db *sql.DB, client *mautrix.Cli
 		}
 
 	}
+
 	// we haven't seen this log yet, so add it to the list of seen ones
-	statement, err = db.Prepare("INSERT INTO visited (package, date, error) VALUES (?, ?, ?)")
+	statement, err = db.Prepare("INSERT INTO visited (pkgid, date, error) VALUES (?, ?, ?)")
 	if err != nil {
 		panic(err)
 	}
 	defer statement.Close()
 
-	_, err = statement.Exec(pkg, date, hasError)
+	_, err = statement.Exec(pkgID, date, hasError)
 	if err != nil {
 		panic(err)
 	}
 
-	time.Sleep(500 * time.Millisecond)
+	// time.Sleep(500 * time.Millisecond)
 
 }
 
