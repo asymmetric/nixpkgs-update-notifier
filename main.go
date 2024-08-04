@@ -163,10 +163,11 @@ func visitLog(link string, e *colly.HTMLElement, db *sql.DB, client *mautrix.Cli
 	}
 	defer statement.Close()
 
-	err = statement.QueryRow(pkgName, date).Scan(&count)
+	err = statement.QueryRow(pkgID, date).Scan(&count)
 	if err != nil {
 		panic(err)
 	}
+
 	// we've found this log already, skip next steps
 	if count == 1 {
 		fmt.Println("  skipping")
