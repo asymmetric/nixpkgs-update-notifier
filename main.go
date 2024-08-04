@@ -156,7 +156,7 @@ func visitLog(link string, e *colly.HTMLElement, db *sql.DB, client *mautrix.Cli
 	}
 
 	var count int
-	// TODO: use SELECT 1 here instead
+	// TODO: use SELECT 1 here instead? no because it can return zero rows when not found
 	statement, err = db.Prepare("SELECT COUNT(*) FROM visited where pkgid = ? AND date = ?")
 	if err != nil {
 		panic(err)
