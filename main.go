@@ -6,14 +6,16 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	u "net/url"
 	"regexp"
 	"strings"
+	"time"
 
 	"io"
 
-	"github.com/gocolly/colly"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
+	"golang.org/x/net/html"
 	"maunium.net/go/mautrix"
 	"maunium.net/go/mautrix/event"
 
@@ -21,10 +23,11 @@ import (
 )
 
 var homeserver = pflag.String("homeserver", "matrix.org", "Matrix homeserver for the bot account")
-var url = pflag.String("url", "https://nixpkgs-update-logs.nix-community.org/", "Webpage with logs")
+var url = pflag.String("url", "https://nixpkgs-update-logs.nix-community.org", "Webpage with logs")
 var filename = pflag.String("db", "data.db", "Path to the DB file")
 var config = pflag.String("config", "config.toml", "Config file")
 var username = pflag.String("username", "", "Matrix bot username")
+var delay = pflag.Duration("delay", 24*time.Hour, "How often to check url")
 
 func main() {
 	pflag.Parse()
@@ -54,7 +57,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	_, err = db.Exec("CREATE TABLE IF NOT EXISTS visited (id INTEGER PRIMARY KEY, pkgid INTEGER, date TEXT, error INTEGER, UNIQUE(pkgid, date) FOREIGN KEY(pkgid) REFERENCES packages(id)) STRICT")
+	_, err = db.Exec("CREATE TABLE IF NOT EXISTS visited (id INTEGER PRIMARY KEY, pkgid INTEGER, date TEXT, error INTEGER, UNIQUE(pkgid, date), FOREIGN KEY(pkgid) REFERENCES packages(id)) STRICT")
 	if err != nil {
 		panic(err)
 	}
@@ -64,62 +67,105 @@ func main() {
 		panic(err)
 	}
 
-	c := colly.NewCollector(
-		colly.UserAgent("github.com/asymmetric/nixpkgs-update-notifier"),
-		// colly.AllowedDomains(url),
-		// colly.AllowURLRevisit(),
-	)
-
-	var client *mautrix.Client
-	if viper.GetBool("matrix.enabled") {
-		client = setupMatrix()
-	} else {
-		client = &mautrix.Client{}
-	}
+	c := setupMatrix()
 
 	fmt.Println("Initialized")
 
-	startParse(c, db, client)
+	chURL := make(chan string)
+	chFetch := make(chan bool)
+	chSync := make(chan bool)
+
+	// fetch main page
+	// - add each link to the queue
+	// enter infinite loop, block on queue
+	// wake on new item in queue
+	// item can be:
+	// - new url to parse
+	//   - if it's a non-log link, visit it and then add all log-links to the queue
+	//   - if it's a log-link, download log, check for errors, insert into db accordingly
+	// - fetch main page
+	// - new sub
+	// - new broken package, send to subbers
+	// go scrapeLinks(viper.GetString("url"), chURL)
+
+	go fetchMain(viper.GetString("url"), chURL, chFetch)
+
+	for {
+		select {
+		case url := <-chURL:
+			fmt.Printf("got url on chan: %s\n", url)
+			logLink, err := regexp.MatchString(`\.log$`, url)
+			if err != nil {
+				panic(err)
+			}
+
+			if logLink {
+				// parse link
+				// is it error?
+				visitLog(url, db, c)
+			} else {
+				go scrapeLinks(url, chURL)
+			}
+		case <-chFetch:
+			go fetchMain(viper.GetString("url"), chURL, chFetch)
+		case <-chSync:
+			// sync to matrix
+		}
+	}
 }
 
-func startParse(c *colly.Collector, db *sql.DB, client *mautrix.Client) {
+func fetchMain(url string, chURL chan<- string, chFetch chan<- bool) {
+	scrapeLinks(url, chURL)
 
-	// c.OnRequest(func(r *colly.Request) {
-	// 	fmt.Println("Visiting", r.URL.String())
-	// })
-	c.OnHTML("a[href]", func(e *colly.HTMLElement) {
-		link := e.Attr("href")
+	time.Sleep(viper.GetDuration("delay"))
 
-		if link == "../" {
-			// fmt.Println("ignoring parent link")
+	chFetch <- true
+}
+
+// fetches the HTML at a `url`, then iterates over <a> elements adding all links to channel `ch`
+func scrapeLinks(url string, ch chan<- string) {
+	parsedURL, err := u.Parse(url)
+	if err != nil {
+		panic(err)
+	}
+	resp, err := http.Get(parsedURL.String())
+	if err != nil {
+		panic(err)
+	}
+	defer resp.Body.Close()
+
+	r := io.Reader(resp.Body)
+	z := html.NewTokenizer(r)
+
+	for {
+		tt := z.Next()
+
+		switch tt {
+		case html.ErrorToken:
+			// done
+			fmt.Println("done parsing")
 			return
+		case html.StartTagToken:
+			t := z.Token()
+
+			isAnchor := t.Data == "a"
+			if isAnchor {
+				for _, a := range t.Attr {
+					if a.Key == "href" && a.Val != "../" {
+						fullURL := parsedURL.JoinPath(a.Val)
+						fmt.Printf("parsed url: %s\n", fullURL)
+						// add link to queue
+						ch <- fullURL.String()
+						break
+					}
+				}
+			}
 		}
-
-		match, err := regexp.MatchString(`\.log$`, link)
-		if err != nil {
-			panic(err)
-		}
-
-		// if it's a link to a log file:
-		// - did we already know this file?
-		// - download file
-		// - grep for failure
-		if match {
-			visitLog(link, e, db, client)
-		} else {
-			c.Visit(e.Request.AbsoluteURL(link))
-		}
-	})
-
-	c.OnError(func(r *colly.Response, err error) {
-		fmt.Println("Request URL:", r.Request.URL, "failed with response:", r, "\nError:", err)
-	})
-
-	c.Visit(viper.GetString("url"))
+	}
 }
-func visitLog(link string, e *colly.HTMLElement, db *sql.DB, client *mautrix.Client) {
-	fullpath := e.Request.AbsoluteURL(link)
-	components := strings.Split(fullpath, "/")
+
+func visitLog(url string, db *sql.DB, client *mautrix.Client) {
+	components := strings.Split(url, "/")
 	pkgName := components[len(components)-2]
 	date := strings.Trim(components[len(components)-1], ".log")
 	fmt.Printf("pkg: %s; date: %s\n", pkgName, date)
@@ -174,7 +220,7 @@ func visitLog(link string, e *colly.HTMLElement, db *sql.DB, client *mautrix.Cli
 		return
 	}
 
-	resp, err := http.Get(e.Request.AbsoluteURL(link))
+	resp, err := http.Get(url)
 	if err != nil {
 		panic(err)
 	}
@@ -191,12 +237,12 @@ func visitLog(link string, e *colly.HTMLElement, db *sql.DB, client *mautrix.Cli
 		hasError = true
 		if viper.GetBool("matrix.enabled") {
 			// TODO: handle 429
-			_, err := client.SendText(context.TODO(), "!MenOKIzGKBfJIaUlTC:matrix.dapp.org.uk", fmt.Sprintf("logfile contains an error: %s", fullpath))
+			_, err := client.SendText(context.TODO(), "!MenOKIzGKBfJIaUlTC:matrix.dapp.org.uk", fmt.Sprintf("logfile contains an error: %s", url))
 			if err != nil {
 				panic(err)
 			}
 		} else {
-			fmt.Printf("> error found for link %s\n", fullpath)
+			fmt.Printf("> error found for link %s\n", url)
 		}
 
 	}
