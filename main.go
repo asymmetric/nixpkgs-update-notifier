@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"errors"
@@ -67,12 +68,20 @@ func main() {
 		panic(err)
 	}
 
+	// TODO: this should not run if matrix is disabled
 	c := setupMatrix()
 
-	fmt.Println("Initialized")
+	if viper.GetBool("matrix.enabled") {
+		go func() {
+			if err := c.Sync(); err != nil {
+				// TODO: recover from errors rather than panicking
+				panic(err)
+			}
+		}()
+	}
 
-	chURL := make(chan string)
-	chFetch := make(chan bool)
+	ch := make(chan string)
+	ticker := time.NewTicker(viper.GetDuration("delay"))
 	chSync := make(chan bool)
 
 	// fetch main page
@@ -86,56 +95,64 @@ func main() {
 	// - fetch main page
 	// - new sub
 	// - new broken package, send to subbers
-	// go scrapeLinks(viper.GetString("url"), chURL)
 
-	go fetchMain(viper.GetString("url"), chURL, chFetch)
+	// perf-opt: compile regex
+	re, err := regexp.Compile(`\.log$`)
+	if err != nil {
+		panic(err)
+	}
+
+	hCli := &http.Client{
+		Transport: &http.Transport{
+			TLSHandshakeTimeout: 30 * time.Second,
+			// TODO: does this do anyting?
+			MaxConnsPerHost: 5,
+		},
+	}
+	fmt.Println("Initialized")
+
+	// visit main page to send links to channel
+	go scrapeLinks(viper.GetString("url"), ch, hCli)
 
 	for {
 		select {
-		case url := <-chURL:
-			fmt.Printf("got url on chan: %s\n", url)
-			logLink, err := regexp.MatchString(`\.log$`, url)
-			if err != nil {
-				panic(err)
-			}
+		case url := <-ch:
+			logLink := re.MatchString(url)
 
 			if logLink {
-				// parse link
-				// is it error?
-				visitLog(url, db, c)
+				// TODO make async? probably not as it accesses db
+				fmt.Printf("found link: %s\n", url)
+				visitLog(url, db, c, hCli)
 			} else {
-				go scrapeLinks(url, chURL)
+				fmt.Printf("scraping link: %s\n", url)
+				go scrapeLinks(url, ch, hCli)
 			}
-		case <-chFetch:
-			go fetchMain(viper.GetString("url"), chURL, chFetch)
+		case <-ticker.C:
+			fmt.Println(">>> ticker")
+			go scrapeLinks(viper.GetString("url"), ch, hCli)
 		case <-chSync:
 			// sync to matrix
 		}
 	}
 }
 
-func fetchMain(url string, chURL chan<- string, chFetch chan<- bool) {
-	scrapeLinks(url, chURL)
-
-	time.Sleep(viper.GetDuration("delay"))
-
-	chFetch <- true
-}
-
 // fetches the HTML at a `url`, then iterates over <a> elements adding all links to channel `ch`
-func scrapeLinks(url string, ch chan<- string) {
+func scrapeLinks(url string, ch chan<- string, hCli *http.Client) {
 	parsedURL, err := u.Parse(url)
 	if err != nil {
 		panic(err)
 	}
-	resp, err := http.Get(parsedURL.String())
+	resp, err := hCli.Get(parsedURL.String())
 	if err != nil {
 		panic(err)
 	}
 	defer resp.Body.Close()
 
-	r := io.Reader(resp.Body)
-	z := html.NewTokenizer(r)
+	r, err := io.ReadAll(resp.Body)
+	if err != nil {
+		panic(err)
+	}
+	z := html.NewTokenizer(bytes.NewReader(r))
 
 	for {
 		tt := z.Next()
@@ -143,7 +160,6 @@ func scrapeLinks(url string, ch chan<- string) {
 		switch tt {
 		case html.ErrorToken:
 			// done
-			fmt.Println("done parsing")
 			return
 		case html.StartTagToken:
 			t := z.Token()
@@ -153,7 +169,8 @@ func scrapeLinks(url string, ch chan<- string) {
 				for _, a := range t.Attr {
 					if a.Key == "href" && a.Val != "../" {
 						fullURL := parsedURL.JoinPath(a.Val)
-						fmt.Printf("parsed url: %s\n", fullURL)
+						// fmt.Printf("parsed url: %s\n", fullURL)
+
 						// add link to queue
 						ch <- fullURL.String()
 						break
@@ -164,7 +181,7 @@ func scrapeLinks(url string, ch chan<- string) {
 	}
 }
 
-func visitLog(url string, db *sql.DB, client *mautrix.Client) {
+func visitLog(url string, db *sql.DB, mCli *mautrix.Client, hCli *http.Client) {
 	components := strings.Split(url, "/")
 	pkgName := components[len(components)-2]
 	date := strings.Trim(components[len(components)-1], ".log")
@@ -220,7 +237,7 @@ func visitLog(url string, db *sql.DB, client *mautrix.Client) {
 		return
 	}
 
-	resp, err := http.Get(url)
+	resp, err := hCli.Get(url)
 	if err != nil {
 		panic(err)
 	}
@@ -237,7 +254,7 @@ func visitLog(url string, db *sql.DB, client *mautrix.Client) {
 		hasError = true
 		if viper.GetBool("matrix.enabled") {
 			// TODO: handle 429
-			_, err := client.SendText(context.TODO(), "!MenOKIzGKBfJIaUlTC:matrix.dapp.org.uk", fmt.Sprintf("logfile contains an error: %s", url))
+			_, err := mCli.SendText(context.TODO(), "!MenOKIzGKBfJIaUlTC:matrix.dapp.org.uk", fmt.Sprintf("logfile contains an error: %s", url))
 			if err != nil {
 				panic(err)
 			}
@@ -245,6 +262,8 @@ func visitLog(url string, db *sql.DB, client *mautrix.Client) {
 			fmt.Printf("> error found for link %s\n", url)
 		}
 
+	} else {
+		fmt.Printf("no error for link %s\n", url)
 	}
 
 	// we haven't seen this log yet, so add it to the list of seen ones
