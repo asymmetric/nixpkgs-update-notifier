@@ -6,8 +6,10 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	u "net/url"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -29,6 +31,7 @@ var filename = pflag.String("db", "data.db", "Path to the DB file")
 var config = pflag.String("config", "config.toml", "Config file")
 var username = pflag.String("username", "", "Matrix bot username")
 var delay = pflag.Duration("delay", 24*time.Hour, "How often to check url")
+var debug = pflag.Bool("debug", false, "Enable debug logging")
 
 func main() {
 	pflag.Parse()
@@ -43,6 +46,15 @@ func main() {
 			panic(err)
 		}
 	}
+
+	if viper.GetBool("debug") {
+		opts := &slog.HandlerOptions{
+			Level: slog.LevelDebug,
+		}
+		h := slog.NewTextHandler(os.Stderr, opts)
+		slog.SetDefault(slog.New(h))
+	}
+
 	db, err := sql.Open("sqlite3", fmt.Sprintf("%s?_journal_mode=WAL&_synchronous=NORMAL&_foreign_keys=true", viper.GetString("db")))
 	if err != nil {
 		panic(err)
@@ -82,6 +94,7 @@ func main() {
 
 	ch := make(chan string)
 	ticker := time.NewTicker(viper.GetDuration("delay"))
+	slog.Debug("delay set", "value", viper.GetDuration("delay"))
 	chSync := make(chan bool)
 
 	// fetch main page
@@ -109,7 +122,7 @@ func main() {
 			MaxConnsPerHost: 5,
 		},
 	}
-	fmt.Println("Initialized")
+	slog.Info("Initialized")
 
 	// visit main page to send links to channel
 	go scrapeLinks(viper.GetString("url"), ch, hCli)
@@ -121,14 +134,14 @@ func main() {
 
 			if logLink {
 				// TODO make async? probably not as it accesses db
-				fmt.Printf("found link: %s\n", url)
+				slog.Debug("found link", "url", url)
 				visitLog(url, db, c, hCli)
 			} else {
-				fmt.Printf("scraping link: %s\n", url)
+				slog.Debug("scraping link", "url", url)
 				go scrapeLinks(url, ch, hCli)
 			}
 		case <-ticker.C:
-			fmt.Println(">>> ticker")
+			slog.Debug(">>> ticker")
 			go scrapeLinks(viper.GetString("url"), ch, hCli)
 		case <-chSync:
 			// sync to matrix
@@ -154,12 +167,18 @@ func scrapeLinks(url string, ch chan<- string, hCli *http.Client) {
 	}
 	z := html.NewTokenizer(bytes.NewReader(r))
 
+	re, err := regexp.Compile("^~")
+	if err != nil {
+		panic(err)
+	}
+
 	for {
 		tt := z.Next()
 
 		switch tt {
 		case html.ErrorToken:
 			// done
+			slog.Debug("done parsing")
 			return
 		case html.StartTagToken:
 			t := z.Token()
@@ -167,9 +186,10 @@ func scrapeLinks(url string, ch chan<- string, hCli *http.Client) {
 			isAnchor := t.Data == "a"
 			if isAnchor {
 				for _, a := range t.Attr {
-					if a.Key == "href" && a.Val != "../" {
+					// TODO: skip ~ links
+					if a.Key == "href" && a.Val != "../" && !re.MatchString(a.Val) {
 						fullURL := parsedURL.JoinPath(a.Val)
-						// fmt.Printf("parsed url: %s\n", fullURL)
+						slog.Debug("parsed", "url", fullURL.String())
 
 						// add link to queue
 						ch <- fullURL.String()
@@ -185,7 +205,7 @@ func visitLog(url string, db *sql.DB, mCli *mautrix.Client, hCli *http.Client) {
 	components := strings.Split(url, "/")
 	pkgName := components[len(components)-2]
 	date := strings.Trim(components[len(components)-1], ".log")
-	fmt.Printf("pkg: %s; date: %s\n", pkgName, date)
+	slog.Debug("log found", "pkg", pkgName, "date", date)
 
 	// pkgName -> pkgID
 	var pkgID int64
@@ -197,8 +217,9 @@ func visitLog(url string, db *sql.DB, mCli *mautrix.Client, hCli *http.Client) {
 
 	err = statement.QueryRow(pkgName).Scan(&pkgID)
 	if err != nil {
+		// Package did not exist in db, inserting
 		if errors.Is(err, sql.ErrNoRows) {
-			fmt.Printf("package %s not there yet, inserting\n", pkgName)
+			slog.Info("new package found", "pkg", pkgName)
 			statement, err := db.Prepare("INSERT INTO packages(name) VALUES (?)")
 			if err != nil {
 				panic(err)
@@ -233,7 +254,7 @@ func visitLog(url string, db *sql.DB, mCli *mautrix.Client, hCli *http.Client) {
 
 	// we've found this log already, skip next steps
 	if count == 1 {
-		fmt.Println("  skipping")
+		slog.Debug("  skipping")
 		return
 	}
 
@@ -250,8 +271,11 @@ func visitLog(url string, db *sql.DB, mCli *mautrix.Client, hCli *http.Client) {
 
 	// check for error in logs
 	var hasError bool
-	if strings.Contains(string(body[:]), "error") {
+	if bytes.Contains(body, []byte("error")) {
 		hasError = true
+
+		slog.Info("new log found", "err", true, "url", url)
+
 		if viper.GetBool("matrix.enabled") {
 			// TODO: handle 429
 			_, err := mCli.SendText(context.TODO(), "!MenOKIzGKBfJIaUlTC:matrix.dapp.org.uk", fmt.Sprintf("logfile contains an error: %s", url))
@@ -259,11 +283,9 @@ func visitLog(url string, db *sql.DB, mCli *mautrix.Client, hCli *http.Client) {
 				panic(err)
 			}
 		} else {
-			fmt.Printf("> error found for link %s\n", url)
 		}
-
 	} else {
-		fmt.Printf("no error for link %s\n", url)
+		slog.Info("new log found", "err", false, "url", url)
 	}
 
 	// we haven't seen this log yet, so add it to the list of seen ones
