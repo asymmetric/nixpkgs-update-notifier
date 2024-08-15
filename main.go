@@ -21,6 +21,7 @@ import (
 	"golang.org/x/net/html"
 	"maunium.net/go/mautrix"
 	"maunium.net/go/mautrix/event"
+	"maunium.net/go/mautrix/id"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -32,6 +33,12 @@ var config = pflag.String("config", "config.toml", "Config file")
 var username = pflag.String("username", "", "Matrix bot username")
 var delay = pflag.Duration("delay", 24*time.Hour, "How often to check url")
 var debug = pflag.Bool("debug", false, "Enable debug logging")
+var subRegexp = regexp.MustCompile(`sub(?:scribe) ([\w.]+)`)
+
+var helpText = `- **help**: show help
+- **sub foo.bar**: subscribe to package foo.bar
+`
+var eventID = "io.github.asymmetric"
 
 func main() {
 	pflag.Parse()
@@ -76,6 +83,11 @@ func main() {
 	}
 
 	_, err = db.Exec("CREATE TABLE IF NOT EXISTS subscriptions (id INTEGER PRIMARY KEY, mxid TEXT, pkgid INTEGER, UNIQUE(mxid, pkgid), FOREIGN KEY(pkgid) REFERENCES packages(id)) STRICT")
+	if err != nil {
+		panic(err)
+	}
+
+	_, err = db.Exec("CREATE TABLE IF NOT EXISTS matrix_sync_tokens (mxid TEXT PRIMARY KEY, sync_token TEXT NOT NULL) STRICT")
 	if err != nil {
 		panic(err)
 	}
@@ -201,6 +213,8 @@ func scrapeLinks(url string, ch chan<- string, hCli *http.Client) {
 	}
 }
 
+// TODO take URL instead, so we can split more reliably?
+// e.g. pkgName could be the first half of a split, the date the second
 func visitLog(url string, db *sql.DB, mCli *mautrix.Client, hCli *http.Client) {
 	components := strings.Split(url, "/")
 	pkgName := components[len(components)-2]
@@ -217,6 +231,8 @@ func visitLog(url string, db *sql.DB, mCli *mautrix.Client, hCli *http.Client) {
 
 	err = statement.QueryRow(pkgName).Scan(&pkgID)
 	if err != nil {
+		// TODO: move this to first pass, to simplify this code
+		// - as we add logs to queue, add missing packages to db
 		// Package did not exist in db, inserting
 		if errors.Is(err, sql.ErrNoRows) {
 			slog.Info("new package found", "pkg", pkgName)
@@ -247,6 +263,7 @@ func visitLog(url string, db *sql.DB, mCli *mautrix.Client, hCli *http.Client) {
 	}
 	defer statement.Close()
 
+	// TODO check for ErrNoRows here too?
 	err = statement.QueryRow(pkgID, date).Scan(&count)
 	if err != nil {
 		panic(err)
@@ -305,7 +322,7 @@ func visitLog(url string, db *sql.DB, mCli *mautrix.Client, hCli *http.Client) {
 }
 
 func setupMatrix() *mautrix.Client {
-	client, err := mautrix.NewClient(viper.GetString("homeserver"), "", "")
+	client, err := mautrix.NewClient(viper.GetString("matrix.homeserver"), "", "")
 	if err != nil {
 		panic(err)
 	}
@@ -322,18 +339,59 @@ func setupMatrix() *mautrix.Client {
 	}
 
 	syncer := mautrix.NewDefaultSyncer()
+	syncer.OnEventType(event.StateMember, func(ctx context.Context, evt *event.Event) {
+		m := evt.Content.AsMember()
+		switch m.Membership {
+		case event.MembershipInvite:
+			// TODO: only join if IsDirect is true, i.e. it's a DM
+			if _, err := client.JoinRoomByID(ctx, evt.RoomID); err != nil {
+				panic(err)
+			}
+
+			slog.Debug("joining room", "id", evt.RoomID)
+		case event.MembershipLeave:
+			if _, err := client.LeaveRoom(ctx, evt.RoomID); err != nil {
+				panic(err)
+			}
+
+			slog.Debug("leaving room", "id", evt.RoomID)
+		}
+	})
+
 	syncer.OnEventType(event.EventMessage, func(ctx context.Context, evt *event.Event) {
 		msg := evt.Content.AsMessage().Body
 		sender := evt.Sender.String()
 
-		fmt.Printf("rcv: %s; from: %s\n", msg, sender)
-	})
-	syncer.OnEventType(event.EventEncrypted, func(ctx context.Context, evt *event.Event) {
-		msg := evt.Content.AsMessage().Body
-		sender := evt.Sender.String()
+		if sender == fmt.Sprintf("@%s:%s", viper.GetString("matrix.username"), viper.GetString("matrix.homeserver")) {
+			slog.Debug("ignoring our own message", "msg", msg)
+			return
+		}
 
-		fmt.Printf("rcv(enc): %s; from: %s\n", msg, sender)
+		slog.Debug("received msg", "msg", msg, "sender", sender)
+
+		// TODO
+		// - last success/first fail
+		if matches := subRegexp.FindStringSubmatch(msg); matches != nil {
+			pkg := matches[1]
+			slog.Info("received sub", "pkg", pkg, "sender", sender)
+			// TOD
+		} else {
+			_, err := client.SendText(context.TODO(), evt.RoomID, helpText)
+			if err != nil {
+				panic(err)
+			}
+			slog.Debug("received help", "sender", sender)
+		}
 	})
+
+	syncer.FilterJSON = &mautrix.Filter{
+		AccountData: mautrix.FilterPart{
+			Limit: 20,
+			NotTypes: []event.Type{
+				event.NewEventType(eventID),
+			},
+		},
+	}
 	client.Syncer = syncer
 
 	return client
