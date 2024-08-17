@@ -527,7 +527,7 @@ func handleSubUnsub(matches []string, evt *event.Event) {
 		panic(err)
 	}
 	defer statement.Close()
-	if err := statement.QueryRow(rID).Scan(&c); err != nil {
+	if err := statement.QueryRow(rID, pkgID).Scan(&c); err != nil {
 		panic(err)
 	}
 	if c != 0 {
