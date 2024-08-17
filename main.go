@@ -34,12 +34,6 @@ var username = pflag.String("username", "", "Matrix bot username")
 var delay = pflag.Duration("delay", 24*time.Hour, "How often to check url")
 var debug = pflag.Bool("debug", false, "Enable debug logging")
 
-var subRegexp = regexp.MustCompile(`sub(?:scribe)? ([\w.]+)`)
-var helpText = `- **help**: show help
-- **sub foo.bar**: subscribe to package foo.bar
-`
-var eventID = "io.github.asymmetric"
-
 var client *mautrix.Client
 
 var db *sql.DB
@@ -361,6 +355,13 @@ func setupMatrix() *mautrix.Client {
 			slog.Debug("leaving room", "id", evt.RoomID)
 		}
 	})
+
+	// TODO handle error
+	subRegexp := regexp.MustCompile(`^(un)?sub(?:scribe)? ([\w.]+)$`)
+	helpText := `- **help**: show help
+- **sub foo.bar**: subscribe to package foo.bar
+`
+	subEventID := "io.github.nixpkgs-update-notifier.subscription"
 
 	syncer.OnEventType(event.EventMessage, func(ctx context.Context, evt *event.Event) {
 		msg := evt.Content.AsMessage().Body
