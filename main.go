@@ -292,9 +292,40 @@ func visitLog(url string, db *sql.DB, mCli *mautrix.Client, hCli *http.Client) {
 
 		if viper.GetBool("matrix.enabled") {
 			// TODO: handle 429
-			_, err := mCli.SendText(context.TODO(), "!MenOKIzGKBfJIaUlTC:matrix.dapp.org.uk", fmt.Sprintf("logfile contains an error: %s", url))
+
+			// - find all subscribers for package
+			// - send message in respective room
+			// - if we're not in that room, drop from db of subs?
+			statement, err = db.Prepare("SELECT roomid from subscriptions where pkgid = ?")
 			if err != nil {
 				panic(err)
+			}
+			defer statement.Close()
+
+			roomIDs := make([]string, 0)
+			rows, err := statement.Query(pkgID)
+			if err != nil {
+				panic(err)
+			}
+			defer rows.Close()
+
+			for rows.Next() {
+				var roomID string
+				if err := rows.Scan(&roomID); err != nil {
+					panic(err)
+				}
+				roomIDs = append(roomIDs, roomID)
+			}
+			if err := rows.Err(); err != nil {
+				panic(err)
+			}
+
+			for _, roomID := range roomIDs {
+				_, err := mCli.SendText(context.TODO(), id.RoomID(roomID), fmt.Sprintf("logfile contains an error: %s", url))
+				if err != nil {
+					// TODO check if we're not in room, in that case remove sub
+					panic(err)
+				}
 			}
 		} else {
 		}
@@ -347,11 +378,22 @@ func setupMatrix() *mautrix.Client {
 
 			slog.Debug("joining room", "id", evt.RoomID)
 		case event.MembershipLeave:
+			// remove subscription, then leave room
+			statement, err := db.Prepare("DELETE FROM subscriptions WHERE roomid = ?")
+			if err != nil {
+				panic(err)
+			}
+			if _, err = statement.Exec(evt.RoomID.String()); err != nil {
+				panic(err)
+			}
+
 			if _, err := client.LeaveRoom(ctx, evt.RoomID); err != nil {
 				panic(err)
 			}
 
 			slog.Debug("leaving room", "id", evt.RoomID)
+		default:
+			slog.Debug("received unhandled event", "type", event.StateMember, "content", evt.Content)
 		}
 	})
 
@@ -366,20 +408,21 @@ func setupMatrix() *mautrix.Client {
 		msg := evt.Content.AsMessage().Body
 		sender := evt.Sender.String()
 
+		slog.Debug("received msg", "msg", msg, "sender", sender)
+
 		if sender == fmt.Sprintf("@%s:%s", viper.GetString("matrix.username"), viper.GetString("matrix.homeserver")) {
 			slog.Debug("ignoring our own message", "msg", msg)
 			return
 		}
 
-		slog.Debug("received msg", "msg", msg, "sender", sender)
-
 		// TODO
+		// - unsub
 		// - last success/first fail
+
 		if matches := subRegexp.FindStringSubmatch(msg); matches != nil {
-			pkg := matches[1]
-			slog.Info("received sub", "pkg", pkg, "sender", sender)
-			// TOD
+			handleSubUnsub(matches, evt)
 		} else {
+			// anything else, so print help
 			_, err := client.SendText(context.TODO(), evt.RoomID, helpText)
 			if err != nil {
 				panic(err)
@@ -388,15 +431,81 @@ func setupMatrix() *mautrix.Client {
 		}
 	})
 
+	// NOTE: changing this will re-play all received Matrix messages
 	syncer.FilterJSON = &mautrix.Filter{
 		AccountData: mautrix.FilterPart{
 			Limit: 20,
 			NotTypes: []event.Type{
-				event.NewEventType(eventID),
+				event.NewEventType(subEventID),
 			},
 		},
 	}
 	client.Syncer = syncer
+	client.Store = mautrix.NewAccountDataStore(subEventID, client)
 
 	return client
+}
+
+func handleSubUnsub(matches []string, evt *event.Event) {
+	pkgName := matches[2]
+	rID := evt.RoomID
+
+	if matches[1] != "" {
+		slog.Info("received unsub", "pkg", pkgName, "sender", evt.Sender)
+		statement, err := db.Prepare("DELETE FROM subscriptions WHERE roomid = ?")
+		if err != nil {
+			panic(err)
+		}
+		if _, err = statement.Exec(rID); err != nil {
+			panic(err)
+		}
+
+		return
+	}
+
+	slog.Info("received sub", "pkg", pkgName, "sender", evt.Sender)
+
+	// TODO use JOIN?
+	var pkgID int
+	statement, err := db.Prepare("SELECT id FROM packages WHERE name = ?")
+	if err != nil {
+		panic(err)
+	}
+	defer statement.Close()
+	if err := statement.QueryRow(pkgName).Scan(&pkgID); err != nil {
+		panic(err)
+	}
+
+	// check if sub already exists
+	var c int
+	statement, err = db.Prepare("SELECT COUNT(*) FROM subscriptions WHERE roomid = ? AND pkgid = ?")
+	if err != nil {
+		panic(err)
+	}
+	defer statement.Close()
+	if err := statement.QueryRow(rID).Scan(&c); err != nil {
+		panic(err)
+	}
+	if c != 0 {
+		if _, err = client.SendText(context.TODO(), rID, "already subscribed"); err != nil {
+			panic(err)
+		}
+		return
+	}
+
+	slog.Debug("new sub", "roomid", rID, "pkgid", pkgID)
+
+	statement, err = db.Prepare("INSERT INTO subscriptions(roomid,pkgid) VALUES (?, ?)")
+	if err != nil {
+		panic(err)
+	}
+	if _, err = statement.Exec(evt.RoomID.String(), pkgID); err != nil {
+		panic(err)
+	}
+
+	// send confirmation message
+	if _, err = client.SendText(context.TODO(), evt.RoomID, "successfully subscribed"); err != nil {
+		panic(err)
+	}
+
 }
