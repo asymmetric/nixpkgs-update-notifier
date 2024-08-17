@@ -99,8 +99,8 @@ func main() {
 
 	ch := make(chan string)
 	ticker := time.NewTicker(viper.GetDuration("delay"))
+	optimizeTicker := time.NewTicker(24 * time.Hour)
 	slog.Debug("delay set", "value", viper.GetDuration("delay"))
-	chSync := make(chan bool)
 
 	// fetch main page
 	// - add each link to the queue
@@ -148,8 +148,11 @@ func main() {
 		case <-ticker.C:
 			slog.Debug(">>> ticker")
 			go scrapeLinks(viper.GetString("url"), ch, hCli)
-		case <-chSync:
-			// sync to matrix
+		case <-optimizeTicker.C:
+			slog.Info("optimizing DB")
+			if _, err := db.Exec("PRAGMA optimize;"); err != nil {
+				panic(err)
+			}
 		}
 	}
 }
