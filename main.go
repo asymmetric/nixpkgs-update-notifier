@@ -236,6 +236,7 @@ func visitLog(url string, db *sql.DB, mCli *mautrix.Client, hCli *http.Client) {
 			if err != nil {
 				panic(err)
 			}
+			defer statement.Close()
 
 			result, err := statement.Exec(pkgName)
 			if err != nil {
