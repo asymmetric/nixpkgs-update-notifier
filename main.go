@@ -268,7 +268,7 @@ func visitLog(url string, db *sql.DB, mCli *mautrix.Client, hCli *http.Client) {
 
 	// we've found this log already, skip next steps
 	if count == 1 {
-		slog.Debug("  skipping")
+		slog.Debug("skipping", "url", url)
 		return
 	}
 
@@ -548,7 +548,7 @@ func handleSubUnsub(matches []string, evt *event.Event) {
 	}
 
 	// send confirmation message
-	if _, err = client.SendText(context.TODO(), evt.RoomID, "successfully subscribed"); err != nil {
+	if _, err = client.SendText(context.TODO(), evt.RoomID, fmt.Sprintf("successfully subscribed to package %s", pkgName)); err != nil {
 		panic(err)
 	}
 
