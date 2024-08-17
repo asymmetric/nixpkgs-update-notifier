@@ -398,9 +398,11 @@ func setupMatrix() *mautrix.Client {
 	})
 
 	// TODO handle error
-	subRegexp := regexp.MustCompile(`^(un)?sub(?:scribe)? ([\w.]+)$`)
+	subRegexp := regexp.MustCompile(`^(un)?sub ([\w.]+)$`)
 	helpText := `- **help**: show help
 - **sub foo.bar**: subscribe to package foo.bar
+- **unsub foo.bar**: unsubscribe from package foo.bar
+- **subs**: list subscriptions
 `
 	subEventID := "io.github.nixpkgs-update-notifier.subscription"
 
@@ -416,15 +418,53 @@ func setupMatrix() *mautrix.Client {
 		}
 
 		// TODO
-		// - unsub
+		// - subs
 		// - last success/first fail
 
 		if matches := subRegexp.FindStringSubmatch(msg); matches != nil {
 			handleSubUnsub(matches, evt)
-		} else {
-			// anything else, so print help
-			_, err := client.SendText(context.TODO(), evt.RoomID, helpText)
+
+			return
+		}
+
+		switch msg {
+		case "subs":
+			statement, err := db.Prepare("SELECT name FROM packages AS p JOIN subscriptions AS s ON p.id = s.pkgid WHERE s.roomid = ?")
 			if err != nil {
+				panic(err)
+			}
+			defer statement.Close()
+			rows, err := statement.Query(evt.RoomID)
+			if err != nil {
+				panic(err)
+			}
+			defer rows.Close()
+
+			var names []string
+			for rows.Next() {
+				var name string
+				if err := rows.Scan(&name); err != nil {
+					panic(err)
+				}
+				names = append(names, name)
+			}
+			if err := rows.Err(); err != nil {
+				panic(err)
+			}
+
+			var msg string
+			if len(names) == 0 {
+				msg = "no subs"
+			} else {
+				msg = fmt.Sprintf("subs: %s", names)
+			}
+			if _, err = client.SendText(context.TODO(), evt.RoomID, msg); err != nil {
+				panic(err)
+			}
+
+		default:
+			// anything else, so print help
+			if _, err := client.SendText(context.TODO(), evt.RoomID, helpText); err != nil {
 				panic(err)
 			}
 			slog.Debug("received help", "sender", sender)
@@ -460,6 +500,10 @@ func handleSubUnsub(matches []string, evt *event.Event) {
 			panic(err)
 		}
 
+		// send confirmation message
+		if _, err = client.SendText(context.TODO(), evt.RoomID, fmt.Sprintf("successfully unsubscribed from package %s", pkgName)); err != nil {
+			panic(err)
+		}
 		return
 	}
 
