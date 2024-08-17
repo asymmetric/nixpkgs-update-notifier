@@ -40,6 +40,10 @@ var helpText = `- **help**: show help
 `
 var eventID = "io.github.asymmetric"
 
+var client *mautrix.Client
+
+var db *sql.DB
+
 func main() {
 	pflag.Parse()
 	viper.BindPFlags(pflag.CommandLine)
@@ -62,7 +66,8 @@ func main() {
 		slog.SetDefault(slog.New(h))
 	}
 
-	db, err := sql.Open("sqlite3", fmt.Sprintf("%s?_journal_mode=WAL&_synchronous=NORMAL&_foreign_keys=true", viper.GetString("db")))
+	var err error
+	db, err = sql.Open("sqlite3", fmt.Sprintf("%s?_journal_mode=WAL&_synchronous=NORMAL&_foreign_keys=true", viper.GetString("db")))
 	if err != nil {
 		panic(err)
 	}
@@ -92,12 +97,11 @@ func main() {
 		panic(err)
 	}
 
-	// TODO: this should not run if matrix is disabled
-	c := setupMatrix()
-
 	if viper.GetBool("matrix.enabled") {
+		client = setupMatrix()
+
 		go func() {
-			if err := c.Sync(); err != nil {
+			if err := client.Sync(); err != nil {
 				// TODO: recover from errors rather than panicking
 				panic(err)
 			}
@@ -147,7 +151,7 @@ func main() {
 			if logLink {
 				// TODO make async? probably not as it accesses db
 				slog.Debug("found link", "url", url)
-				visitLog(url, db, c, hCli)
+				visitLog(url, db, client, hCli)
 			} else {
 				slog.Debug("scraping link", "url", url)
 				go scrapeLinks(url, ch, hCli)
