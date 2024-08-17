@@ -33,8 +33,8 @@ var config = pflag.String("config", "config.toml", "Config file")
 var username = pflag.String("username", "", "Matrix bot username")
 var delay = pflag.Duration("delay", 24*time.Hour, "How often to check url")
 var debug = pflag.Bool("debug", false, "Enable debug logging")
-var subRegexp = regexp.MustCompile(`sub(?:scribe) ([\w.]+)`)
 
+var subRegexp = regexp.MustCompile(`sub(?:scribe)? ([\w.]+)`)
 var helpText = `- **help**: show help
 - **sub foo.bar**: subscribe to package foo.bar
 `
