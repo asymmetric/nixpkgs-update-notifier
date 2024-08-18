@@ -219,29 +219,17 @@ func visitLog(url string, db *sql.DB, mCli *mautrix.Client, hCli *http.Client) {
 
 	// pkgName -> pkgID
 	var pkgID int64
-	statement, err := db.Prepare("SELECT id from packages WHERE name = ?")
-	if err != nil {
-		panic(err)
-	}
-	defer statement.Close()
-
-	err = statement.QueryRow(pkgName).Scan(&pkgID)
-	if err != nil {
+	if err := db.QueryRow("SELECT id from packages WHERE name = ?", pkgName).Scan(&pkgID); err != nil {
 		// TODO: move this to first pass, to simplify this code
 		// - as we add logs to queue, add missing packages to db
 		// Package did not exist in db, inserting
 		if errors.Is(err, sql.ErrNoRows) {
 			slog.Info("new package found", "pkg", pkgName)
-			statement, err := db.Prepare("INSERT INTO packages(name) VALUES (?)")
+			result, err := db.Exec("INSERT INTO packages(name) VALUES (?)", pkgName)
 			if err != nil {
 				panic(err)
 			}
-			defer statement.Close()
 
-			result, err := statement.Exec(pkgName)
-			if err != nil {
-				panic(err)
-			}
 			pkgID, err = result.LastInsertId()
 			if err != nil {
 				panic(err)
@@ -254,15 +242,7 @@ func visitLog(url string, db *sql.DB, mCli *mautrix.Client, hCli *http.Client) {
 
 	var count int
 	// TODO: use SELECT 1 here instead? no because it can return zero rows when not found
-	statement, err = db.Prepare("SELECT COUNT(*) FROM visited where pkgid = ? AND date = ?")
-	if err != nil {
-		panic(err)
-	}
-	defer statement.Close()
-
-	// TODO check for ErrNoRows here too?
-	err = statement.QueryRow(pkgID, date).Scan(&count)
-	if err != nil {
+	if err := db.QueryRow("SELECT COUNT(*) FROM visited where pkgid = ? AND date = ?", pkgID, date).Scan(&count); err != nil {
 		panic(err)
 	}
 
@@ -296,19 +276,13 @@ func visitLog(url string, db *sql.DB, mCli *mautrix.Client, hCli *http.Client) {
 			// - find all subscribers for package
 			// - send message in respective room
 			// - if we're not in that room, drop from db of subs?
-			statement, err = db.Prepare("SELECT roomid from subscriptions where pkgid = ?")
-			if err != nil {
-				panic(err)
-			}
-			defer statement.Close()
-
-			roomIDs := make([]string, 0)
-			rows, err := statement.Query(pkgID)
+			rows, err := db.Query("SELECT roomid from subscriptions where pkgid = ?", pkgID)
 			if err != nil {
 				panic(err)
 			}
 			defer rows.Close()
 
+			roomIDs := make([]string, 0)
 			for rows.Next() {
 				var roomID string
 				if err := rows.Scan(&roomID); err != nil {
@@ -328,24 +302,16 @@ func visitLog(url string, db *sql.DB, mCli *mautrix.Client, hCli *http.Client) {
 				}
 			}
 		} else {
+			// TODO
 		}
 	} else {
 		slog.Info("new log found", "err", false, "url", url)
 	}
 
 	// we haven't seen this log yet, so add it to the list of seen ones
-	statement, err = db.Prepare("INSERT INTO visited (pkgid, date, error) VALUES (?, ?, ?)")
-	if err != nil {
+	if _, err := db.Exec("INSERT INTO visited (pkgid, date, error) VALUES (?, ?, ?)", pkgID, date, hasError); err != nil {
 		panic(err)
 	}
-	defer statement.Close()
-
-	_, err = statement.Exec(pkgID, date, hasError)
-	if err != nil {
-		panic(err)
-	}
-
-	// time.Sleep(500 * time.Millisecond)
 
 }
 
@@ -379,11 +345,7 @@ func setupMatrix() *mautrix.Client {
 			slog.Debug("joining room", "id", evt.RoomID)
 		case event.MembershipLeave:
 			// remove subscription, then leave room
-			statement, err := db.Prepare("DELETE FROM subscriptions WHERE roomid = ?")
-			if err != nil {
-				panic(err)
-			}
-			if _, err = statement.Exec(evt.RoomID.String()); err != nil {
+			if _, err := db.Exec("DELETE FROM subscriptions WHERE roomid = ?", evt.RoomID); err != nil {
 				panic(err)
 			}
 
@@ -429,18 +391,13 @@ func setupMatrix() *mautrix.Client {
 
 		switch msg {
 		case "subs":
-			statement, err := db.Prepare("SELECT name FROM packages AS p JOIN subscriptions AS s ON p.id = s.pkgid WHERE s.roomid = ?")
-			if err != nil {
-				panic(err)
-			}
-			defer statement.Close()
-			rows, err := statement.Query(evt.RoomID)
+			rows, err := db.Query("SELECT name FROM packages AS p JOIN subscriptions AS s ON p.id = s.pkgid WHERE s.roomid = ?", evt.RoomID)
 			if err != nil {
 				panic(err)
 			}
 			defer rows.Close()
 
-			var names []string
+			names := make([]string, 0)
 			for rows.Next() {
 				var name string
 				if err := rows.Scan(&name); err != nil {
@@ -492,16 +449,12 @@ func handleSubUnsub(matches []string, evt *event.Event) {
 
 	if matches[1] != "" {
 		slog.Info("received unsub", "pkg", pkgName, "sender", evt.Sender)
-		statement, err := db.Prepare("DELETE FROM subscriptions WHERE roomid = ?")
-		if err != nil {
-			panic(err)
-		}
-		if _, err = statement.Exec(rID); err != nil {
+		if _, err := db.Exec("DELETE FROM subscriptions WHERE roomid = ?", rID); err != nil {
 			panic(err)
 		}
 
 		// send confirmation message
-		if _, err = client.SendText(context.TODO(), evt.RoomID, fmt.Sprintf("successfully unsubscribed from package %s", pkgName)); err != nil {
+		if _, err := client.SendText(context.TODO(), evt.RoomID, fmt.Sprintf("successfully unsubscribed from package %s", pkgName)); err != nil {
 			panic(err)
 		}
 		return
@@ -511,27 +464,18 @@ func handleSubUnsub(matches []string, evt *event.Event) {
 
 	// TODO use JOIN?
 	var pkgID int
-	statement, err := db.Prepare("SELECT id FROM packages WHERE name = ?")
-	if err != nil {
-		panic(err)
-	}
-	defer statement.Close()
-	if err := statement.QueryRow(pkgName).Scan(&pkgID); err != nil {
+	if err := db.QueryRow("SELECT id FROM packages WHERE name = ?", pkgName).Scan(&pkgID); err != nil {
 		panic(err)
 	}
 
 	// check if sub already exists
 	var c int
-	statement, err = db.Prepare("SELECT COUNT(*) FROM subscriptions WHERE roomid = ? AND pkgid = ?")
-	if err != nil {
+	if err := db.QueryRow("SELECT COUNT(*) FROM subscriptions WHERE roomid = ? AND pkgid = ?", rID, pkgID).Scan(&c); err != nil {
 		panic(err)
 	}
-	defer statement.Close()
-	if err := statement.QueryRow(rID, pkgID).Scan(&c); err != nil {
-		panic(err)
-	}
+
 	if c != 0 {
-		if _, err = client.SendText(context.TODO(), rID, "already subscribed"); err != nil {
+		if _, err := client.SendText(context.TODO(), rID, "already subscribed"); err != nil {
 			panic(err)
 		}
 		return
@@ -539,16 +483,12 @@ func handleSubUnsub(matches []string, evt *event.Event) {
 
 	slog.Debug("new sub", "roomid", rID, "pkgid", pkgID)
 
-	statement, err = db.Prepare("INSERT INTO subscriptions(roomid,pkgid) VALUES (?, ?)")
-	if err != nil {
-		panic(err)
-	}
-	if _, err = statement.Exec(evt.RoomID.String(), pkgID); err != nil {
+	if _, err := db.Exec("INSERT INTO subscriptions(roomid,pkgid) VALUES (?, ?)", evt.RoomID, pkgID); err != nil {
 		panic(err)
 	}
 
 	// send confirmation message
-	if _, err = client.SendText(context.TODO(), evt.RoomID, fmt.Sprintf("successfully subscribed to package %s", pkgName)); err != nil {
+	if _, err := client.SendText(context.TODO(), evt.RoomID, fmt.Sprintf("successfully subscribed to package %s", pkgName)); err != nil {
 		panic(err)
 	}
 
