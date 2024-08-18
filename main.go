@@ -54,7 +54,8 @@ func main() {
 
 	if viper.GetBool("debug") {
 		opts := &slog.HandlerOptions{
-			Level: slog.LevelDebug,
+			AddSource: true,
+			Level:     slog.LevelDebug,
 		}
 		h := slog.NewTextHandler(os.Stderr, opts)
 		slog.SetDefault(slog.New(h))
