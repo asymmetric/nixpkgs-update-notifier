@@ -57,6 +57,7 @@ func main() {
 	if err := setupDB(); err != nil {
 		panic(err)
 	}
+	defer db.Close()
 
 	if viper.GetBool("matrix.enabled") {
 		client = setupMatrix()
@@ -109,7 +110,7 @@ func main() {
 			if logLink {
 				// TODO make async? probably not as it accesses db
 				slog.Debug("found link", "url", url)
-				visitLog(url, db, client, hCli)
+				visitLog(url, client, hCli)
 			} else {
 				slog.Debug("scraping link", "url", url)
 				go scrapeLinks(url, ch, hCli)
@@ -176,7 +177,7 @@ func scrapeLinks(url string, ch chan<- string, hCli *http.Client) {
 
 // TODO take URL instead, so we can split more reliably?
 // e.g. pkgName could be the first half of a split, the date the second
-func visitLog(url string, db *sql.DB, mCli *mautrix.Client, hCli *http.Client) {
+func visitLog(url string, mCli *mautrix.Client, hCli *http.Client) {
 	components := strings.Split(url, "/")
 	pkgName := components[len(components)-2]
 	date := strings.Trim(components[len(components)-1], ".log")
@@ -476,7 +477,6 @@ func setupDB() (err error) {
 	if err != nil {
 		return
 	}
-	defer db.Close()
 
 	err = db.Ping()
 	if err != nil {
