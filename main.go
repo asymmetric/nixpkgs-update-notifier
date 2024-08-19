@@ -120,7 +120,7 @@ func main() {
 		case <-optimizeTicker.C:
 			slog.Info("optimizing DB")
 			if _, err := db.Exec("PRAGMA optimize;"); err != nil {
-				slog.Error(err.Error())
+				panic(err)
 			}
 		}
 	}
@@ -192,23 +192,23 @@ func visitLog(url string, db *sql.DB, mCli *mautrix.Client, hCli *http.Client) {
 			slog.Info("new package found", "pkg", pkgName)
 			result, err := db.Exec("INSERT INTO packages(name) VALUES (?)", pkgName)
 			if err != nil {
-				slog.Error(err.Error())
+				panic(err)
 			}
 
 			pkgID, err = result.LastInsertId()
 			if err != nil {
-				slog.Error(err.Error())
+				panic(err)
 			}
 
 		} else {
-			slog.Error(err.Error())
+			panic(err)
 		}
 	}
 
 	var count int
 	// TODO: use SELECT 1 here instead? no because it can return zero rows when not found
 	if err := db.QueryRow("SELECT COUNT(*) FROM visited where pkgid = ? AND date = ?", pkgID, date).Scan(&count); err != nil {
-		slog.Error(err.Error())
+		panic(err)
 	}
 
 	// we've found this log already, skip next steps
@@ -243,7 +243,7 @@ func visitLog(url string, db *sql.DB, mCli *mautrix.Client, hCli *http.Client) {
 			// - if we're not in that room, drop from db of subs?
 			rows, err := db.Query("SELECT roomid from subscriptions where pkgid = ?", pkgID)
 			if err != nil {
-				slog.Error(err.Error())
+				panic(err)
 			}
 			defer rows.Close()
 
@@ -251,12 +251,12 @@ func visitLog(url string, db *sql.DB, mCli *mautrix.Client, hCli *http.Client) {
 			for rows.Next() {
 				var roomID string
 				if err := rows.Scan(&roomID); err != nil {
-					slog.Error(err.Error())
+					panic(err)
 				}
 				roomIDs = append(roomIDs, roomID)
 			}
 			if err := rows.Err(); err != nil {
-				slog.Error(err.Error())
+				panic(err)
 			}
 
 			for _, roomID := range roomIDs {
@@ -275,7 +275,7 @@ func visitLog(url string, db *sql.DB, mCli *mautrix.Client, hCli *http.Client) {
 
 	// we haven't seen this log yet, so add it to the list of seen ones
 	if _, err := db.Exec("INSERT INTO visited (pkgid, date, error) VALUES (?, ?, ?)", pkgID, date, hasError); err != nil {
-		slog.Error(err.Error())
+		panic(err)
 	}
 
 }
@@ -311,7 +311,7 @@ func setupMatrix() *mautrix.Client {
 		case event.MembershipLeave:
 			// remove subscription, then leave room
 			if _, err := db.Exec("DELETE FROM subscriptions WHERE roomid = ?", evt.RoomID); err != nil {
-				slog.Error(err.Error())
+				panic(err)
 			}
 
 			if _, err := client.LeaveRoom(ctx, evt.RoomID); err != nil {
@@ -358,7 +358,7 @@ func setupMatrix() *mautrix.Client {
 		case "subs":
 			rows, err := db.Query("SELECT name FROM packages AS p JOIN subscriptions AS s ON p.id = s.pkgid WHERE s.roomid = ?", evt.RoomID)
 			if err != nil {
-				slog.Error(err.Error())
+				panic(err)
 			}
 			defer rows.Close()
 
@@ -366,12 +366,12 @@ func setupMatrix() *mautrix.Client {
 			for rows.Next() {
 				var name string
 				if err := rows.Scan(&name); err != nil {
-					slog.Error(err.Error())
+					panic(err)
 				}
 				names = append(names, name)
 			}
 			if err := rows.Err(); err != nil {
-				slog.Error(err.Error())
+				panic(err)
 			}
 
 			var msg string
@@ -415,7 +415,7 @@ func handleSubUnsub(matches []string, evt *event.Event) {
 	if matches[1] != "" {
 		slog.Info("received unsub", "pkg", pkgName, "sender", evt.Sender)
 		if _, err := db.Exec("DELETE FROM subscriptions WHERE roomid = ?", rID); err != nil {
-			slog.Error(err.Error())
+			panic(err)
 		}
 
 		// send confirmation message
@@ -430,13 +430,13 @@ func handleSubUnsub(matches []string, evt *event.Event) {
 	// TODO use JOIN?
 	var pkgID int
 	if err := db.QueryRow("SELECT id FROM packages WHERE name = ?", pkgName).Scan(&pkgID); err != nil {
-		slog.Error(err.Error())
+		panic(err)
 	}
 
 	// check if sub already exists
 	var c int
 	if err := db.QueryRow("SELECT COUNT(*) FROM subscriptions WHERE roomid = ? AND pkgid = ?", rID, pkgID).Scan(&c); err != nil {
-		slog.Error(err.Error())
+		panic(err)
 	}
 
 	if c != 0 {
@@ -449,7 +449,7 @@ func handleSubUnsub(matches []string, evt *event.Event) {
 	slog.Debug("new sub", "roomid", rID, "pkgid", pkgID)
 
 	if _, err := db.Exec("INSERT INTO subscriptions(roomid,pkgid) VALUES (?, ?)", evt.RoomID, pkgID); err != nil {
-		slog.Error(err.Error())
+		panic(err)
 	}
 
 	// send confirmation message
