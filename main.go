@@ -64,7 +64,6 @@ func main() {
 
 		go func() {
 			if err := client.Sync(); err != nil {
-				// TODO: recover from errors rather than panicking
 				panic(err)
 			}
 		}()
@@ -160,7 +159,6 @@ func scrapeLinks(url string, ch chan<- string, hCli *http.Client) {
 			isAnchor := t.Data == "a"
 			if isAnchor {
 				for _, a := range t.Attr {
-					// TODO: skip ~ links
 					if a.Key == "href" && a.Val != "../" && !re.MatchString(a.Val) {
 						fullURL := parsedURL.JoinPath(a.Val)
 						slog.Debug("parsed", "url", fullURL.String())
@@ -207,7 +205,6 @@ func visitLog(url string, mCli *mautrix.Client, hCli *http.Client) {
 	}
 
 	var count int
-	// TODO: use SELECT 1 here instead? no because it can return zero rows when not found
 	if err := db.QueryRow("SELECT COUNT(*) FROM visited where pkgid = ? AND date = ?", pkgID, date).Scan(&count); err != nil {
 		panic(err)
 	}
@@ -267,8 +264,6 @@ func visitLog(url string, mCli *mautrix.Client, hCli *http.Client) {
 					slog.Error(err.Error())
 				}
 			}
-		} else {
-			// TODO
 		}
 	} else {
 		slog.Info("new log found", "err", false, "url", url)
@@ -325,7 +320,6 @@ func setupMatrix() *mautrix.Client {
 		}
 	})
 
-	// TODO handle error
 	subRegexp := regexp.MustCompile(`^(un)?sub ([\w.]+)$`)
 	helpText := `- **help**: show help
 - **sub foo.bar**: subscribe to package foo.bar
@@ -346,7 +340,6 @@ func setupMatrix() *mautrix.Client {
 		}
 
 		// TODO
-		// - subs
 		// - last success/first fail
 
 		if matches := subRegexp.FindStringSubmatch(msg); matches != nil {
@@ -447,8 +440,6 @@ func handleSubUnsub(matches []string, evt *event.Event) {
 		return
 	}
 
-	slog.Debug("new sub", "roomid", rID, "pkgid", pkgID)
-
 	if _, err := db.Exec("INSERT INTO subscriptions(roomid,pkgid) VALUES (?, ?)", evt.RoomID, pkgID); err != nil {
 		panic(err)
 	}
@@ -461,9 +452,7 @@ func handleSubUnsub(matches []string, evt *event.Event) {
 }
 
 func setupLogger() {
-	opts := &slog.HandlerOptions{
-		AddSource: true,
-	}
+	opts := &slog.HandlerOptions{}
 	h := slog.NewTextHandler(os.Stderr, opts)
 	slog.SetDefault(slog.New(h))
 
