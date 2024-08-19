@@ -52,38 +52,9 @@ func main() {
 		}
 	}
 
-	if viper.GetBool("debug") {
-		opts := &slog.HandlerOptions{
-			AddSource: true,
-			Level:     slog.LevelDebug,
-		}
-		h := slog.NewTextHandler(os.Stderr, opts)
-		slog.SetDefault(slog.New(h))
-	}
+	setupLogger()
 
-	var err error
-	db, err = sql.Open("sqlite3", fmt.Sprintf("%s?_journal_mode=WAL&_synchronous=NORMAL&_foreign_keys=true", viper.GetString("db")))
-	if err != nil {
-		panic(err)
-	}
-	defer db.Close()
-
-	err = db.Ping()
-	if err != nil {
-		panic(err)
-	}
-
-	_, err = db.Exec("CREATE TABLE IF NOT EXISTS packages (id INTEGER PRIMARY KEY, name TEXT UNIQUE NOT NULL) STRICT")
-	if err != nil {
-		panic(err)
-	}
-	_, err = db.Exec("CREATE TABLE IF NOT EXISTS visited (id INTEGER PRIMARY KEY, pkgid INTEGER, date TEXT NOT NULL, error INTEGER, UNIQUE(pkgid, date), FOREIGN KEY(pkgid) REFERENCES packages(id)) STRICT")
-	if err != nil {
-		panic(err)
-	}
-
-	_, err = db.Exec("CREATE TABLE IF NOT EXISTS subscriptions (id INTEGER PRIMARY KEY, roomid TEXT, pkgid INTEGER, UNIQUE(roomid, pkgid), FOREIGN KEY(pkgid) REFERENCES packages(id)) STRICT")
-	if err != nil {
+	if err := setupDB(); err != nil {
 		panic(err)
 	}
 
@@ -486,4 +457,45 @@ func handleSubUnsub(matches []string, evt *event.Event) {
 		slog.Error(err.Error())
 	}
 
+}
+
+func setupLogger() {
+	opts := &slog.HandlerOptions{
+		AddSource: true,
+	}
+	h := slog.NewTextHandler(os.Stderr, opts)
+	slog.SetDefault(slog.New(h))
+
+	if viper.GetBool("debug") {
+		opts.Level = slog.LevelDebug
+	}
+}
+
+func setupDB() (err error) {
+	db, err = sql.Open("sqlite3", fmt.Sprintf("%s?_journal_mode=WAL&_synchronous=NORMAL&_foreign_keys=true", viper.GetString("db")))
+	if err != nil {
+		return
+	}
+	defer db.Close()
+
+	err = db.Ping()
+	if err != nil {
+		return
+	}
+
+	_, err = db.Exec("CREATE TABLE IF NOT EXISTS packages (id INTEGER PRIMARY KEY, name TEXT UNIQUE NOT NULL) STRICT")
+	if err != nil {
+		return
+	}
+	_, err = db.Exec("CREATE TABLE IF NOT EXISTS visited (id INTEGER PRIMARY KEY, pkgid INTEGER, date TEXT NOT NULL, error INTEGER, UNIQUE(pkgid, date), FOREIGN KEY(pkgid) REFERENCES packages(id)) STRICT")
+	if err != nil {
+		return
+	}
+
+	_, err = db.Exec("CREATE TABLE IF NOT EXISTS subscriptions (id INTEGER PRIMARY KEY, roomid TEXT, pkgid INTEGER, UNIQUE(roomid, pkgid), FOREIGN KEY(pkgid) REFERENCES packages(id)) STRICT")
+	if err != nil {
+		return
+	}
+
+	return
 }
