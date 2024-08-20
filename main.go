@@ -68,6 +68,12 @@ func main() {
 
 	slog.Info("Initialized")
 
+	if last, err := getLastRun(); err != nil {
+		panic(err)
+	} else {
+		slog.Info("last run", "ts", time.Unix(last, 0))
+	}
+
 	if err := doWork(); err != nil {
 		panic(err)
 	}
@@ -75,7 +81,6 @@ func main() {
 	for {
 		select {
 		case <-ticker.C:
-			slog.Debug(">>> ticker")
 			if err := doWork(); err != nil {
 				panic(err)
 			}
@@ -118,17 +123,12 @@ func fetchStateDB(url string) (*sql.DB, error) {
 }
 
 func findNewErrors(state *sql.DB) ([]string, error) {
-	// get timestamp of last run
-	var last int64
-	if err := db.QueryRow("SELECT timestamp from runs ORDER BY timestamp DESC LIMIT 1").Scan(&last); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			last = time.Now().Unix()
-		} else {
-			return nil, err
-		}
+	// get errors that happened since last run
+	last, err := getLastRun()
+	if err != nil {
+		return nil, err
 	}
 
-	// get errors that happened since last run
 	rows, err := state.Query("SELECT attr_path from log WHERE exit_code = 1 AND finished >= ?", last)
 	if err != nil {
 		return nil, err
@@ -218,6 +218,8 @@ func setupMatrix() *mautrix.Client {
 		// TODO
 		// - last success/first fail
 
+		// TODO use a regexp to always extract first command, then we can unify the switch
+		// handle this separately because it's not amenable to the switch statement below
 		if matches := subRegexp.FindStringSubmatch(msg); matches != nil {
 			handleSubUnsub(matches, evt)
 
@@ -282,53 +284,74 @@ func handleSubUnsub(matches []string, evt *event.Event) {
 	pkgName := matches[2]
 	rID := evt.RoomID
 
+	// the first capture group matches "un"
 	if matches[1] != "" {
 		slog.Info("received unsub", "pkg", pkgName, "sender", evt.Sender)
-		if _, err := db.Exec("DELETE FROM subscriptions WHERE roomid = ?", rID); err != nil {
+		res, err := db.Exec("DELETE FROM subscriptions WHERE roomid = ?", rID)
+		if err != nil {
+			panic(err)
+		}
+
+		// check that subscription was present
+		if c, err := res.RowsAffected(); err != nil {
+			panic(err)
+		} else if c == int64(0) {
+			if _, err := client.SendText(context.TODO(), evt.RoomID, fmt.Sprintf("failed to find subscription for package %s", pkgName)); err != nil {
+				slog.Error(err.Error())
+
+			}
+		} else {
+			// send confirmation message
+			if _, err := client.SendText(context.TODO(), evt.RoomID, fmt.Sprintf("unsubscribed from package %s", pkgName)); err != nil {
+				slog.Error(err.Error())
+			}
+		}
+	} else {
+		slog.Info("received sub", "pkg", pkgName, "sender", evt.Sender)
+
+		var c int
+		if err := db.QueryRow("SELECT COUNT(*) FROM packages WHERE name = ?", pkgName).Scan(&c); err != nil {
+			panic(err)
+		}
+		if c == 0 {
+			if _, err := client.SendText(context.TODO(), rID, fmt.Sprintf("package %s does not exist", pkgName)); err != nil {
+				slog.Error(err.Error())
+			}
+			return
+		}
+
+		// check if sub already exists
+		// TODO can I just insert and check result/error instead?
+		if err := db.QueryRow("SELECT COUNT(*) FROM subscriptions WHERE roomid = ? AND attr_path = ?", rID, pkgName).Scan(&c); err != nil {
+			panic(err)
+		}
+
+		if c != 0 {
+			if _, err := client.SendText(context.TODO(), rID, "already subscribed"); err != nil {
+				slog.Error(err.Error())
+			}
+			return
+		}
+
+		if _, err := db.Exec("INSERT INTO subscriptions(roomid,attr_path) VALUES (?, ?)", evt.RoomID, pkgName); err != nil {
 			panic(err)
 		}
 
 		// send confirmation message
-		if _, err := client.SendText(context.TODO(), evt.RoomID, fmt.Sprintf("successfully unsubscribed from package %s", pkgName)); err != nil {
+		if _, err := client.SendText(context.TODO(), evt.RoomID, fmt.Sprintf("subscribed to package %s", pkgName)); err != nil {
 			slog.Error(err.Error())
 		}
-		return
 	}
-
-	slog.Info("received sub", "pkg", pkgName, "sender", evt.Sender)
-
-	// check if sub already exists
-	var c int
-	if err := db.QueryRow("SELECT COUNT(*) FROM subscriptions WHERE roomid = ? AND attr_path = ?", rID, pkgName).Scan(&c); err != nil {
-		panic(err)
-	}
-
-	if c != 0 {
-		if _, err := client.SendText(context.TODO(), rID, "already subscribed"); err != nil {
-			slog.Error(err.Error())
-		}
-		return
-	}
-
-	if _, err := db.Exec("INSERT INTO subscriptions(roomid,attr_path) VALUES (?, ?)", evt.RoomID, pkgName); err != nil {
-		panic(err)
-	}
-
-	// send confirmation message
-	if _, err := client.SendText(context.TODO(), evt.RoomID, fmt.Sprintf("successfully subscribed to package %s", pkgName)); err != nil {
-		slog.Error(err.Error())
-	}
-
 }
 
 func setupLogger() {
 	opts := &slog.HandlerOptions{}
-	h := slog.NewTextHandler(os.Stderr, opts)
-	slog.SetDefault(slog.New(h))
-
 	if *debug {
 		opts.Level = slog.LevelDebug
 	}
+
+	h := slog.NewTextHandler(os.Stderr, opts)
+	slog.SetDefault(slog.New(h))
 }
 
 func setupDB() (err error) {
@@ -348,7 +371,7 @@ func setupDB() (err error) {
 		return
 	}
 
-	_, err = db.Exec("CREATE TABLE IF NOT EXISTS subscriptions (roomid TEXT NOT NULL, attr_path TEXT NOT NULL, PRIMARY KEY (roomid, attr_path)) STRICT")
+	_, err = db.Exec("CREATE TABLE IF NOT EXISTS subscriptions (id INTEGER PRIMARY KEY, roomid TEXT NOT NULL, attr_path TEXT NOT NULL, UNIQUE (roomid, attr_path)) STRICT")
 	if err != nil {
 		return
 	}
@@ -360,6 +383,7 @@ func notifySubscribers(newErrors []string) error {
 	// TODO rename newErrors
 	for _, attr_path := range newErrors {
 		// TODO: handle 429
+		slog.Info("new error found", "pkg", attr_path)
 
 		// - find all subscribers for package
 		// - send message in respective room
@@ -397,11 +421,14 @@ func notifySubscribers(newErrors []string) error {
 }
 
 func doWork() error {
+	slog.Info("doing work")
 	// visit main page to download db
 	state, err := fetchStateDB(*url)
 	if err != nil {
 		return err
 	}
+	// we close the state db connection, since on the next run it will be an entirely different db
+	defer state.Close()
 
 	// find new errors since last time
 	newErrors, err := findNewErrors(state)
@@ -420,4 +447,16 @@ func doWork() error {
 	}
 
 	return nil
+}
+
+func getLastRun() (last int64, err error) {
+	// get timestamp of last run
+	if err = db.QueryRow("SELECT timestamp from runs ORDER BY timestamp DESC LIMIT 1").Scan(&last); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			last = time.Now().Unix()
+		}
+	}
+
+	return last, err
+
 }
