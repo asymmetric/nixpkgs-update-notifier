@@ -6,14 +6,12 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
-	u "net/url"
 	"os"
 	"regexp"
 	"time"
-
-	"io"
 
 	"maunium.net/go/mautrix"
 	"maunium.net/go/mautrix/event"
@@ -93,11 +91,7 @@ func main() {
 // TODO we should deal with, and delete, the db, all in one func, so we can use defer:
 // merge fetchStateDB and findNewErrors
 func fetchStateDB(url string) (*sql.DB, error) {
-	parsedURL, err := u.Parse(url)
-	if err != nil {
-		return nil, err
-	}
-	resp, err := http.Get(parsedURL.String())
+	resp, err := http.Get(url)
 	if err != nil {
 		return nil, err
 	}
