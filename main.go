@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
 	"errors"
@@ -11,14 +10,12 @@ import (
 	u "net/url"
 	"os"
 	"regexp"
-	"strings"
 	"time"
 
 	"io"
 
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
-	"golang.org/x/net/html"
 	"maunium.net/go/mautrix"
 	"maunium.net/go/mautrix/event"
 	"maunium.net/go/mautrix/id"
@@ -27,7 +24,7 @@ import (
 )
 
 var homeserver = pflag.String("homeserver", "matrix.org", "Matrix homeserver for the bot account")
-var url = pflag.String("url", "https://nixpkgs-update-logs.nix-community.org", "Webpage with logs")
+var url = pflag.String("url", "https://nixpkgs-update-logs.nix-community.org/~supervisor/state.db", "Remote state db")
 var filename = pflag.String("db", "data.db", "Path to the DB file")
 var config = pflag.String("config", "config.toml", "Config file")
 var username = pflag.String("username", "", "Matrix bot username")
@@ -69,7 +66,6 @@ func main() {
 		}()
 	}
 
-	ch := make(chan string)
 	ticker := time.NewTicker(viper.GetDuration("delay"))
 	optimizeTicker := time.NewTicker(24 * time.Hour)
 	slog.Debug("delay set", "value", viper.GetDuration("delay"))
@@ -86,37 +82,19 @@ func main() {
 	// - new sub
 	// - new broken package, send to subbers
 
-	// perf-opt: compile regex
-	re := regexp.MustCompile(`\.log$`)
-
-	hCli := &http.Client{
-		Transport: &http.Transport{
-			TLSHandshakeTimeout: 30 * time.Second,
-			// TODO: does this do anyting?
-			MaxConnsPerHost: 5,
-		},
-	}
 	slog.Info("Initialized")
 
-	// visit main page to send links to channel
-	go scrapeLinks(viper.GetString("url"), ch, hCli)
+	if err := doWork(); err != nil {
+		panic(err)
+	}
 
 	for {
 		select {
-		case url := <-ch:
-			logLink := re.MatchString(url)
-
-			if logLink {
-				// TODO make async? probably not as it accesses db
-				slog.Debug("found link", "url", url)
-				visitLog(url, client, hCli)
-			} else {
-				slog.Debug("scraping link", "url", url)
-				go scrapeLinks(url, ch, hCli)
-			}
 		case <-ticker.C:
 			slog.Debug(">>> ticker")
-			go scrapeLinks(viper.GetString("url"), ch, hCli)
+			if err := doWork(); err != nil {
+				panic(err)
+			}
 		case <-optimizeTicker.C:
 			slog.Info("optimizing DB")
 			if _, err := db.Exec("PRAGMA optimize;"); err != nil {
@@ -126,154 +104,73 @@ func main() {
 	}
 }
 
-// fetches the HTML at a `url`, then iterates over <a> elements adding all links to channel `ch`
-func scrapeLinks(url string, ch chan<- string, hCli *http.Client) {
+// TODO we should deal with, and delete, the db, all in one func, so we can use defer:
+// merge fetchStateDB and findNewErrors
+func fetchStateDB(url string) (*sql.DB, error) {
 	parsedURL, err := u.Parse(url)
 	if err != nil {
-		slog.Error(err.Error())
+		return nil, err
 	}
-	resp, err := hCli.Get(parsedURL.String())
+	resp, err := http.Get(parsedURL.String())
 	if err != nil {
-		slog.Error(err.Error())
+		return nil, err
 	}
 	defer resp.Body.Close()
 
-	r, err := io.ReadAll(resp.Body)
+	// TODO remove
+	file, err := os.Create("temp.db")
 	if err != nil {
-		slog.Error(err.Error())
+		panic(err)
 	}
-	z := html.NewTokenizer(bytes.NewReader(r))
+	defer file.Close()
 
-	re := regexp.MustCompile("^~")
-	for {
-		tt := z.Next()
-
-		switch tt {
-		case html.ErrorToken:
-			// done
-			slog.Debug("done parsing")
-			return
-		case html.StartTagToken:
-			t := z.Token()
-
-			isAnchor := t.Data == "a"
-			if isAnchor {
-				for _, a := range t.Attr {
-					if a.Key == "href" && a.Val != "../" && !re.MatchString(a.Val) {
-						fullURL := parsedURL.JoinPath(a.Val)
-						slog.Debug("parsed", "url", fullURL.String())
-
-						// add link to queue
-						ch <- fullURL.String()
-						break
-					}
-				}
-			}
-		}
+	if _, err := io.Copy(file, resp.Body); err != nil {
+		panic(err)
 	}
+
+	// TODO do we need _loc ?
+	// TODO move to /tmp
+	state, err := sql.Open("sqlite3", "temp.db?mode=ro")
+	if err != nil {
+		return nil, err
+	}
+
+	return state, nil
 }
 
-// TODO take URL instead, so we can split more reliably?
-// e.g. pkgName could be the first half of a split, the date the second
-func visitLog(url string, mCli *mautrix.Client, hCli *http.Client) {
-	components := strings.Split(url, "/")
-	pkgName := components[len(components)-2]
-	date := strings.Trim(components[len(components)-1], ".log")
-	slog.Debug("log found", "pkg", pkgName, "date", date)
-
-	// pkgName -> pkgID
-	var pkgID int64
-	if err := db.QueryRow("SELECT id from packages WHERE name = ?", pkgName).Scan(&pkgID); err != nil {
-		// TODO: move this to first pass, to simplify this code
-		// - as we add logs to queue, add missing packages to db
-		// Package did not exist in db, inserting
+func findNewErrors(state *sql.DB) ([]string, error) {
+	// get timestamp of last run
+	var last int64
+	if err := db.QueryRow("SELECT timestamp from runs ORDER BY timestamp DESC LIMIT 1").Scan(&last); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			slog.Info("new package found", "pkg", pkgName)
-			result, err := db.Exec("INSERT INTO packages(name) VALUES (?)", pkgName)
-			if err != nil {
-				panic(err)
-			}
-
-			pkgID, err = result.LastInsertId()
-			if err != nil {
-				panic(err)
-			}
-
+			last = time.Now().Unix()
 		} else {
-			panic(err)
+			return nil, err
 		}
 	}
 
-	var count int
-	if err := db.QueryRow("SELECT COUNT(*) FROM visited where pkgid = ? AND date = ?", pkgID, date).Scan(&count); err != nil {
-		panic(err)
-	}
-
-	// we've found this log already, skip next steps
-	if count == 1 {
-		slog.Debug("skipping", "url", url)
-		return
-	}
-
-	resp, err := hCli.Get(url)
+	// get errors that happened since last run
+	rows, err := state.Query("SELECT attr_path from log WHERE exit_code = 1 AND finished >= ?", last)
 	if err != nil {
-		slog.Error(err.Error())
+		return nil, err
 	}
-	defer resp.Body.Close()
+	defer rows.Close()
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		slog.Error(err.Error())
-	}
-
-	// check for error in logs
-	var hasError bool
-	if bytes.Contains(body, []byte("error")) {
-		hasError = true
-
-		slog.Info("new log found", "err", true, "url", url)
-
-		if viper.GetBool("matrix.enabled") {
-			// TODO: handle 429
-
-			// - find all subscribers for package
-			// - send message in respective room
-			// - if we're not in that room, drop from db of subs?
-			rows, err := db.Query("SELECT roomid from subscriptions where pkgid = ?", pkgID)
-			if err != nil {
-				panic(err)
-			}
-			defer rows.Close()
-
-			roomIDs := make([]string, 0)
-			for rows.Next() {
-				var roomID string
-				if err := rows.Scan(&roomID); err != nil {
-					panic(err)
-				}
-				roomIDs = append(roomIDs, roomID)
-			}
-			if err := rows.Err(); err != nil {
-				panic(err)
-			}
-
-			for _, roomID := range roomIDs {
-				_, err := mCli.SendText(context.TODO(), id.RoomID(roomID), fmt.Sprintf("logfile contains an error: %s", url))
-				if err != nil {
-					// TODO check if we're not in room, in that case remove sub
-					slog.Error(err.Error())
-				}
-			}
+	var paths []string
+	for rows.Next() {
+		var path string
+		if err := rows.Scan(&path); err != nil {
+			return nil, err
 		}
-	} else {
-		slog.Info("new log found", "err", false, "url", url)
+
+		paths = append(paths, path)
 	}
 
-	// we haven't seen this log yet, so add it to the list of seen ones
-	if _, err := db.Exec("INSERT INTO visited (pkgid, date, error) VALUES (?, ?, ?)", pkgID, date, hasError); err != nil {
+	if err := rows.Err(); err != nil {
 		panic(err)
 	}
 
+	return paths, nil
 }
 
 func setupMatrix() *mautrix.Client {
@@ -350,7 +247,7 @@ func setupMatrix() *mautrix.Client {
 
 		switch msg {
 		case "subs":
-			rows, err := db.Query("SELECT name FROM packages AS p JOIN subscriptions AS s ON p.id = s.pkgid WHERE s.roomid = ?", evt.RoomID)
+			rows, err := db.Query("SELECT attr_path FROM subscriptions WHERE roomid = ?", evt.RoomID)
 			if err != nil {
 				panic(err)
 			}
@@ -421,15 +318,9 @@ func handleSubUnsub(matches []string, evt *event.Event) {
 
 	slog.Info("received sub", "pkg", pkgName, "sender", evt.Sender)
 
-	// TODO use JOIN?
-	var pkgID int
-	if err := db.QueryRow("SELECT id FROM packages WHERE name = ?", pkgName).Scan(&pkgID); err != nil {
-		panic(err)
-	}
-
 	// check if sub already exists
 	var c int
-	if err := db.QueryRow("SELECT COUNT(*) FROM subscriptions WHERE roomid = ? AND pkgid = ?", rID, pkgID).Scan(&c); err != nil {
+	if err := db.QueryRow("SELECT COUNT(*) FROM subscriptions WHERE roomid = ? AND attr_path = ?", rID, pkgName).Scan(&c); err != nil {
 		panic(err)
 	}
 
@@ -440,7 +331,7 @@ func handleSubUnsub(matches []string, evt *event.Event) {
 		return
 	}
 
-	if _, err := db.Exec("INSERT INTO subscriptions(roomid,pkgid) VALUES (?, ?)", evt.RoomID, pkgID); err != nil {
+	if _, err := db.Exec("INSERT INTO subscriptions(roomid,attr_path) VALUES (?, ?)", evt.RoomID, pkgName); err != nil {
 		panic(err)
 	}
 
@@ -472,19 +363,80 @@ func setupDB() (err error) {
 		return
 	}
 
-	_, err = db.Exec("CREATE TABLE IF NOT EXISTS packages (id INTEGER PRIMARY KEY, name TEXT UNIQUE NOT NULL) STRICT")
-	if err != nil {
-		return
-	}
-	_, err = db.Exec("CREATE TABLE IF NOT EXISTS visited (id INTEGER PRIMARY KEY, pkgid INTEGER, date TEXT NOT NULL, error INTEGER, UNIQUE(pkgid, date), FOREIGN KEY(pkgid) REFERENCES packages(id)) STRICT")
+	// It is dumb to keep this in a db as we're only interested in the latest value, but we do it to keep all data in one place.
+	_, err = db.Exec("CREATE TABLE IF NOT EXISTS runs (id INTEGER PRIMARY KEY, timestamp INTEGER NOT NULL) STRICT")
 	if err != nil {
 		return
 	}
 
-	_, err = db.Exec("CREATE TABLE IF NOT EXISTS subscriptions (id INTEGER PRIMARY KEY, roomid TEXT, pkgid INTEGER, UNIQUE(roomid, pkgid), FOREIGN KEY(pkgid) REFERENCES packages(id)) STRICT")
+	_, err = db.Exec("CREATE TABLE IF NOT EXISTS subscriptions (roomid TEXT NOT NULL, attr_path TEXT NOT NULL, PRIMARY KEY (roomid, attr_path)) STRICT")
 	if err != nil {
 		return
 	}
 
 	return
+}
+
+func notifySubscribers(newErrors []string) error {
+	// TODO rename newErrors
+	for _, attr_path := range newErrors {
+		// TODO: handle 429
+
+		// - find all subscribers for package
+		// - send message in respective room
+		// - if we're not in that room, drop from db of subs?
+		rows, err := db.Query("SELECT roomid from subscriptions where attr_path = ?", attr_path)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+
+		roomIDs := make([]string, 0)
+		for rows.Next() {
+			var roomID string
+			if err := rows.Scan(&roomID); err != nil {
+				return err
+			}
+			roomIDs = append(roomIDs, roomID)
+		}
+		if err := rows.Err(); err != nil {
+			return err
+		}
+
+		for _, roomID := range roomIDs {
+			_, err := client.SendText(context.TODO(), id.RoomID(roomID), fmt.Sprintf("package contains an error: %s", attr_path))
+			if err != nil {
+				// TODO check if we're not in room, in that case remove sub
+				slog.Error(err.Error())
+			}
+		}
+	}
+
+	return nil
+}
+
+func doWork() error {
+	// visit main page to download db
+	state, err := fetchStateDB(viper.GetString("url"))
+	if err != nil {
+		return err
+	}
+
+	// find new errors since last time
+	newErrors, err := findNewErrors(state)
+	if err != nil {
+		return err
+	}
+
+	// send messages to subscribers
+	if err := notifySubscribers(newErrors); err != nil {
+		return err
+	}
+
+	// update last time to now
+	if _, err := db.Exec("INSERT INTO runs (timestamp) VALUES (?)", time.Now().Unix()); err != nil {
+		return err
+	}
+
+	return nil
 }
