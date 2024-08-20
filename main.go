@@ -56,15 +56,13 @@ func main() {
 	}
 	defer db.Close()
 
-	if viper.GetBool("matrix.enabled") {
-		client = setupMatrix()
+	client = setupMatrix()
 
-		go func() {
-			if err := client.Sync(); err != nil {
-				panic(err)
-			}
-		}()
-	}
+	go func() {
+		if err := client.Sync(); err != nil {
+			panic(err)
+		}
+	}()
 
 	ticker := time.NewTicker(viper.GetDuration("delay"))
 	optimizeTicker := time.NewTicker(24 * time.Hour)
@@ -408,6 +406,8 @@ func notifySubscribers(newErrors []string) error {
 			if err != nil {
 				// TODO check if we're not in room, in that case remove sub
 				slog.Error(err.Error())
+			} else {
+				slog.Debug("notified subscriber", "roomid", roomID)
 			}
 		}
 	}
