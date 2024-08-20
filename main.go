@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"flag"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -14,7 +15,6 @@ import (
 
 	"io"
 
-	"github.com/spf13/pflag"
 	"maunium.net/go/mautrix"
 	"maunium.net/go/mautrix/event"
 	"maunium.net/go/mautrix/id"
@@ -22,20 +22,20 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-var homeserver = pflag.String("homeserver", "matrix.org", "Matrix homeserver for the bot account")
-var url = pflag.String("url", "https://nixpkgs-update-logs.nix-community.org/~supervisor/state.db", "Remote state db")
-var filename = pflag.String("db", "data.db", "Path to the DB file")
-var config = pflag.String("config", "config.toml", "Config file")
-var username = pflag.String("username", "", "Matrix bot username")
-var delay = pflag.Duration("delay", 24*time.Hour, "How often to check url")
-var debug = pflag.Bool("debug", false, "Enable debug logging")
+var homeserver = flag.String("homeserver", "matrix.org", "Matrix homeserver for the bot account")
+var url = flag.String("url", "https://nixpkgs-update-logs.nix-community.org/~supervisor/state.db", "Remote state db")
+var filename = flag.String("db", "data.db", "Path to the DB file")
+var config = flag.String("config", "config.toml", "Config file")
+var username = flag.String("username", "", "Matrix bot username")
+var delay = flag.Duration("delay", 24*time.Hour, "How often to check url")
+var debug = flag.Bool("debug", false, "Enable debug logging")
 
 var client *mautrix.Client
 
 var db *sql.DB
 
 func main() {
-	pflag.Parse()
+	flag.Parse()
 
 	setupLogger()
 

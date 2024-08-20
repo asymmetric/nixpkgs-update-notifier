@@ -6,7 +6,6 @@ toolchain go1.22.5
 
 require (
 	github.com/mattn/go-sqlite3 v1.14.22
-	github.com/spf13/pflag v1.0.5
 	maunium.net/go/mautrix v0.19.0
 )
 
