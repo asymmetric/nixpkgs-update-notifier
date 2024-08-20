@@ -15,7 +15,6 @@ import (
 	"io"
 
 	"github.com/spf13/pflag"
-	"github.com/spf13/viper"
 	"maunium.net/go/mautrix"
 	"maunium.net/go/mautrix/event"
 	"maunium.net/go/mautrix/id"
@@ -37,17 +36,6 @@ var db *sql.DB
 
 func main() {
 	pflag.Parse()
-	viper.BindPFlags(pflag.CommandLine)
-
-	viper.SetConfigFile(*config)
-	if err := viper.ReadInConfig(); err != nil {
-		// FIXME: broken if file missing
-		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-			fmt.Println("config file not found, using defaults")
-		} else {
-			panic(err)
-		}
-	}
 
 	setupLogger()
 
@@ -64,9 +52,9 @@ func main() {
 		}
 	}()
 
-	ticker := time.NewTicker(viper.GetDuration("delay"))
+	ticker := time.NewTicker(*delay)
 	optimizeTicker := time.NewTicker(24 * time.Hour)
-	slog.Debug("delay set", "value", viper.GetDuration("delay"))
+	slog.Debug("delay set", "value", *delay)
 
 	// fetch main page
 	// - add each link to the queue
@@ -115,8 +103,7 @@ func fetchStateDB(url string) (*sql.DB, error) {
 	}
 	defer resp.Body.Close()
 
-	// TODO remove
-	file, err := os.Create("temp.db")
+	file, err := os.CreateTemp("", "state*.db")
 	if err != nil {
 		panic(err)
 	}
@@ -172,15 +159,15 @@ func findNewErrors(state *sql.DB) ([]string, error) {
 }
 
 func setupMatrix() *mautrix.Client {
-	client, err := mautrix.NewClient(viper.GetString("matrix.homeserver"), "", "")
+	client, err := mautrix.NewClient(*homeserver, "", "")
 	if err != nil {
 		panic(err)
 	}
 
 	_, err = client.Login(context.TODO(), &mautrix.ReqLogin{
 		Type:               mautrix.AuthTypePassword,
-		Identifier:         mautrix.UserIdentifier{Type: mautrix.IdentifierTypeUser, User: viper.GetString("matrix.username")},
-		Password:           viper.GetString("matrix.password"),
+		Identifier:         mautrix.UserIdentifier{Type: mautrix.IdentifierTypeUser, User: *username},
+		Password:           os.Getenv("NUN_BOT_PASSWORD"),
 		StoreCredentials:   true,
 		StoreHomeserverURL: true,
 	})
@@ -229,7 +216,7 @@ func setupMatrix() *mautrix.Client {
 
 		slog.Debug("received msg", "msg", msg, "sender", sender)
 
-		if sender == fmt.Sprintf("@%s:%s", viper.GetString("matrix.username"), viper.GetString("matrix.homeserver")) {
+		if sender == fmt.Sprintf("@%s:%s", *username, *homeserver) {
 			slog.Debug("ignoring our own message", "msg", msg)
 			return
 		}
@@ -345,13 +332,13 @@ func setupLogger() {
 	h := slog.NewTextHandler(os.Stderr, opts)
 	slog.SetDefault(slog.New(h))
 
-	if viper.GetBool("debug") {
+	if *debug {
 		opts.Level = slog.LevelDebug
 	}
 }
 
 func setupDB() (err error) {
-	db, err = sql.Open("sqlite3", fmt.Sprintf("%s?_journal_mode=WAL&_synchronous=NORMAL&_foreign_keys=true", viper.GetString("db")))
+	db, err = sql.Open("sqlite3", fmt.Sprintf("%s?_journal_mode=WAL&_synchronous=NORMAL&_foreign_keys=true", *filename))
 	if err != nil {
 		return
 	}
@@ -417,7 +404,7 @@ func notifySubscribers(newErrors []string) error {
 
 func doWork() error {
 	// visit main page to download db
-	state, err := fetchStateDB(viper.GetString("url"))
+	state, err := fetchStateDB(*url)
 	if err != nil {
 		return err
 	}
