@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"errors"
@@ -11,8 +12,10 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"strings"
 	"time"
 
+	"golang.org/x/net/html"
 	"maunium.net/go/mautrix"
 	"maunium.net/go/mautrix/event"
 	"maunium.net/go/mautrix/id"
@@ -21,7 +24,7 @@ import (
 )
 
 var homeserver = flag.String("homeserver", "matrix.org", "Matrix homeserver for the bot account")
-var url = flag.String("url", "https://nixpkgs-update-logs.nix-community.org/~supervisor/state.db", "Remote state db")
+var url = flag.String("url", "https://nixpkgs-update-logs.nix-community.org/", "Remote state db")
 var filename = flag.String("db", "data.db", "Path to the DB file")
 var config = flag.String("config", "config.toml", "Config file")
 var username = flag.String("username", "", "Matrix bot username")
@@ -31,6 +34,8 @@ var debug = flag.Bool("debug", false, "Enable debug logging")
 var client *mautrix.Client
 
 var db *sql.DB
+
+var pkgNames = make(map[string]struct{})
 
 func main() {
 	flag.Parse()
@@ -72,6 +77,10 @@ func main() {
 		panic(err)
 	} else {
 		slog.Info("last run", "ts", time.Unix(last, 0))
+	}
+
+	if err := importPackages(); err != nil {
+		panic(err)
 	}
 
 	if err := doWork(); err != nil {
@@ -120,6 +129,50 @@ func fetchStateDB(url string) (*sql.DB, error) {
 	}
 
 	return state, nil
+}
+
+// parse main page, get package names
+// save into []string
+// range over []string, inserting into packages when missing
+func importPackages() error {
+	resp, err := http.Get(*url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	r, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	z := html.NewTokenizer(bytes.NewReader(r))
+
+	re := regexp.MustCompile("^~")
+	for {
+		tt := z.Next()
+		switch tt {
+		case html.ErrorToken:
+			slog.Debug("done parsing")
+			return nil
+		case html.StartTagToken:
+			t := z.Token()
+
+			isAnchor := t.Data == "a"
+			if isAnchor {
+				for _, a := range t.Attr {
+					if a.Key == "href" && a.Val != "../" && !re.MatchString(a.Val) {
+						pkgName := strings.TrimSuffix(a.Val, "/")
+
+						slog.Debug("adding pkg", "pkg", pkgName)
+
+						pkgNames[pkgName] = struct{}{}
+
+						break
+					}
+				}
+			}
+		}
+	}
 }
 
 func findNewErrors(state *sql.DB) ([]string, error) {
@@ -277,69 +330,71 @@ func setupMatrix() *mautrix.Client {
 	client.Syncer = syncer
 	client.Store = mautrix.NewAccountDataStore(subEventID, client)
 
+	slog.Debug("matrix setup complete")
+
 	return client
 }
 
 func handleSubUnsub(matches []string, evt *event.Event) {
 	pkgName := matches[2]
 	rID := evt.RoomID
+	if _, ok := pkgNames[pkgName]; !ok {
+		if _, err := client.SendText(context.TODO(), evt.RoomID, fmt.Sprintf("package %s does not exist", pkgName)); err != nil {
+			slog.Error(err.Error())
+		}
+
+		return
+	}
 
 	// the first capture group matches "un"
 	if matches[1] != "" {
+		// pkgName was found, proceed with unsub
 		slog.Info("received unsub", "pkg", pkgName, "sender", evt.Sender)
 		res, err := db.Exec("DELETE FROM subscriptions WHERE roomid = ?", rID)
 		if err != nil {
 			panic(err)
 		}
 
-		// check that subscription was present
 		if c, err := res.RowsAffected(); err != nil {
+			// SQL error
 			panic(err)
 		} else if c == int64(0) {
+			// unsub was not present
 			if _, err := client.SendText(context.TODO(), evt.RoomID, fmt.Sprintf("failed to find subscription for package %s", pkgName)); err != nil {
 				slog.Error(err.Error())
-
 			}
 		} else {
-			// send confirmation message
+			// unsub went ok, send confirmation message
 			if _, err := client.SendText(context.TODO(), evt.RoomID, fmt.Sprintf("unsubscribed from package %s", pkgName)); err != nil {
 				slog.Error(err.Error())
 			}
 		}
 	} else {
+		// handle subscription
 		slog.Info("received sub", "pkg", pkgName, "sender", evt.Sender)
-
-		var c int
-		if err := db.QueryRow("SELECT COUNT(*) FROM packages WHERE name = ?", pkgName).Scan(&c); err != nil {
-			panic(err)
-		}
-		if c == 0 {
-			if _, err := client.SendText(context.TODO(), rID, fmt.Sprintf("package %s does not exist", pkgName)); err != nil {
-				slog.Error(err.Error())
-			}
-			return
-		}
 
 		// check if sub already exists
 		// TODO can I just insert and check result/error instead?
+		var c int
 		if err := db.QueryRow("SELECT COUNT(*) FROM subscriptions WHERE roomid = ? AND attr_path = ?", rID, pkgName).Scan(&c); err != nil {
 			panic(err)
 		}
 
 		if c != 0 {
+			// sub already exists
 			if _, err := client.SendText(context.TODO(), rID, "already subscribed"); err != nil {
 				slog.Error(err.Error())
 			}
-			return
-		}
+		} else {
+			// sub did not exist, insert it
+			if _, err := db.Exec("INSERT INTO subscriptions(roomid,attr_path) VALUES (?, ?)", evt.RoomID, pkgName); err != nil {
+				panic(err)
+			}
 
-		if _, err := db.Exec("INSERT INTO subscriptions(roomid,attr_path) VALUES (?, ?)", evt.RoomID, pkgName); err != nil {
-			panic(err)
-		}
-
-		// send confirmation message
-		if _, err := client.SendText(context.TODO(), evt.RoomID, fmt.Sprintf("subscribed to package %s", pkgName)); err != nil {
-			slog.Error(err.Error())
+			// send confirmation message
+			if _, err := client.SendText(context.TODO(), evt.RoomID, fmt.Sprintf("subscribed to package %s", pkgName)); err != nil {
+				slog.Error(err.Error())
+			}
 		}
 	}
 }
@@ -371,7 +426,8 @@ func setupDB() (err error) {
 		return
 	}
 
-	_, err = db.Exec("CREATE TABLE IF NOT EXISTS subscriptions (id INTEGER PRIMARY KEY, roomid TEXT NOT NULL, attr_path TEXT NOT NULL, UNIQUE (roomid, attr_path)) STRICT")
+	_, err = db.Exec("CREATE TABLE IF NOT EXISTS subscriptions (roomid TEXT NOT NULL, attr_path TEXT NOT NULL, PRIMARY KEY (roomid, attr_path)) STRICT")
+	// _, err = db.Exec("CREATE TABLE IF NOT EXISTS subscriptions (id INTEGER PRIMARY KEY, roomid TEXT NOT NULL, attr_path TEXT NOT NULL, UNIQUE (roomid, attr_path)) STRICT")
 	if err != nil {
 		return
 	}
@@ -423,7 +479,8 @@ func notifySubscribers(newErrors []string) error {
 func doWork() error {
 	slog.Info("doing work")
 	// visit main page to download db
-	state, err := fetchStateDB(*url)
+	// TODO use url package to avoid double //?
+	state, err := fetchStateDB(fmt.Sprintf("%s/%s", *url, "~supervisor/state.db"))
 	if err != nil {
 		return err
 	}
