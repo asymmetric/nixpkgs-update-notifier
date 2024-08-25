@@ -214,7 +214,7 @@ func setupMatrix() *mautrix.Client {
 	_, err = client.Login(context.TODO(), &mautrix.ReqLogin{
 		Type:               mautrix.AuthTypePassword,
 		Identifier:         mautrix.UserIdentifier{Type: mautrix.IdentifierTypeUser, User: *username},
-		Password:           os.Getenv("NUN_BOT_PASSWORD"),
+		Password:           os.Getenv("NIXPKGS_UPDATE_NOTIFIER_PASSWORD"),
 		StoreCredentials:   true,
 		StoreHomeserverURL: true,
 	})
