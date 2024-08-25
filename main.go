@@ -112,7 +112,7 @@ func fetchStateDB(url string) (*sql.DB, error) {
 	}
 	defer resp.Body.Close()
 
-	file, err := os.CreateTemp("", "state*.db")
+	file, err := os.CreateTemp("", "nixpkgs-update-notifier-state*.db")
 	if err != nil {
 		panic(err)
 	}
@@ -123,8 +123,7 @@ func fetchStateDB(url string) (*sql.DB, error) {
 	}
 
 	// TODO do we need _loc ?
-	// TODO move to /tmp
-	state, err := sql.Open("sqlite3", "temp.db?mode=ro")
+	state, err := sql.Open("sqlite3", fmt.Sprintf("%s?mode=ro", file.Name()))
 	if err != nil {
 		return nil, err
 	}
