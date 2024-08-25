@@ -15,18 +15,16 @@ import (
 	"strings"
 	"time"
 
+	_ "github.com/mattn/go-sqlite3"
 	"golang.org/x/net/html"
 	"maunium.net/go/mautrix"
 	"maunium.net/go/mautrix/event"
 	"maunium.net/go/mautrix/id"
-
-	_ "github.com/mattn/go-sqlite3"
 )
 
 var homeserver = flag.String("homeserver", "matrix.org", "Matrix homeserver for the bot account")
 var url = flag.String("url", "https://nixpkgs-update-logs.nix-community.org/", "Remote state db")
 var filename = flag.String("db", "data.db", "Path to the DB file")
-var config = flag.String("config", "config.toml", "Config file")
 var username = flag.String("username", "", "Matrix bot username")
 var delay = flag.Duration("delay", 24*time.Hour, "How often to check url")
 var debug = flag.Bool("debug", false, "Enable debug logging")
