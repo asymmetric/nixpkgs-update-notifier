@@ -22,12 +22,15 @@ import (
 	"maunium.net/go/mautrix/id"
 )
 
-var homeserver = flag.String("homeserver", "matrix.org", "Matrix homeserver for the bot account")
-var url = flag.String("url", "https://nixpkgs-update-logs.nix-community.org/", "Remote state db")
-var filename = flag.String("db", "data.db", "Path to the DB file")
-var username = flag.String("username", "", "Matrix bot username")
-var delay = flag.Duration("delay", 24*time.Hour, "How often to check url")
-var debug = flag.Bool("debug", false, "Enable debug logging")
+// CLI flags
+var (
+	username   = flag.String("username", "nixpkgs-update-notifier", "Matrix bot username")
+	homeserver = flag.String("homeserver", "matrix.org", "Matrix bot homeserver")
+	url        = flag.String("url", "https://nixpkgs-update-logs.nix-community.org/", "Remote state db")
+	filename   = flag.String("db", "data.db", "Path to the DB file")
+	delay      = flag.Duration("delay", 24*time.Hour, "How often to check url")
+	debug      = flag.Bool("debug", false, "Enable debug logging")
+)
 
 var client *mautrix.Client
 
