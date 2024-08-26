@@ -323,11 +323,14 @@ func setupMatrix() *mautrix.Client {
 	})
 
 	subRegexp := regexp.MustCompile(`^(un)?sub ([\w.]+)$`)
-	helpText := `- **help**: show help
-- **sub foo.bar**: subscribe to package foo.bar
-- **unsub foo.bar**: unsubscribe from package foo.bar
-- **subs**: list subscriptions
-`
+	helpText := format.RenderMarkdown(`Welcome to the nixpkgs-update-notifier bot!
+
+  These are the available commands:
+  - **help**: show this help message
+  - **sub foo**: subscribe to package foo
+  - **unsub foo**: unsubscribe from package foo
+  - **subs**: list subscriptions
+  `, true, false)
 	subEventID := "io.github.nixpkgs-update-notifier.subscription"
 
 	syncer.OnEventType(event.EventMessage, func(ctx context.Context, evt *event.Event) {
@@ -382,7 +385,7 @@ func setupMatrix() *mautrix.Client {
 
 		default:
 			// anything else, so print help
-			if _, err := client.SendText(context.TODO(), evt.RoomID, helpText); err != nil {
+			if _, err := client.SendMessageEvent(context.TODO(), evt.RoomID, event.EventMessage, helpText); err != nil {
 				slog.Error(err.Error())
 			}
 			slog.Debug("received help", "sender", sender)
