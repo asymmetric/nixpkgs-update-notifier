@@ -406,14 +406,38 @@ func handleSubUnsub(matches []string, evt *event.Event) {
 	pkgName := matches[2]
 	rID := evt.RoomID
 
+	// check if pkgName exists
+	var pkgID int
+	if err := db.QueryRow("SELECT id FROM packages WHERE name = ?", pkgName).Scan(&pkgID); err != nil {
+		slog.Debug("sub/unsub from non-existing package", "pkg", pkgName)
+
+		if _, err := client.SendText(context.TODO(), evt.RoomID, fmt.Sprintf("could not find package %s", pkgName)); err != nil {
+			slog.Error(err.Error())
+		}
+
+		return
+	}
+
+	// check here if sub already exists
+
 	if matches[1] != "" {
 		slog.Info("received unsub", "pkg", pkgName, "sender", evt.Sender)
-		if _, err := db.Exec("DELETE FROM subscriptions WHERE roomid = ?", rID); err != nil {
+		res, err := db.Exec("DELETE FROM subscriptions WHERE pkgid = ?", pkgID)
+		if err != nil {
 			panic(err)
 		}
 
+		var msg string
+		if val, err := res.RowsAffected(); err != nil {
+			panic(err)
+		} else if val == 0 {
+			msg = fmt.Sprintf("could not find subscription for package %s", pkgName)
+		} else {
+			msg = fmt.Sprintf("successfully unsubscribed from package %s", pkgName)
+		}
+
 		// send confirmation message
-		if _, err := client.SendText(context.TODO(), evt.RoomID, fmt.Sprintf("successfully unsubscribed from package %s", pkgName)); err != nil {
+		if _, err := client.SendText(context.TODO(), evt.RoomID, msg); err != nil {
 			slog.Error(err.Error())
 		}
 		return
@@ -422,7 +446,6 @@ func handleSubUnsub(matches []string, evt *event.Event) {
 	slog.Info("received sub", "pkg", pkgName, "sender", evt.Sender)
 
 	// TODO use JOIN?
-	var pkgID int
 	if err := db.QueryRow("SELECT id FROM packages WHERE name = ?", pkgName).Scan(&pkgID); err != nil {
 		panic(err)
 	}
