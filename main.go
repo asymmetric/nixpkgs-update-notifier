@@ -21,16 +21,18 @@ import (
 	"golang.org/x/net/html"
 	"maunium.net/go/mautrix"
 	"maunium.net/go/mautrix/event"
+	"maunium.net/go/mautrix/format"
 	"maunium.net/go/mautrix/id"
 
 	_ "github.com/mattn/go-sqlite3"
 )
 
-var homeserver = pflag.String("homeserver", "matrix.org", "Matrix homeserver for the bot account")
+var matrixEnabled = pflag.Bool("matrix.enabled", true, "Whether to enable Matrix integration")
+var homeserver = pflag.String("matrix.homeserver", "matrix.org", "Matrix homeserver for the bot account")
 var url = pflag.String("url", "https://nixpkgs-update-logs.nix-community.org", "Webpage with logs")
 var filename = pflag.String("db", "data.db", "Path to the DB file")
 var config = pflag.String("config", "config.toml", "Config file")
-var username = pflag.String("username", "", "Matrix bot username")
+var username = pflag.String("matrix.username", "", "Matrix bot username")
 var delay = pflag.Duration("delay", 24*time.Hour, "How often to check url")
 var debug = pflag.Bool("debug", false, "Enable debug logging")
 
