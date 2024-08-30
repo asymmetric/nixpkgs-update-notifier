@@ -1,4 +1,4 @@
 *.sql
 *.db
 *.db-*
-config.toml
+.secrets

@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"log/slog"
@@ -16,8 +17,6 @@ import (
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/spf13/pflag"
-	"github.com/spf13/viper"
 	"golang.org/x/net/html"
 	"maunium.net/go/mautrix"
 	"maunium.net/go/mautrix/event"
@@ -25,32 +24,22 @@ import (
 	"maunium.net/go/mautrix/id"
 )
 
-var matrixEnabled = pflag.Bool("matrix.enabled", true, "Whether to enable Matrix integration")
-var homeserver = pflag.String("matrix.homeserver", "matrix.org", "Matrix homeserver for the bot account")
-var url = pflag.String("url", "https://nixpkgs-update-logs.nix-community.org", "Webpage with logs")
-var filename = pflag.String("db", "data.db", "Path to the DB file")
-var config = pflag.String("config", "config.toml", "Config file")
-var username = pflag.String("matrix.username", "", "Matrix bot username")
-var delay = pflag.Duration("delay", 24*time.Hour, "How often to check url")
-var debug = pflag.Bool("debug", false, "Enable debug logging")
+var matrixEnabled = flag.Bool("matrix.enabled", true, "Whether to enable Matrix integration")
+var matrixHomeserver = flag.String("matrix.homeserver", "matrix.org", "Matrix homeserver for the bot account")
+var matrixUsername = flag.String("matrix.username", "", "Matrix bot username")
+
+var url = flag.String("url", "https://nixpkgs-update-logs.nix-community.org", "Webpage with logs")
+var filename = flag.String("db", "data.db", "Path to the DB file")
+var config = flag.String("config", "config.toml", "Config file")
+var delay = flag.Duration("delay", 24*time.Hour, "How often to check url")
+var debug = flag.Bool("debug", false, "Enable debug logging")
 
 var client *mautrix.Client
 
 var db *sql.DB
 
 func main() {
-	pflag.Parse()
-	viper.BindPFlags(pflag.CommandLine)
-
-	viper.SetConfigFile(*config)
-	if err := viper.ReadInConfig(); err != nil {
-		// FIXME: broken if file missing
-		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-			fmt.Println("config file not found, using defaults")
-		} else {
-			panic(err)
-		}
-	}
+	flag.Parse()
 
 	setupLogger()
 
@@ -59,7 +48,7 @@ func main() {
 	}
 	defer db.Close()
 
-	if viper.GetBool("matrix.enabled") {
+	if *matrixEnabled {
 		client = setupMatrix()
 
 		go func() {
@@ -70,9 +59,9 @@ func main() {
 	}
 
 	ch := make(chan string)
-	ticker := time.NewTicker(viper.GetDuration("delay"))
+	ticker := time.NewTicker(*delay)
 	optimizeTicker := time.NewTicker(24 * time.Hour)
-	slog.Debug("delay set", "value", viper.GetDuration("delay"))
+	slog.Debug("delay set", "value", *delay)
 
 	// fetch main page
 	// - add each link to the queue
@@ -99,7 +88,7 @@ func main() {
 	slog.Info("initialized", "delay", delay)
 
 	// visit main page to send links to channel
-	go scrapeLinks(viper.GetString("url"), ch, hCli)
+	go scrapeLinks(*url, ch, hCli)
 
 	for {
 		select {
@@ -116,7 +105,7 @@ func main() {
 			}
 		case <-ticker.C:
 			slog.Debug(">>> ticker")
-			go scrapeLinks(viper.GetString("url"), ch, hCli)
+			go scrapeLinks(*url, ch, hCli)
 		case <-optimizeTicker.C:
 			slog.Info("optimizing DB")
 			if _, err := db.Exec("PRAGMA optimize;"); err != nil {
@@ -233,7 +222,7 @@ func visitLog(url string, mCli *mautrix.Client, hCli *http.Client) {
 
 		slog.Info("new log found", "err", true, "url", url)
 
-		if viper.GetBool("matrix.enabled") {
+		if *matrixEnabled {
 			// TODO: handle 429
 
 			// - find all subscribers for package
@@ -277,15 +266,21 @@ func visitLog(url string, mCli *mautrix.Client, hCli *http.Client) {
 }
 
 func setupMatrix() *mautrix.Client {
-	client, err := mautrix.NewClient(viper.GetString("matrix.homeserver"), "", "")
+	client, err := mautrix.NewClient(*matrixHomeserver, "", "")
 	if err != nil {
 		panic(err)
 	}
 
+	envVar := "NIXPKGS_UPDATE_NOTIFIER_PASSWORD"
+	pwd, found := os.LookupEnv(envVar)
+	if !found {
+		panic(fmt.Errorf("could not read password env var %s", envVar))
+	}
+
 	_, err = client.Login(context.TODO(), &mautrix.ReqLogin{
 		Type:               mautrix.AuthTypePassword,
-		Identifier:         mautrix.UserIdentifier{Type: mautrix.IdentifierTypeUser, User: viper.GetString("matrix.username")},
-		Password:           viper.GetString("matrix.password"),
+		Identifier:         mautrix.UserIdentifier{Type: mautrix.IdentifierTypeUser, User: *matrixUsername},
+		Password:           pwd,
 		StoreCredentials:   true,
 		StoreHomeserverURL: true,
 	})
@@ -337,7 +332,7 @@ func setupMatrix() *mautrix.Client {
 
 		slog.Debug("received msg", "msg", msg, "sender", sender)
 
-		if sender == fmt.Sprintf("@%s:%s", viper.GetString("matrix.username"), viper.GetString("matrix.homeserver")) {
+		if sender == fmt.Sprintf("@%s:%s", *matrixUsername, *matrixHomeserver) {
 			slog.Debug("ignoring our own message", "msg", msg)
 			return
 		}
@@ -481,13 +476,13 @@ func setupLogger() {
 	h := slog.NewTextHandler(os.Stderr, opts)
 	slog.SetDefault(slog.New(h))
 
-	if viper.GetBool("debug") {
+	if *debug {
 		opts.Level = slog.LevelDebug
 	}
 }
 
 func setupDB() (err error) {
-	db, err = sql.Open("sqlite3", fmt.Sprintf("file:%s?_journal_mode=WAL&_synchronous=NORMAL&_foreign_keys=true", viper.GetString("db")))
+	db, err = sql.Open("sqlite3", fmt.Sprintf("file:%s?_journal_mode=WAL&_synchronous=NORMAL&_foreign_keys=true", *filename))
 	if err != nil {
 		return
 	}
