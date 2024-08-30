@@ -30,16 +30,14 @@
           pkgs = nixpkgsFor.${system};
         in
         {
-          go-hello = pkgs.buildGoModule {
-            pname = "nixpkgs-update-notify-notifier";
+          nixpkgs-update-notifier = pkgs.buildGoModule {
+            pname = "nixpkgs-update-notifier";
             inherit version;
             # In 'nix develop', we don't need a copy of the source tree
             # in the Nix store.
             src = ./.;
 
-            vendorHash = "sha256-y+wRag3PH43MHTIBNcVA6QIqNSkjAv9suE8xZ7yWB0A=";
-
-            tags = [ "goolm" ];
+            vendorHash = "sha256-jclP3ZgEe3xLDqNvQFs3tZIwtN3Mj4lumvG9lQVWb4Y=";
           };
         });
 
@@ -57,6 +55,6 @@
       # The default package for 'nix build'. This makes sense if the
       # flake provides only one package or there is a clear "main"
       # package.
-      defaultPackage = forAllSystems (system: self.packages.${system}.go-hello);
+      defaultPackage = forAllSystems (system: self.packages.${system}.nixpkgs-update-notifier);
     };
 }
