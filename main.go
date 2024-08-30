@@ -24,7 +24,6 @@ import (
 	"maunium.net/go/mautrix/id"
 )
 
-var matrixEnabled = flag.Bool("matrix.enabled", true, "Whether to enable Matrix integration")
 var matrixHomeserver = flag.String("matrix.homeserver", "matrix.org", "Matrix homeserver for the bot account")
 var matrixUsername = flag.String("matrix.username", "", "Matrix bot username")
 
@@ -48,15 +47,12 @@ func main() {
 	}
 	defer db.Close()
 
-	if *matrixEnabled {
-		client = setupMatrix()
-
-		go func() {
-			if err := client.Sync(); err != nil {
-				panic(err)
-			}
-		}()
-	}
+	client = setupMatrix()
+	go func() {
+		if err := client.Sync(); err != nil {
+			panic(err)
+		}
+	}()
 
 	ch := make(chan string)
 	ticker := time.NewTicker(*delay)
@@ -222,36 +218,34 @@ func visitLog(url string, mCli *mautrix.Client, hCli *http.Client) {
 
 		slog.Info("new log found", "err", true, "url", url)
 
-		if *matrixEnabled {
-			// TODO: handle 429
+		// TODO: handle 429
 
-			// - find all subscribers for package
-			// - send message in respective room
-			// - if we're not in that room, drop from db of subs?
-			rows, err := db.Query("SELECT roomid from subscriptions where pkgid = ?", pkgID)
+		// - find all subscribers for package
+		// - send message in respective room
+		// - if we're not in that room, drop from db of subs?
+		rows, err := db.Query("SELECT roomid from subscriptions where pkgid = ?", pkgID)
+		if err != nil {
+			panic(err)
+		}
+		defer rows.Close()
+
+		roomIDs := make([]string, 0)
+		for rows.Next() {
+			var roomID string
+			if err := rows.Scan(&roomID); err != nil {
+				panic(err)
+			}
+			roomIDs = append(roomIDs, roomID)
+		}
+		if err := rows.Err(); err != nil {
+			panic(err)
+		}
+
+		for _, roomID := range roomIDs {
+			_, err := mCli.SendText(context.TODO(), id.RoomID(roomID), fmt.Sprintf("logfile contains an error: %s", url))
 			if err != nil {
-				panic(err)
-			}
-			defer rows.Close()
-
-			roomIDs := make([]string, 0)
-			for rows.Next() {
-				var roomID string
-				if err := rows.Scan(&roomID); err != nil {
-					panic(err)
-				}
-				roomIDs = append(roomIDs, roomID)
-			}
-			if err := rows.Err(); err != nil {
-				panic(err)
-			}
-
-			for _, roomID := range roomIDs {
-				_, err := mCli.SendText(context.TODO(), id.RoomID(roomID), fmt.Sprintf("logfile contains an error: %s", url))
-				if err != nil {
-					// TODO check if we're not in room, in that case remove sub
-					slog.Error(err.Error())
-				}
+				// TODO check if we're not in room, in that case remove sub
+				slog.Error(err.Error())
 			}
 		}
 	} else {
