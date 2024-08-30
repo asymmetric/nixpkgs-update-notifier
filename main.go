@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	u "net/url"
@@ -14,8 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"io"
-
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	"golang.org/x/net/html"
@@ -23,8 +23,6 @@ import (
 	"maunium.net/go/mautrix/event"
 	"maunium.net/go/mautrix/format"
 	"maunium.net/go/mautrix/id"
-
-	_ "github.com/mattn/go-sqlite3"
 )
 
 var matrixEnabled = pflag.Bool("matrix.enabled", true, "Whether to enable Matrix integration")
@@ -98,7 +96,7 @@ func main() {
 			MaxConnsPerHost: 5,
 		},
 	}
-	slog.Info("Initialized")
+	slog.Info("initialized", "delay", delay)
 
 	// visit main page to send links to channel
 	go scrapeLinks(viper.GetString("url"), ch, hCli)
@@ -423,8 +421,7 @@ func handleSubUnsub(matches []string, evt *event.Event) {
 		return
 	}
 
-	// check here if sub already exists
-
+	// TODO check here if sub already exists
 	if matches[1] != "" {
 		slog.Info("received unsub", "pkg", pkgName, "sender", evt.Sender)
 		res, err := db.Exec("DELETE FROM subscriptions WHERE pkgid = ?", pkgID)
@@ -490,7 +487,7 @@ func setupLogger() {
 }
 
 func setupDB() (err error) {
-	db, err = sql.Open("sqlite3", fmt.Sprintf("%s?_journal_mode=WAL&_synchronous=NORMAL&_foreign_keys=true", viper.GetString("db")))
+	db, err = sql.Open("sqlite3", fmt.Sprintf("file:%s?_journal_mode=WAL&_synchronous=NORMAL&_foreign_keys=true", viper.GetString("db")))
 	if err != nil {
 		return
 	}
