@@ -117,7 +117,12 @@ func scrapeLinks(url string, ch chan<- string, hCli *http.Client) {
 	if err != nil {
 		slog.Error(err.Error())
 	}
-	resp, err := hCli.Get(parsedURL.String())
+	req, err := newReqWithUA(url)
+	if err != nil {
+		panic(err)
+	}
+
+	resp, err := hCli.Do(req)
 	if err != nil {
 		slog.Error(err.Error())
 	}
@@ -200,7 +205,12 @@ func visitLog(url string, mCli *mautrix.Client, hCli *http.Client) {
 		return
 	}
 
-	resp, err := hCli.Get(url)
+	req, err := newReqWithUA(url)
+	if err != nil {
+		panic(err)
+	}
+
+	resp, err := hCli.Do(req)
 	if err != nil {
 		slog.Error(err.Error())
 	}
@@ -501,4 +511,14 @@ func setupDB() (err error) {
 	}
 
 	return
+}
+
+func newReqWithUA(url string) (*http.Request, error) {
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", "https://github.com/asymmetric/nixpkgs-update-notifier")
+
+	return req, nil
 }
