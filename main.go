@@ -171,31 +171,8 @@ func visitLog(url string, mCli *mautrix.Client, hCli *http.Client) {
 	date := strings.Trim(components[len(components)-1], ".log")
 	slog.Debug("log found", "pkg", pkgName, "date", date)
 
-	// pkgName -> pkgID
-	var pkgID int64
-	if err := db.QueryRow("SELECT id from packages WHERE name = ?", pkgName).Scan(&pkgID); err != nil {
-		// TODO: move this to first pass, to simplify this code
-		// - as we add logs to queue, add missing packages to db
-		// Package did not exist in db, inserting
-		if errors.Is(err, sql.ErrNoRows) {
-			slog.Info("new package found", "pkg", pkgName)
-			result, err := db.Exec("INSERT INTO packages(name) VALUES (?)", pkgName)
-			if err != nil {
-				panic(err)
-			}
-
-			pkgID, err = result.LastInsertId()
-			if err != nil {
-				panic(err)
-			}
-
-		} else {
-			panic(err)
-		}
-	}
-
 	var count int
-	if err := db.QueryRow("SELECT COUNT(*) FROM visited where pkgid = ? AND date = ?", pkgID, date).Scan(&count); err != nil {
+	if err := db.QueryRow("SELECT COUNT(*) FROM visited where attr_path = ? AND date = ?", pkgName, date).Scan(&count); err != nil {
 		panic(err)
 	}
 
@@ -233,7 +210,7 @@ func visitLog(url string, mCli *mautrix.Client, hCli *http.Client) {
 		// - find all subscribers for package
 		// - send message in respective room
 		// - if we're not in that room, drop from db of subs?
-		rows, err := db.Query("SELECT roomid from subscriptions where pkgid = ?", pkgID)
+		rows, err := db.Query("SELECT roomid FROM subscriptions WHERE attr_path = ?", pkgName)
 		if err != nil {
 			panic(err)
 		}
@@ -252,7 +229,8 @@ func visitLog(url string, mCli *mautrix.Client, hCli *http.Client) {
 		}
 
 		for _, roomID := range roomIDs {
-			_, err := mCli.SendText(context.TODO(), id.RoomID(roomID), fmt.Sprintf("logfile contains an error: %s", url))
+			slog.Info("notifying subscriber", "roomid", roomID)
+			_, err := mCli.SendText(context.TODO(), id.RoomID(roomID), fmt.Sprintf("new build error for package %s: %s", pkgName, url))
 			if err != nil {
 				// TODO check if we're not in room, in that case remove sub
 				slog.Error(err.Error())
@@ -263,7 +241,7 @@ func visitLog(url string, mCli *mautrix.Client, hCli *http.Client) {
 	}
 
 	// we haven't seen this log yet, so add it to the list of seen ones
-	if _, err := db.Exec("INSERT INTO visited (pkgid, date, error) VALUES (?, ?, ?)", pkgID, date, hasError); err != nil {
+	if _, err := db.Exec("INSERT INTO visited (attr_path, date, error) VALUES (?, ?, ?)", pkgName, date, hasError); err != nil {
 		panic(err)
 	}
 
@@ -352,7 +330,7 @@ func setupMatrix() *mautrix.Client {
 
 		switch msg {
 		case "subs":
-			rows, err := db.Query("SELECT name FROM packages AS p JOIN subscriptions AS s ON p.id = s.pkgid WHERE s.roomid = ?", evt.RoomID)
+			rows, err := db.Query("SELECT attr_path FROM subscriptions WHERE s.roomid = ?", evt.RoomID)
 			if err != nil {
 				panic(err)
 			}
@@ -408,22 +386,10 @@ func handleSubUnsub(matches []string, evt *event.Event) {
 	pkgName := matches[2]
 	rID := evt.RoomID
 
-	// check if pkgName exists
-	var pkgID int
-	if err := db.QueryRow("SELECT id FROM packages WHERE name = ?", pkgName).Scan(&pkgID); err != nil {
-		slog.Debug("sub/unsub from non-existing package", "pkg", pkgName)
-
-		if _, err := client.SendText(context.TODO(), evt.RoomID, fmt.Sprintf("could not find package %s", pkgName)); err != nil {
-			slog.Error(err.Error())
-		}
-
-		return
-	}
-
-	// TODO check here if sub already exists
+	// TODO check if sub already exists
 	if matches[1] != "" {
 		slog.Info("received unsub", "pkg", pkgName, "sender", evt.Sender)
-		res, err := db.Exec("DELETE FROM subscriptions WHERE pkgid = ?", pkgID)
+		res, err := db.Exec("DELETE FROM subscriptions WHERE attr_path = ?", pkgName)
 		if err != nil {
 			panic(err)
 		}
@@ -446,14 +412,8 @@ func handleSubUnsub(matches []string, evt *event.Event) {
 
 	slog.Info("received sub", "pkg", pkgName, "sender", evt.Sender)
 
-	// TODO use JOIN?
-	if err := db.QueryRow("SELECT id FROM packages WHERE name = ?", pkgName).Scan(&pkgID); err != nil {
-		panic(err)
-	}
-
-	// check if sub already exists
 	var c int
-	if err := db.QueryRow("SELECT COUNT(*) FROM subscriptions WHERE roomid = ? AND pkgid = ?", rID, pkgID).Scan(&c); err != nil {
+	if err := db.QueryRow("SELECT COUNT(*) FROM subscriptions WHERE roomid = ? AND attr_path = ?", rID, pkgName).Scan(&c); err != nil {
 		panic(err)
 	}
 
@@ -464,7 +424,7 @@ func handleSubUnsub(matches []string, evt *event.Event) {
 		return
 	}
 
-	if _, err := db.Exec("INSERT INTO subscriptions(roomid,pkgid) VALUES (?, ?)", evt.RoomID, pkgID); err != nil {
+	if _, err := db.Exec("INSERT INTO subscriptions(roomid,attr_path,mxid) VALUES (?, ?, ?)", evt.RoomID, pkgName, evt.Sender); err != nil {
 		panic(err)
 	}
 
@@ -496,16 +456,12 @@ func setupDB() (err error) {
 		return
 	}
 
-	_, err = db.Exec("CREATE TABLE IF NOT EXISTS packages (id INTEGER PRIMARY KEY, name TEXT UNIQUE NOT NULL) STRICT")
-	if err != nil {
-		return
-	}
-	_, err = db.Exec("CREATE TABLE IF NOT EXISTS visited (id INTEGER PRIMARY KEY, pkgid INTEGER, date TEXT NOT NULL, error INTEGER, UNIQUE(pkgid, date), FOREIGN KEY(pkgid) REFERENCES packages(id)) STRICT")
+	_, err = db.Exec("CREATE TABLE IF NOT EXISTS visited (attr_path TEXT, date TEXT, error INTEGER, PRIMARY KEY(attr_path, date) ON CONFLICT REPLACE) STRICT")
 	if err != nil {
 		return
 	}
 
-	_, err = db.Exec("CREATE TABLE IF NOT EXISTS subscriptions (id INTEGER PRIMARY KEY, roomid TEXT, pkgid INTEGER, UNIQUE(roomid, pkgid), FOREIGN KEY(pkgid) REFERENCES packages(id)) STRICT")
+	_, err = db.Exec("CREATE TABLE IF NOT EXISTS subscriptions (id INTEGER PRIMARY KEY, roomid TEXT, mxid TEXT NOT NULL, attr_path TEXT NOT NULL, UNIQUE(roomid, attr_path), FOREIGN KEY(attr_path) REFERENCES visited(attr_path)) STRICT")
 	if err != nil {
 		return
 	}
