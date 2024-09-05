@@ -14,6 +14,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -42,6 +43,8 @@ var db *sql.DB
 // just the ones since they subscribed, which by definition is after the first
 // run of this program.
 var tombstone string
+
+var packages sync.Map
 
 func main() {
 	flag.Parse()
@@ -159,6 +162,8 @@ func scrapeLinks(url string, ch chan<- string, hCli *http.Client) {
 			if isAnchor {
 				for _, a := range t.Attr {
 					if a.Key == "href" && a.Val != "../" && !re.MatchString(a.Val) {
+						packages.Store(a.Val, struct{}{})
+
 						fullURL := parsedURL.JoinPath(a.Val)
 						slog.Debug("parsed", "url", fullURL.String())
 
@@ -401,6 +406,16 @@ func handleSubUnsub(matches []string, evt *event.Event) {
 	rID := evt.RoomID
 
 	// TODO check if sub already exists
+	if _, found := packages.Load(pkgName); !found {
+		slog.Info("item not found")
+		if _, err := client.SendText(context.TODO(), evt.RoomID, fmt.Sprintf("could not find package %s", pkgName)); err != nil {
+			slog.Error(err.Error())
+		}
+
+		return
+	}
+
+	// matches[1] is the optional "un" prefix
 	if matches[1] != "" {
 		slog.Info("received unsub", "pkg", pkgName, "sender", evt.Sender)
 		res, err := db.Exec("DELETE FROM subscriptions WHERE attr_path = ?", pkgName)
