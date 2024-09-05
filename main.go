@@ -109,7 +109,7 @@ func main() {
 				go scrapeLinks(url, ch, hCli)
 			}
 		case <-ticker.C:
-			slog.Debug(">>> ticker")
+			slog.Info("new ticker run")
 			go scrapeLinks(*url, ch, hCli)
 		case <-optimizeTicker.C:
 			slog.Info("optimizing DB")
@@ -349,7 +349,7 @@ func setupMatrix() *mautrix.Client {
 
 		switch msg {
 		case "subs":
-			rows, err := db.Query("SELECT attr_path FROM subscriptions WHERE s.roomid = ?", evt.RoomID)
+			rows, err := db.Query("SELECT attr_path FROM subscriptions WHERE roomid = ?", evt.RoomID)
 			if err != nil {
 				panic(err)
 			}
@@ -407,7 +407,6 @@ func handleSubUnsub(matches []string, evt *event.Event) {
 
 	// TODO check if sub already exists
 	if _, found := packages.Load(pkgName); !found {
-		slog.Info("item not found")
 		if _, err := client.SendText(context.TODO(), evt.RoomID, fmt.Sprintf("could not find package %s", pkgName)); err != nil {
 			slog.Error(err.Error())
 		}
