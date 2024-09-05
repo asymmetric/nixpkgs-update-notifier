@@ -162,8 +162,6 @@ func scrapeLinks(url string, ch chan<- string, hCli *http.Client) {
 			if isAnchor {
 				for _, a := range t.Attr {
 					if a.Key == "href" && a.Val != "../" && !re.MatchString(a.Val) {
-						packages.Store(a.Val, struct{}{})
-
 						fullURL := parsedURL.JoinPath(a.Val)
 						slog.Debug("parsed", "url", fullURL.String())
 
@@ -182,6 +180,8 @@ func scrapeLinks(url string, ch chan<- string, hCli *http.Client) {
 func visitLog(url string, mCli *mautrix.Client, hCli *http.Client) {
 	components := strings.Split(url, "/")
 	pkgName := components[len(components)-2]
+	packages.Store(pkgName, struct{}{})
+
 	date := strings.Trim(components[len(components)-1], ".log")
 	slog.Debug("log found", "pkg", pkgName, "date", date)
 
@@ -406,7 +406,7 @@ func handleSubUnsub(matches []string, evt *event.Event) {
 	rID := evt.RoomID
 
 	// TODO check if sub already exists
-	if _, found := packages.Load(pkgName); !found {
+	if _, ok := packages.Load(pkgName); !ok {
 		if _, err := client.SendText(context.TODO(), evt.RoomID, fmt.Sprintf("could not find package %s", pkgName)); err != nil {
 			slog.Error(err.Error())
 		}
