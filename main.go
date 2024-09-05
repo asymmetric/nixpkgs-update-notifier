@@ -37,6 +37,12 @@ var client *mautrix.Client
 
 var db *sql.DB
 
+// Set this to the date the the visited table is created, so we ignore logs
+// older than this date -- the user is not interested in all past failures,
+// just the ones since they subscribed, which by definition is after the first
+// run of this program.
+var tombstone string
+
 func main() {
 	flag.Parse()
 
@@ -134,7 +140,10 @@ func scrapeLinks(url string, ch chan<- string, hCli *http.Client) {
 	}
 	z := html.NewTokenizer(bytes.NewReader(r))
 
+	// we want to avoid links starting with ~, as those are internal state of the
+	// nixpkgs-update supervisor
 	re := regexp.MustCompile("^~")
+
 	for {
 		tt := z.Next()
 
@@ -170,6 +179,11 @@ func visitLog(url string, mCli *mautrix.Client, hCli *http.Client) {
 	pkgName := components[len(components)-2]
 	date := strings.Trim(components[len(components)-1], ".log")
 	slog.Debug("log found", "pkg", pkgName, "date", date)
+
+	if date < tombstone {
+		slog.Debug("skipping")
+		return
+	}
 
 	var count int
 	if err := db.QueryRow("SELECT COUNT(*) FROM visited where attr_path = ? AND date = ?", pkgName, date).Scan(&count); err != nil {
@@ -456,12 +470,21 @@ func setupDB() (err error) {
 		return
 	}
 
-	_, err = db.Exec("CREATE TABLE IF NOT EXISTS visited (attr_path TEXT, date TEXT, error INTEGER, PRIMARY KEY(attr_path, date) ON CONFLICT REPLACE) STRICT")
+	_, err = db.Exec("CREATE TABLE IF NOT EXISTS visited (attr_path TEXT, date TEXT, error INTEGER, PRIMARY KEY(attr_path, date)) STRICT")
 	if err != nil {
 		return
 	}
 
-	_, err = db.Exec("CREATE TABLE IF NOT EXISTS subscriptions (id INTEGER PRIMARY KEY, roomid TEXT, mxid TEXT NOT NULL, attr_path TEXT NOT NULL, UNIQUE(roomid, attr_path), FOREIGN KEY(attr_path) REFERENCES visited(attr_path)) STRICT")
+	if err := db.QueryRow("SELECT date FROM visited ORDER BY date ASC LIMIT 1").Scan(&tombstone); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			tombstone = time.Now().Format(time.DateOnly)
+		} else {
+			panic(err)
+		}
+	}
+	slog.Info("tombstone", "tombstone", tombstone)
+
+	_, err = db.Exec("CREATE TABLE IF NOT EXISTS subscriptions (id INTEGER PRIMARY KEY, roomid TEXT, mxid TEXT NOT NULL, attr_path TEXT NOT NULL, UNIQUE(roomid, attr_path)) STRICT")
 	if err != nil {
 		return
 	}
