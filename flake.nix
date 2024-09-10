@@ -26,19 +26,8 @@
 
       # Provide some binary packages for selected system types.
       packages = forAllSystems (system:
-        let
-          pkgs = nixpkgsFor.${system};
-        in
         {
-          nixpkgs-update-notifier = pkgs.buildGoModule {
-            pname = "nixpkgs-update-notifier";
-            inherit version;
-            # In 'nix develop', we don't need a copy of the source tree
-            # in the Nix store.
-            src = ./.;
-
-            vendorHash = "sha256-jclP3ZgEe3xLDqNvQFs3tZIwtN3Mj4lumvG9lQVWb4Y=";
-          };
+          nixpkgs-update-notifier = nixpkgsFor.${system}.callPackage ./package.nix { inherit version; };
         });
 
       # Add dependencies that are only needed for development
