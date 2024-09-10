@@ -37,13 +37,24 @@
         in
         {
           default = pkgs.mkShell {
-            buildInputs = with pkgs; [ go gopls gotools go-tools ];
+            buildInputs = with pkgs; [
+              go
+              go-tools # staticcheck
+              gopls
+              gotools
+            ];
           };
         });
 
-      # The default package for 'nix build'. This makes sense if the
-      # flake provides only one package or there is a clear "main"
-      # package.
-      defaultPackage = forAllSystems (system: self.packages.${system}.nixpkgs-update-notifier);
+      overlays.default = final: prev: {
+        nixpkgs-update-notifier = self.packages.${final.system}.nixpkgs-update-notifier;
+      };
+
+      nixosModules.default = { config, lib, pkgs, ... }: {
+        imports = [
+          ./module.nix
+        ];
+        nixpkgs.overlays = [ self.overlays.default ];
+      };
     };
 }
