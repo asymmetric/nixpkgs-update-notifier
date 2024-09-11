@@ -29,9 +29,8 @@ var matrixHomeserver = flag.String("matrix.homeserver", "matrix.org", "Matrix ho
 var matrixUsername = flag.String("matrix.username", "", "Matrix bot username")
 
 var url = flag.String("url", "https://nixpkgs-update-logs.nix-community.org", "Webpage with logs")
-var filename = flag.String("db", "data.db", "Path to the DB file")
-var config = flag.String("config", "config.toml", "Config file")
-var delay = flag.Duration("delay", 24*time.Hour, "How often to check url")
+var dbPath = flag.String("db", "data.db", "Path to the DB file")
+var tickerOpt = flag.Duration("ticker", 24*time.Hour, "How often to check url")
 var debug = flag.Bool("debug", false, "Enable debug logging")
 
 var client *mautrix.Client
@@ -64,9 +63,9 @@ func main() {
 	}()
 
 	ch := make(chan string)
-	ticker := time.NewTicker(*delay)
+	ticker := time.NewTicker(*tickerOpt)
 	optimizeTicker := time.NewTicker(24 * time.Hour)
-	slog.Debug("delay set", "value", *delay)
+	slog.Debug("delay set", "value", *tickerOpt)
 
 	// fetch main page
 	// - add each link to the queue
@@ -90,7 +89,7 @@ func main() {
 			MaxConnsPerHost: 5,
 		},
 	}
-	slog.Info("initialized", "delay", delay)
+	slog.Info("initialized", "delay", tickerOpt)
 
 	// visit main page to send links to channel
 	go scrapeLinks(*url, ch, hCli)
@@ -149,11 +148,8 @@ func scrapeLinks(url string, ch chan<- string, hCli *http.Client) {
 
 	for {
 		tt := z.Next()
-
 		switch tt {
 		case html.ErrorToken:
-			// done
-			slog.Debug("done parsing")
 			return
 		case html.StartTagToken:
 			t := z.Token()
@@ -474,7 +470,7 @@ func setupLogger() {
 }
 
 func setupDB() (err error) {
-	db, err = sql.Open("sqlite3", fmt.Sprintf("file:%s?_journal_mode=WAL&_synchronous=NORMAL&_foreign_keys=true", *filename))
+	db, err = sql.Open("sqlite3", fmt.Sprintf("file:%s?_journal_mode=WAL&_synchronous=NORMAL&_foreign_keys=true", *dbPath))
 	if err != nil {
 		return
 	}
