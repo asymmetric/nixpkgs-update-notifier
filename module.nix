@@ -11,8 +11,16 @@
         wantedBy = [ "multi-user.target" ];
         after = [ "network.target" ];
         serviceConfig = {
-          DynamicUser = true;
-          ExecStart = "${pkgs.nixpkgs-update-notifier}/bin/nixpkgs-update-notifier --help";
+          Restart = "on-failure";
+          EnvironmentFile = cfg.passwordFile;
+          ExecStart = toString [
+            (lib.getExe pkgs.nixpkgs-update-notifier)
+            "-matrix.username ${cfg.username}"
+            "-db ${cfg.dataDir}/data.db"
+            (lib.optionalString (cfg.ticker != null) "-ticker ${cfg.ticker}")
+            (lib.optionalString cfg.debug "-debug")
+          ];
+          StateDirectory = "nixpkgs-update-notifier";
         };
       };
     };
