@@ -461,12 +461,13 @@ func handleSubUnsub(matches []string, evt *event.Event) {
 
 func setupLogger() {
 	opts := &slog.HandlerOptions{}
-	h := slog.NewTextHandler(os.Stderr, opts)
-	slog.SetDefault(slog.New(h))
 
 	if *debug {
 		opts.Level = slog.LevelDebug
 	}
+
+	h := slog.NewTextHandler(os.Stderr, opts)
+	slog.SetDefault(slog.New(h))
 }
 
 func setupDB() (err error) {
