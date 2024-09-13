@@ -25,10 +25,11 @@
     {
 
       # Provide some binary packages for selected system types.
-      packages = forAllSystems (system:
-        {
-          nixpkgs-update-notifier = nixpkgsFor.${system}.callPackage ./package.nix { inherit version; };
-        });
+      packages = forAllSystems (system: rec {
+        nixpkgs-update-notifier = nixpkgsFor.${system}.callPackage ./package.nix { inherit version; };
+
+        default = nixpkgs-update-notifier;
+      });
 
       # Add dependencies that are only needed for development
       devShells = forAllSystems (system:
