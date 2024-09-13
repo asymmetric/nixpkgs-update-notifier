@@ -335,7 +335,7 @@ func setupMatrix() *mautrix.Client {
 		}
 	})
 
-	subRegexp := regexp.MustCompile(`^(un)?sub ([\w.]+)$`)
+	subRegexp := regexp.MustCompile(`^(un)?sub ([\w._-]+)$`)
 	helpText := format.RenderMarkdown(`Welcome to the nixpkgs-update-notifier bot!
 
   These are the available commands:
