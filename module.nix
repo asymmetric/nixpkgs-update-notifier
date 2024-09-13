@@ -2,8 +2,27 @@
   options = {
     services.nixpkgs-update-notifier = {
       enable = lib.mkEnableOption "nixpkgs-update-notifier";
+      username = lib.mkOption {
+        type = lib.types.str;
+      };
+      passwordFile = lib.mkOption {
+        type = lib.types.path;
+      };
+      dataDir = lib.mkOption {
+        type = lib.types.path;
+        default = "/var/lib/nixpkgs-update-notifier";
+      };
+      ticker = lib.mkOption {
+        type = lib.types.nullOr lib.types.str;
+        default = null;
+      };
+      debug = lib.mkOption {
+        type = lib.types.nullOr lib.types.bool;
+        default = null;
+      };
     };
   };
+
   config =
     let cfg = config.services.nixpkgs-update-notifier;
     in lib.mkIf cfg.enable {
