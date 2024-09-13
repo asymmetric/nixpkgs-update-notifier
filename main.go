@@ -123,7 +123,10 @@ func scrapeLinks(url string, ch chan<- string, hCli *http.Client) {
 	parsedURL, err := u.Parse(url)
 	if err != nil {
 		slog.Error(err.Error())
+
+		return
 	}
+
 	req, err := newReqWithUA(url)
 	if err != nil {
 		panic(err)
@@ -217,12 +220,16 @@ func visitLog(url string, mCli *mautrix.Client, hCli *http.Client) {
 	resp, err := hCli.Do(req)
 	if err != nil {
 		slog.Error(err.Error())
+
+		return
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		slog.Error(err.Error())
+
+		return
 	}
 
 	// check for error in logs
@@ -305,6 +312,8 @@ func setupMatrix() *mautrix.Client {
 			// TODO: only join if IsDirect is true, i.e. it's a DM
 			if _, err := client.JoinRoomByID(ctx, evt.RoomID); err != nil {
 				slog.Error(err.Error())
+
+				return
 			}
 
 			slog.Debug("joining room", "id", evt.RoomID)
@@ -316,6 +325,8 @@ func setupMatrix() *mautrix.Client {
 
 			if _, err := client.LeaveRoom(ctx, evt.RoomID); err != nil {
 				slog.Error(err.Error())
+
+				return
 			}
 
 			slog.Debug("leaving room", "id", evt.RoomID)
