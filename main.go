@@ -37,7 +37,7 @@ var client *mautrix.Client
 
 var db *sql.DB
 
-// Set this to the date the the visited table is created, so we ignore logs
+// This is set to the date the visited table is created, so we ignore logs
 // older than this date -- the user is not interested in all past failures,
 // just the ones since they subscribed, which by definition is after the first
 // run of this program.
@@ -79,9 +79,6 @@ func main() {
 	// - new sub
 	// - new broken package, send to subbers
 
-	// perf-opt: compile regex
-	re := regexp.MustCompile(`\.log$`)
-
 	hCli := &http.Client{
 		Transport: &http.Transport{
 			TLSHandshakeTimeout: 30 * time.Second,
@@ -94,17 +91,19 @@ func main() {
 	// visit main page to send links to channel
 	go scrapeLinks(*url, ch, hCli)
 
+	re := regexp.MustCompile(`\.log$`)
+
 	for {
 		select {
 		case url := <-ch:
-			logLink := re.MatchString(url)
+			isLog := re.MatchString(url)
 
-			if logLink {
+			if isLog {
 				// TODO make async? probably not as it accesses db
-				slog.Debug("found link", "url", url)
+				slog.Info("found log", "url", url)
 				visitLog(url, client, hCli)
 			} else {
-				slog.Debug("scraping link", "url", url)
+				slog.Info("scraping link", "url", url)
 				go scrapeLinks(url, ch, hCli)
 			}
 		case <-ticker.C:
@@ -133,19 +132,24 @@ func scrapeLinks(url string, ch chan<- string, hCli *http.Client) {
 	resp, err := hCli.Do(req)
 	if err != nil {
 		slog.Error(err.Error())
+
+		return
 	}
 	defer resp.Body.Close()
 
 	r, err := io.ReadAll(resp.Body)
 	if err != nil {
 		slog.Error(err.Error())
+
+		return
 	}
 	z := html.NewTokenizer(bytes.NewReader(r))
 
 	// we want to avoid links starting with ~, as those are internal state of the
 	// nixpkgs-update supervisor
+	// TODO change to this
+	// re := regexp.MustCompile("(^~.*|^../)")
 	re := regexp.MustCompile("^~")
-
 	for {
 		tt := z.Next()
 		switch tt {
@@ -159,7 +163,13 @@ func scrapeLinks(url string, ch chan<- string, hCli *http.Client) {
 				for _, a := range t.Attr {
 					if a.Key == "href" && a.Val != "../" && !re.MatchString(a.Val) {
 						fullURL := parsedURL.JoinPath(a.Val)
-						slog.Debug("parsed", "url", fullURL.String())
+						date := getDate(url)
+
+						if date < tombstone {
+							slog.Debug("skipping", "reason", "old", "url", fullURL)
+
+							break
+						}
 
 						// add link to queue
 						ch <- fullURL.String()
@@ -171,6 +181,12 @@ func scrapeLinks(url string, ch chan<- string, hCli *http.Client) {
 	}
 }
 
+func getDate(url string) string {
+	components := strings.Split(url, "/")
+
+	return strings.Trim(components[len(components)-1], ".log")
+}
+
 // TODO take URL instead, so we can split more reliably?
 // e.g. pkgName could be the first half of a split, the date the second
 func visitLog(url string, mCli *mautrix.Client, hCli *http.Client) {
@@ -178,13 +194,8 @@ func visitLog(url string, mCli *mautrix.Client, hCli *http.Client) {
 	pkgName := components[len(components)-2]
 	packages.Store(pkgName, struct{}{})
 
-	date := strings.Trim(components[len(components)-1], ".log")
+	date := getDate(url)
 	slog.Debug("log found", "pkg", pkgName, "date", date)
-
-	if date < tombstone {
-		slog.Debug("skipping")
-		return
-	}
 
 	var count int
 	if err := db.QueryRow("SELECT COUNT(*) FROM visited where attr_path = ? AND date = ?", pkgName, date).Scan(&count); err != nil {
@@ -194,6 +205,7 @@ func visitLog(url string, mCli *mautrix.Client, hCli *http.Client) {
 	// we've found this log already, skip next steps
 	if count == 1 {
 		slog.Debug("skipping", "url", url)
+
 		return
 	}
 
