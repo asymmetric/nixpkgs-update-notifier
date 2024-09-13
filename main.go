@@ -166,9 +166,9 @@ func scrapeLinks(url string, ch chan<- string, hCli *http.Client) {
 				for _, a := range t.Attr {
 					if a.Key == "href" && a.Val != "../" && !re.MatchString(a.Val) {
 						fullURL := parsedURL.JoinPath(a.Val)
-						date := getDate(url)
+						packages.Store(getName(url), struct{}{})
 
-						if date < tombstone {
+						if getDate(url) < tombstone {
 							slog.Debug("skipping", "reason", "old", "url", fullURL)
 
 							break
@@ -190,12 +190,16 @@ func getDate(url string) string {
 	return strings.Trim(components[len(components)-1], ".log")
 }
 
+func getName(url string) string {
+	components := strings.Split(url, "/")
+
+	return components[len(components)-2]
+}
+
 // TODO take URL instead, so we can split more reliably?
 // e.g. pkgName could be the first half of a split, the date the second
 func visitLog(url string, mCli *mautrix.Client, hCli *http.Client) {
-	components := strings.Split(url, "/")
-	pkgName := components[len(components)-2]
-	packages.Store(pkgName, struct{}{})
+	pkgName := getName(url)
 
 	date := getDate(url)
 	slog.Debug("log found", "pkg", pkgName, "date", date)
