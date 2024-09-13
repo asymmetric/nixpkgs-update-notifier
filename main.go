@@ -500,16 +500,22 @@ func setupLogger() {
 func setupDB() (err error) {
 	db, err = sql.Open("sqlite3", fmt.Sprintf("file:%s?_journal_mode=WAL&_synchronous=NORMAL&_foreign_keys=true", *dbPath))
 	if err != nil {
+		slog.Error(err.Error())
+
 		return
 	}
 
 	err = db.Ping()
 	if err != nil {
+		slog.Error(err.Error())
+
 		return
 	}
 
 	_, err = db.Exec("CREATE TABLE IF NOT EXISTS visited (attr_path TEXT, date TEXT, error INTEGER, PRIMARY KEY(attr_path, date)) STRICT")
 	if err != nil {
+		slog.Error(err.Error())
+
 		return
 	}
 
@@ -524,6 +530,8 @@ func setupDB() (err error) {
 
 	_, err = db.Exec("CREATE TABLE IF NOT EXISTS subscriptions (id INTEGER PRIMARY KEY, roomid TEXT, mxid TEXT NOT NULL, attr_path TEXT NOT NULL, UNIQUE(roomid, attr_path)) STRICT")
 	if err != nil {
+		slog.Error(err.Error())
+
 		return
 	}
 
