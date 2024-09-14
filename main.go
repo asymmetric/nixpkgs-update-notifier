@@ -120,6 +120,7 @@ func main() {
 
 // fetches the HTML at a `url`, then iterates over <a> elements adding all links to channel `ch`
 func scrapeLinks(url string, ch chan<- string, hCli *http.Client) {
+	// TODO convert to simple string
 	parsedURL, err := u.Parse(url)
 	if err != nil {
 		slog.Error(err.Error())
@@ -166,13 +167,7 @@ func scrapeLinks(url string, ch chan<- string, hCli *http.Client) {
 				for _, a := range t.Attr {
 					if a.Key == "href" && a.Val != "../" && !re.MatchString(a.Val) {
 						fullURL := parsedURL.JoinPath(a.Val)
-						packages.Store(getName(url), struct{}{})
-
-						if getDate(url) < tombstone {
-							slog.Debug("skipping", "reason", "old", "url", fullURL)
-
-							break
-						}
+						packages.Store(strings.Trim(parsedURL.Path, "/"), struct{}{})
 
 						// add link to queue
 						ch <- fullURL.String()
@@ -184,25 +179,19 @@ func scrapeLinks(url string, ch chan<- string, hCli *http.Client) {
 	}
 }
 
-func getDate(url string) string {
-	components := strings.Split(url, "/")
-
-	return strings.Trim(components[len(components)-1], ".log")
-}
-
-func getName(url string) string {
-	components := strings.Split(url, "/")
-
-	return components[len(components)-2]
-}
-
 // TODO take URL instead, so we can split more reliably?
 // e.g. pkgName could be the first half of a split, the date the second
 func visitLog(url string, mCli *mautrix.Client, hCli *http.Client) {
-	pkgName := getName(url)
+	components := strings.Split(url, "/")
+	pkgName := components[len(components)-2]
+	date := strings.Trim(components[len(components)-1], ".log")
 
-	date := getDate(url)
 	slog.Debug("log found", "pkg", pkgName, "date", date)
+	if date < tombstone {
+		slog.Debug("skipping", "reason", "old", "url", url)
+
+		return
+	}
 
 	var count int
 	if err := db.QueryRow("SELECT COUNT(*) FROM visited where attr_path = ? AND date = ?", pkgName, date).Scan(&count); err != nil {
