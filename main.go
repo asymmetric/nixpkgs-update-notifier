@@ -45,6 +45,9 @@ var tombstone string
 
 var packages sync.Map
 
+var errRE = regexp.MustCompile(`[Ee]rror`)
+var tildeRE = regexp.MustCompile("^~")
+
 func main() {
 	flag.Parse()
 
@@ -153,7 +156,6 @@ func scrapeLinks(url string, ch chan<- string, hCli *http.Client) {
 	// nixpkgs-update supervisor
 	// TODO change to this
 	// re := regexp.MustCompile("(^~.*|^../)")
-	re := regexp.MustCompile("^~")
 	for {
 		tt := z.Next()
 		switch tt {
@@ -165,7 +167,7 @@ func scrapeLinks(url string, ch chan<- string, hCli *http.Client) {
 			isAnchor := t.Data == "a"
 			if isAnchor {
 				for _, a := range t.Attr {
-					if a.Key == "href" && a.Val != "../" && !re.MatchString(a.Val) {
+					if a.Key == "href" && a.Val != "../" && !tildeRE.MatchString(a.Val) {
 						fullURL := parsedURL.JoinPath(a.Val)
 						packages.Store(strings.Trim(parsedURL.Path, "/"), struct{}{})
 
@@ -227,7 +229,8 @@ func visitLog(url string, mCli *mautrix.Client, hCli *http.Client) {
 
 	// check for error in logs
 	var hasError bool
-	if bytes.Contains(body, []byte("error")) {
+
+	if errRE.Find(body) != nil {
 		hasError = true
 
 		slog.Info("new log found", "err", true, "url", url)
