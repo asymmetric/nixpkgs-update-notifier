@@ -391,7 +391,7 @@ func setupMatrix() *mautrix.Client {
 				sts := []string{"Your subscriptions:"}
 
 				for _, n := range names {
-					sts = append(sts, fmt.Sprintf("- <code>%s</code>", n))
+					sts = append(sts, fmt.Sprintf("- %s", n))
 				}
 
 				msg = strings.Join(sts, "\n")
