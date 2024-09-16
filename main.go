@@ -260,8 +260,8 @@ func visitLog(url string, mCli *mautrix.Client, hCli *http.Client) {
 
 		for _, roomID := range roomIDs {
 			slog.Info("notifying subscriber", "roomid", roomID)
-			_, err := mCli.SendText(context.TODO(), id.RoomID(roomID), fmt.Sprintf("new build error for package %s: %s", pkgName, url))
-			if err != nil {
+			s := fmt.Sprintf("potential new build error for package `%s`: %s", pkgName, url)
+			if _, err := sendMarkdown(s, id.RoomID(roomID)); err != nil {
 				// TODO check if we're not in room, in that case remove sub
 				slog.Error(err.Error())
 			}
@@ -332,14 +332,16 @@ func setupMatrix() *mautrix.Client {
 	})
 
 	subRegexp := regexp.MustCompile(`^(un)?sub ([\w._-]+)$`)
-	helpText := format.RenderMarkdown(`Welcome to the nixpkgs-update-notifier bot!
+	helpText := `Welcome to the nixpkgs-update-notifier bot!
 
   These are the available commands:
   - **help**: show this help message
-  - **sub foo**: subscribe to package foo
-  - **unsub foo**: unsubscribe from package foo
+  - **sub foo**: subscribe to package <code>foo</code>
+  - **unsub foo**: unsubscribe from package <code>foo</code>
   - **subs**: list subscriptions
-  `, true, false)
+
+  The code for the bot is [here](https://github.com/asymmetric/nixpkgs-update-notifier).
+  `
 	subEventID := "io.github.nixpkgs-update-notifier.subscription"
 
 	syncer.OnEventType(event.EventMessage, func(ctx context.Context, evt *event.Event) {
@@ -386,7 +388,13 @@ func setupMatrix() *mautrix.Client {
 			if len(names) == 0 {
 				msg = "no subs"
 			} else {
-				msg = fmt.Sprintf("subs: %s", names)
+				sts := []string{"Your subscriptions:"}
+
+				for _, n := range names {
+					sts = append(sts, fmt.Sprintf("- <code>%s</code>", n))
+				}
+
+				msg = strings.Join(sts, "\n")
 			}
 			if _, err = client.SendText(context.TODO(), evt.RoomID, msg); err != nil {
 				slog.Error(err.Error())
@@ -394,7 +402,7 @@ func setupMatrix() *mautrix.Client {
 
 		default:
 			// anything else, so print help
-			if _, err := client.SendMessageEvent(context.TODO(), evt.RoomID, event.EventMessage, helpText); err != nil {
+			if _, err := sendMarkdown(helpText, evt.RoomID); err != nil {
 				slog.Error(err.Error())
 			}
 			slog.Debug("received help", "sender", sender)
@@ -422,7 +430,7 @@ func handleSubUnsub(matches []string, evt *event.Event) {
 
 	// TODO check if sub already exists
 	if _, ok := packages.Load(pkgName); !ok {
-		if _, err := client.SendText(context.TODO(), evt.RoomID, fmt.Sprintf("could not find package %s", pkgName)); err != nil {
+		if _, err := sendMarkdown(fmt.Sprintf("could not find package `%s`", pkgName), evt.RoomID); err != nil {
 			slog.Error(err.Error())
 		}
 
@@ -441,13 +449,13 @@ func handleSubUnsub(matches []string, evt *event.Event) {
 		if val, err := res.RowsAffected(); err != nil {
 			panic(err)
 		} else if val == 0 {
-			msg = fmt.Sprintf("could not find subscription for package %s", pkgName)
+			msg = fmt.Sprintf("could not find subscription for package `%s`", pkgName)
 		} else {
-			msg = fmt.Sprintf("successfully unsubscribed from package %s", pkgName)
+			msg = fmt.Sprintf("unsubscribed from package `%s`", pkgName)
 		}
 
 		// send confirmation message
-		if _, err := client.SendText(context.TODO(), evt.RoomID, msg); err != nil {
+		if _, err := sendMarkdown(msg, evt.RoomID); err != nil {
 			slog.Error(err.Error())
 		}
 		return
@@ -472,7 +480,7 @@ func handleSubUnsub(matches []string, evt *event.Event) {
 	}
 
 	// send confirmation message
-	if _, err := client.SendText(context.TODO(), evt.RoomID, fmt.Sprintf("successfully subscribed to package %s", pkgName)); err != nil {
+	if _, err := sendMarkdown(fmt.Sprintf("subscribed to package `%s`", pkgName), evt.RoomID); err != nil {
 		slog.Error(err.Error())
 	}
 
@@ -538,4 +546,9 @@ func newReqWithUA(url string) (*http.Request, error) {
 	req.Header.Set("User-Agent", "https://github.com/asymmetric/nixpkgs-update-notifier")
 
 	return req, nil
+}
+
+func sendMarkdown(s string, rid id.RoomID) (*mautrix.RespSendEvent, error) {
+	m := format.RenderMarkdown(s, true, true)
+	return client.SendMessageEvent(context.TODO(), rid, event.EventMessage, m)
 }
