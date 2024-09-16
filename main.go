@@ -104,7 +104,7 @@ func main() {
 			if isLog {
 				// TODO make async? probably not as it accesses db
 				slog.Info("found log", "url", url)
-				visitLog(url, client, hCli)
+				visitLog(url, hCli)
 			} else {
 				slog.Info("scraping link", "url", url)
 				go scrapeLinks(url, ch, hCli)
@@ -183,7 +183,7 @@ func scrapeLinks(url string, ch chan<- string, hCli *http.Client) {
 
 // TODO take URL instead, so we can split more reliably?
 // e.g. pkgName could be the first half of a split, the date the second
-func visitLog(url string, mCli *mautrix.Client, hCli *http.Client) {
+func visitLog(url string, hc *http.Client) {
 	components := strings.Split(url, "/")
 	pkgName := components[len(components)-2]
 	date := strings.Trim(components[len(components)-1], ".log")
@@ -212,7 +212,7 @@ func visitLog(url string, mCli *mautrix.Client, hCli *http.Client) {
 		panic(err)
 	}
 
-	resp, err := hCli.Do(req)
+	resp, err := hc.Do(req)
 	if err != nil {
 		slog.Error(err.Error())
 
