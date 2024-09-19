@@ -45,7 +45,10 @@ var tombstone string
 
 var packages sync.Map
 
-var errRE = regexp.MustCompile(`[Ee]rror`)
+// - "error: " is a nix build error
+// - "ExitFailure" is a nixpkgs-update error
+// - "failed with" is a nixpkgs/maintainers/scripts/update.py error
+var errRE = regexp.MustCompile(`error:|ExitFailure|failed with`)
 var tildeRE = regexp.MustCompile("^~")
 
 func main() {
