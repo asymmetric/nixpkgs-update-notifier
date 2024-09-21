@@ -1,10 +1,8 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
-	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -14,9 +12,9 @@ import (
 	"os"
 	"regexp"
 	"strings"
-	"sync"
 	"time"
 
+	"github.com/antchfx/htmlquery"
 	_ "github.com/mattn/go-sqlite3"
 	"golang.org/x/net/html"
 	"maunium.net/go/mautrix"
@@ -28,7 +26,7 @@ import (
 var matrixHomeserver = flag.String("matrix.homeserver", "matrix.org", "Matrix homeserver for the bot account")
 var matrixUsername = flag.String("matrix.username", "", "Matrix bot username")
 
-var url = flag.String("url", "https://nixpkgs-update-logs.nix-community.org", "Webpage with logs")
+var mainURL = flag.String("url", "https://nixpkgs-update-logs.nix-community.org", "Webpage with logs")
 var dbPath = flag.String("db", "data.db", "Path to the DB file")
 var tickerOpt = flag.Duration("ticker", 24*time.Hour, "How often to check url")
 var debug = flag.Bool("debug", false, "Enable debug logging")
@@ -42,8 +40,6 @@ var db *sql.DB
 // just the ones since they subscribed, which by definition is after the first
 // run of this program.
 var tombstone string
-
-var packages sync.Map
 
 // - "error: " is a nix build error
 // - "ExitFailure" is a nixpkgs-update error
@@ -68,14 +64,13 @@ func main() {
 		}
 	}()
 
-	ch := make(chan string)
 	ticker := time.NewTicker(*tickerOpt)
 	optimizeTicker := time.NewTicker(24 * time.Hour)
 	slog.Debug("delay set", "value", *tickerOpt)
 
-	// fetch main page
-	// - add each link to the queue
-	// enter infinite loop, block on queue
+	// - fetch main page, add list of packages to mem
+	// - fetch last log of subscribed packages
+	// - enter infinite loop, block on queue
 	// wake on new item in queue
 	// item can be:
 	// - new url to parse
@@ -94,27 +89,15 @@ func main() {
 	}
 	slog.Info("initialized", "delay", tickerOpt)
 
-	// visit main page to send links to channel
-	go scrapeLinks(*url, ch, hCli)
-
-	re := regexp.MustCompile(`\.log$`)
+	scrapeMain(*mainURL, hCli)
+	scrapeSubs(hCli)
 
 	for {
 		select {
-		case url := <-ch:
-			isLog := re.MatchString(url)
-
-			if isLog {
-				// TODO make async? probably not as it accesses db
-				slog.Info("found log", "url", url)
-				visitLog(url, hCli)
-			} else {
-				slog.Info("scraping link", "url", url)
-				go scrapeLinks(url, ch, hCli)
-			}
 		case <-ticker.C:
 			slog.Info("new ticker run")
-			go scrapeLinks(*url, ch, hCli)
+			scrapeMain(*mainURL, hCli)
+			scrapeSubs(hCli)
 		case <-optimizeTicker.C:
 			slog.Info("optimizing DB")
 			if _, err := db.Exec("PRAGMA optimize;"); err != nil {
@@ -124,16 +107,8 @@ func main() {
 	}
 }
 
-// fetches the HTML at a `url`, then iterates over <a> elements adding all links to channel `ch`
-func scrapeLinks(url string, ch chan<- string, hCli *http.Client) {
-	// TODO convert to simple string
-	parsedURL, err := u.Parse(url)
-	if err != nil {
-		slog.Error(err.Error())
-
-		return
-	}
-
+// scrapes the main page, saving package names to db
+func scrapeMain(url string, hCli *http.Client) {
 	req, err := newReqWithUA(url)
 	if err != nil {
 		panic(err)
@@ -147,66 +122,75 @@ func scrapeLinks(url string, ch chan<- string, hCli *http.Client) {
 	}
 	defer resp.Body.Close()
 
-	r, err := io.ReadAll(resp.Body)
+	doc, err := html.Parse(resp.Body)
 	if err != nil {
-		slog.Error(err.Error())
-
-		return
+		panic(err)
 	}
-	z := html.NewTokenizer(bytes.NewReader(r))
 
-	// we want to avoid links starting with ~, as those are internal state of the
-	// nixpkgs-update supervisor
-	// TODO change to this
-	// re := regexp.MustCompile("(^~.*|^../)")
-	for {
-		tt := z.Next()
-		switch tt {
-		case html.ErrorToken:
-			return
-		case html.StartTagToken:
-			t := z.Token()
-
-			isAnchor := t.Data == "a"
-			if isAnchor {
-				for _, a := range t.Attr {
-					if a.Key == "href" && a.Val != "../" && !tildeRE.MatchString(a.Val) {
-						fullURL := parsedURL.JoinPath(a.Val)
-						packages.Store(strings.Trim(parsedURL.Path, "/"), struct{}{})
-
-						// add link to queue
-						ch <- fullURL.String()
-						break
-					}
-				}
-			}
+	nodes := htmlquery.Find(doc, "//a/@href")
+	for _, n := range nodes {
+		attr_path := strings.TrimSuffix(htmlquery.InnerText(n), "/")
+		if _, err := db.Exec("INSERT OR IGNORE INTO packages(attr_path) VALUES (?)", attr_path); err != nil {
+			panic(err)
 		}
 	}
 }
 
-// TODO take URL instead, so we can split more reliably?
-// e.g. pkgName could be the first half of a split, the date the second
-func visitLog(url string, hc *http.Client) {
-	pkgName, date := getComponents(url)
-
-	slog.Debug("log found", "pkg", pkgName, "date", date)
-	if date < tombstone {
-		slog.Debug("skipping", "reason", "old", "url", url)
-
-		return
+// iterates over subscrubed packages, and fetches their latest logs
+func scrapeSubs(hc *http.Client) {
+	rows, err := db.Query("SELECT attr_path FROM subscriptions")
+	if err != nil {
+		panic(err)
 	}
+	defer rows.Close()
 
-	var count int
-	if err := db.QueryRow("SELECT COUNT(*) FROM visited where attr_path = ? AND date = ?", pkgName, date).Scan(&count); err != nil {
+	aps := make([]string, 0)
+	for rows.Next() {
+		var ap string
+		if err := rows.Scan(&ap); err != nil {
+			panic(err)
+		}
+		aps = append(aps, ap)
+	}
+	if err := rows.Err(); err != nil {
 		panic(err)
 	}
 
-	// we've found this log already, skip next steps
-	if count == 1 {
-		slog.Debug("skipping", "url", url)
+	for _, ap := range aps {
+		url := packageURL(ap)
+		// TODO: make async
+		// TODO: we could sometimes avoid fetching altogether if we passed last_visited
+		date, hasError := fetchLastLog(url, hc)
 
-		return
+		// avoid duplicates by checking we haven't already notified for this log
+		var lv string
+		if err := db.QueryRow("SELECT last_visited FROM packages WHERE attr_path = ?", ap).Scan(&lv); err != nil {
+			panic(err)
+		}
+		if lv < date {
+			if hasError {
+				notifySubscribers(ap)
+				slog.Info("new log found", "err", true, "url", url)
+			} else {
+				slog.Info("new log found", "err", false, "url", url)
+			}
+
+			if _, err := db.Exec("UPDATE packages SET last_visited = ?, error = ? WHERE attr_path = ?", date, hasError, ap); err != nil {
+				panic(err)
+			}
+		} else {
+			slog.Debug("no new log", "url", url)
+		}
 	}
+}
+
+// fetch package page
+// find last log
+// fetch last log
+func fetchLastLog(url string, hc *http.Client) (date string, hasError bool) {
+	// slog.Debug("fetching log", "pkg", attr_path)
+
+	// url := fmt.Sprintf("%s/%s", mainURL, attr_path)
 
 	req, err := newReqWithUA(url)
 	if err != nil {
@@ -221,33 +205,42 @@ func visitLog(url string, hc *http.Client) {
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	doc, err := html.Parse(resp.Body)
 	if err != nil {
-		slog.Error(err.Error())
-
-		return
-	}
-
-	// check for error in logs
-	var hasError bool
-
-	if errRE.Find(body) != nil {
-		notifySubscribers(pkgName)
-		hasError = true
-
-		slog.Info("new log found", "err", true, "url", url)
-
-		// TODO: handle 429
-
-	} else {
-		slog.Info("new log found", "err", false, "url", url)
-	}
-
-	// we haven't seen this log yet, so add it to the list of seen ones
-	if _, err := db.Exec("INSERT INTO visited (attr_path, date, error) VALUES (?, ?, ?)", pkgName, date, hasError); err != nil {
 		panic(err)
 	}
 
+	n := htmlquery.FindOne(doc, "//a[contains(@href, '.log')][last()]/@href")
+	href := htmlquery.InnerText(n)
+	parsedURL, err := u.Parse(url)
+	if err != nil {
+		panic(err)
+	}
+	fullURL := parsedURL.JoinPath(href)
+
+	attr_path, date := getComponents(fullURL.String())
+
+	slog.Debug("fetching log", "pkg", attr_path, "date", date)
+
+	req, err = newReqWithUA(url)
+	if err != nil {
+		panic(err)
+	}
+
+	resp, err = hc.Do(req)
+	if err != nil {
+		panic(err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		panic(err)
+	}
+
+	hasError = errRE.Find(body) != nil
+
+	return date, hasError
 }
 
 func setupMatrix() *mautrix.Client {
@@ -402,7 +395,14 @@ func handleSubUnsub(matches []string, evt *event.Event) {
 	rID := evt.RoomID
 
 	// TODO check if sub already exists
-	if _, ok := packages.Load(pkgName); !ok {
+
+	// check if package exists
+	var c int
+	if err := db.QueryRow("SELECT COUNT(*) FROM packages WHERE attr_path = ?", pkgName).Scan(&c); err != nil {
+		panic(err)
+	}
+
+	if c == 0 {
 		if _, err := sendMarkdown(fmt.Sprintf("could not find package `%s`", pkgName), evt.RoomID); err != nil {
 			slog.Error(err.Error())
 		}
@@ -436,7 +436,6 @@ func handleSubUnsub(matches []string, evt *event.Event) {
 
 	slog.Info("received sub", "pkg", pkgName, "sender", evt.Sender)
 
-	var c int
 	if err := db.QueryRow("SELECT COUNT(*) FROM subscriptions WHERE roomid = ? AND attr_path = ?", rID, pkgName).Scan(&c); err != nil {
 		panic(err)
 	}
@@ -485,23 +484,14 @@ func setupDB() (err error) {
 		return
 	}
 
-	_, err = db.Exec("CREATE TABLE IF NOT EXISTS visited (attr_path TEXT, date TEXT, error INTEGER, PRIMARY KEY(attr_path, date)) STRICT")
+	_, err = db.Exec("CREATE TABLE IF NOT EXISTS packages (attr_path TEXT PRIMARY KEY, last_visited TEXT, error INTEGER) STRICT")
 	if err != nil {
 		slog.Error(err.Error())
 
 		return
 	}
 
-	if err := db.QueryRow("SELECT date FROM visited ORDER BY date ASC LIMIT 1").Scan(&tombstone); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			tombstone = time.Now().Format(time.DateOnly)
-		} else {
-			panic(err)
-		}
-	}
-	slog.Info("tombstone", "tombstone", tombstone)
-
-	_, err = db.Exec("CREATE TABLE IF NOT EXISTS subscriptions (id INTEGER PRIMARY KEY, roomid TEXT, mxid TEXT NOT NULL, attr_path TEXT NOT NULL, UNIQUE(roomid, attr_path)) STRICT")
+	_, err = db.Exec("CREATE TABLE IF NOT EXISTS subscriptions (id INTEGER PRIMARY KEY, roomid TEXT, mxid TEXT NOT NULL, attr_path TEXT NOT NULL, FOREIGN KEY(attr_path) REFERENCES packages(attr_path)) STRICT")
 	if err != nil {
 		slog.Error(err.Error())
 
@@ -567,4 +557,13 @@ func getComponents(url string) (attr_path, date string) {
 	date = strings.Trim(components[len(components)-1], ".log")
 
 	return
+}
+
+func packageURL(attr_path string) string {
+	parsedURL, err := u.Parse(*mainURL)
+	if err != nil {
+		panic(err)
+	}
+
+	return parsedURL.JoinPath(attr_path).String()
 }

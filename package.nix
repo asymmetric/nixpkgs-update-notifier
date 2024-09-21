@@ -18,7 +18,7 @@ pkgs.buildGoModule rec {
       ];
     };
 
-  vendorHash = "sha256-jclP3ZgEe3xLDqNvQFs3tZIwtN3Mj4lumvG9lQVWb4Y=";
+  vendorHash = "sha256-0lCJgBpkoIUCsfPxPNkRIOgp6k3PyuJTZ5NIL+WEtvo=";
 
   meta.mainProgram = pname;
 }
