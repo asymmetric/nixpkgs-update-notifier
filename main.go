@@ -162,12 +162,12 @@ func scrapeSubs(hc *http.Client) {
 		// TODO: we could sometimes avoid fetching altogether if we passed last_visited
 		date, hasError := fetchLastLog(url, hc)
 
-		// avoid duplicates by checking we haven't already notified for this log
-		var lv string
-		if err := db.QueryRow("SELECT last_visited FROM packages WHERE attr_path = ?", ap).Scan(&lv); err != nil {
+		// avoid duplicate notifications by ensuring we haven't already notified for this log
+		var last string
+		if err := db.QueryRow("SELECT last_visited FROM packages WHERE attr_path = ?", ap).Scan(&last); err != nil {
 			panic(err)
 		}
-		if lv < date {
+		if date > last {
 			if hasError {
 				notifySubscribers(ap)
 				slog.Info("new log found", "err", true, "url", url)
