@@ -187,9 +187,7 @@ func scrapeLinks(url string, ch chan<- string, hCli *http.Client) {
 // TODO take URL instead, so we can split more reliably?
 // e.g. pkgName could be the first half of a split, the date the second
 func visitLog(url string, hc *http.Client) {
-	components := strings.Split(url, "/")
-	pkgName := components[len(components)-2]
-	date := strings.Trim(components[len(components)-1], ".log")
+	pkgName, date := getComponents(url)
 
 	slog.Debug("log found", "pkg", pkgName, "date", date)
 	if date < tombstone {
@@ -234,41 +232,13 @@ func visitLog(url string, hc *http.Client) {
 	var hasError bool
 
 	if errRE.Find(body) != nil {
+		notifySubscribers(pkgName)
 		hasError = true
 
 		slog.Info("new log found", "err", true, "url", url)
 
 		// TODO: handle 429
 
-		// - find all subscribers for package
-		// - send message in respective room
-		// - if we're not in that room, drop from db of subs?
-		rows, err := db.Query("SELECT roomid FROM subscriptions WHERE attr_path = ?", pkgName)
-		if err != nil {
-			panic(err)
-		}
-		defer rows.Close()
-
-		roomIDs := make([]string, 0)
-		for rows.Next() {
-			var roomID string
-			if err := rows.Scan(&roomID); err != nil {
-				panic(err)
-			}
-			roomIDs = append(roomIDs, roomID)
-		}
-		if err := rows.Err(); err != nil {
-			panic(err)
-		}
-
-		for _, roomID := range roomIDs {
-			slog.Info("notifying subscriber", "roomid", roomID)
-			s := fmt.Sprintf("potential new build error for package `%s`: %s", pkgName, url)
-			if _, err := sendMarkdown(s, id.RoomID(roomID)); err != nil {
-				// TODO check if we're not in room, in that case remove sub
-				slog.Error(err.Error())
-			}
-		}
 	} else {
 		slog.Info("new log found", "err", false, "url", url)
 	}
@@ -554,4 +524,47 @@ func newReqWithUA(url string) (*http.Request, error) {
 func sendMarkdown(s string, rid id.RoomID) (*mautrix.RespSendEvent, error) {
 	m := format.RenderMarkdown(s, true, true)
 	return client.SendMessageEvent(context.TODO(), rid, event.EventMessage, m)
+}
+
+func notifySubscribers(url string) {
+	// - find all subscribers for package
+	// - send message in respective room
+	// - if we're not in that room, drop from db of subs?
+	attr_path, _ := getComponents(url)
+
+	rows, err := db.Query("SELECT roomid FROM subscriptions WHERE attr_path = ?", attr_path)
+	if err != nil {
+		panic(err)
+	}
+	defer rows.Close()
+
+	roomIDs := make([]string, 0)
+	for rows.Next() {
+		var roomID string
+		if err := rows.Scan(&roomID); err != nil {
+			panic(err)
+		}
+		roomIDs = append(roomIDs, roomID)
+	}
+	if err := rows.Err(); err != nil {
+		panic(err)
+	}
+
+	for _, roomID := range roomIDs {
+		slog.Info("notifying subscriber", "roomid", roomID)
+		s := fmt.Sprintf("potential new build error for package `%s`: %s", attr_path, url)
+		if _, err := sendMarkdown(s, id.RoomID(roomID)); err != nil {
+			// TODO check if we're not in room, in that case remove sub
+			slog.Error(err.Error())
+		}
+	}
+}
+
+func getComponents(url string) (attr_path, date string) {
+	components := strings.Split(url, "/")
+
+	attr_path = components[len(components)-2]
+	date = strings.Trim(components[len(components)-1], ".log")
+
+	return
 }
