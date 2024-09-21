@@ -116,9 +116,7 @@ func storeAttrPaths(url string, hCli *http.Client) {
 
 	resp, err := hCli.Do(req)
 	if err != nil {
-		slog.Error(err.Error())
-
-		return
+		panic(err)
 	}
 	defer resp.Body.Close()
 
@@ -195,9 +193,7 @@ func fetchLastLog(url string, hc *http.Client) (date string, hasError bool) {
 
 	resp, err := hc.Do(req)
 	if err != nil {
-		slog.Error(err.Error())
-
-		return
+		panic(err)
 	}
 	defer resp.Body.Close()
 
@@ -465,36 +461,25 @@ func setupLogger() {
 	slog.SetDefault(slog.New(h))
 }
 
-func setupDB() (err error) {
-	db, err = sql.Open("sqlite3", fmt.Sprintf("file:%s?_journal_mode=WAL&_synchronous=NORMAL&_foreign_keys=true", *dbPath))
+func setupDB() error {
+	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%s?_journal_mode=WAL&_synchronous=NORMAL&_foreign_keys=true", *dbPath))
 	if err != nil {
-		slog.Error(err.Error())
-
-		return
+		return err
 	}
 
-	err = db.Ping()
-	if err != nil {
-		slog.Error(err.Error())
-
-		return
+	if err = db.Ping(); err != nil {
+		return err
 	}
 
-	_, err = db.Exec("CREATE TABLE IF NOT EXISTS packages (attr_path TEXT PRIMARY KEY, last_visited TEXT, error INTEGER) STRICT")
-	if err != nil {
-		slog.Error(err.Error())
-
-		return
+	if _, err = db.Exec("CREATE TABLE IF NOT EXISTS packages (attr_path TEXT PRIMARY KEY, last_visited TEXT, error INTEGER) STRICT"); err != nil {
+		return err
 	}
 
-	_, err = db.Exec("CREATE TABLE IF NOT EXISTS subscriptions (id INTEGER PRIMARY KEY, roomid TEXT, mxid TEXT NOT NULL, attr_path TEXT NOT NULL, FOREIGN KEY(attr_path) REFERENCES packages(attr_path)) STRICT")
-	if err != nil {
-		slog.Error(err.Error())
-
-		return
+	if _, err = db.Exec("CREATE TABLE IF NOT EXISTS subscriptions (id INTEGER PRIMARY KEY, roomid TEXT, mxid TEXT NOT NULL, attr_path TEXT NOT NULL, FOREIGN KEY(attr_path) REFERENCES packages(attr_path)) STRICT"); err != nil {
+		return err
 	}
 
-	return
+	return nil
 }
 
 func newReqWithUA(url string) (*http.Request, error) {
