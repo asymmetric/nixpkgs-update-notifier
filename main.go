@@ -179,7 +179,7 @@ func scrapeSubs(hc *http.Client) {
 				panic(err)
 			}
 		} else {
-			slog.Debug("no new log", "url", url)
+			slog.Info("no new log", "url", url)
 		}
 	}
 }
@@ -188,10 +188,6 @@ func scrapeSubs(hc *http.Client) {
 // find last log
 // fetch last log
 func fetchLastLog(url string, hc *http.Client) (date string, hasError bool) {
-	// slog.Debug("fetching log", "pkg", attr_path)
-
-	// url := fmt.Sprintf("%s/%s", mainURL, attr_path)
-
 	req, err := newReqWithUA(url)
 	if err != nil {
 		panic(err)
