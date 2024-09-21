@@ -89,14 +89,14 @@ func main() {
 	}
 	slog.Info("initialized", "delay", tickerOpt)
 
-	scrapeMain(*mainURL, hCli)
+	storeAttrPaths(*mainURL, hCli)
 	scrapeSubs(hCli)
 
 	for {
 		select {
 		case <-ticker.C:
 			slog.Info("new ticker run")
-			scrapeMain(*mainURL, hCli)
+			storeAttrPaths(*mainURL, hCli)
 			scrapeSubs(hCli)
 		case <-optimizeTicker.C:
 			slog.Info("optimizing DB")
@@ -108,7 +108,7 @@ func main() {
 }
 
 // scrapes the main page, saving package names to db
-func scrapeMain(url string, hCli *http.Client) {
+func storeAttrPaths(url string, hCli *http.Client) {
 	req, err := newReqWithUA(url)
 	if err != nil {
 		panic(err)
