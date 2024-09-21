@@ -461,22 +461,22 @@ func setupLogger() {
 	slog.SetDefault(slog.New(h))
 }
 
-func setupDB() error {
-	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%s?_journal_mode=WAL&_synchronous=NORMAL&_foreign_keys=true", *dbPath))
+func setupDB() (err error) {
+	db, err = sql.Open("sqlite3", fmt.Sprintf("file:%s?_journal_mode=WAL&_synchronous=NORMAL&_foreign_keys=true", *dbPath))
 	if err != nil {
-		return err
+		return
 	}
 
 	if err = db.Ping(); err != nil {
-		return err
+		return
 	}
 
 	if _, err = db.Exec("CREATE TABLE IF NOT EXISTS packages (attr_path TEXT PRIMARY KEY, last_visited TEXT, error INTEGER) STRICT"); err != nil {
-		return err
+		return
 	}
 
 	if _, err = db.Exec("CREATE TABLE IF NOT EXISTS subscriptions (id INTEGER PRIMARY KEY, roomid TEXT, mxid TEXT NOT NULL, attr_path TEXT NOT NULL, FOREIGN KEY(attr_path) REFERENCES packages(attr_path)) STRICT"); err != nil {
-		return err
+		return
 	}
 
 	return nil
