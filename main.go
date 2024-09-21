@@ -218,11 +218,11 @@ func fetchLastLog(url string, hc *http.Client) (date string, hasError bool) {
 	}
 	fullURL := parsedURL.JoinPath(href)
 
-	attr_path, date := getComponents(fullURL.String())
+	_, date = getComponents(fullURL.String())
 
-	slog.Debug("fetching log", "pkg", attr_path, "date", date)
+	slog.Info("fetching log", "url", fullURL)
 
-	req, err = newReqWithUA(url)
+	req, err = newReqWithUA(fullURL.String())
 	if err != nil {
 		panic(err)
 	}
