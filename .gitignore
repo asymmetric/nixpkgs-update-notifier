@@ -2,3 +2,4 @@
 *.db
 *.db-*
 .secrets
+nixpkgs-update-notifier
