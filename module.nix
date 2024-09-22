@@ -29,6 +29,8 @@
       systemd.services.nixpkgs-update-notifier = {
         wantedBy = [ "multi-user.target" ];
         after = [ "network.target" ];
+        startLimitIntervalSec = 10;
+        startLimitBurst = 3;
         serviceConfig = {
           Restart = "on-failure";
           EnvironmentFile = cfg.passwordFile;
