@@ -439,6 +439,21 @@ func handleSubUnsub(matches []string, evt *event.Event) {
 		return
 	}
 
+	// before adding subscription, add the date of the last available log for the package, so that if the program stops for any reason, we don't notify the user of a stale error log.
+	// e.g.:
+	// - we add a subscription for package foo at time t
+	// - package foo has a failure that predates the subscription, t - 1
+	// - program stops before the next tick
+	// - therefore, foo.last_visited is nil
+	// - when program starts again, we'll iterate over subs and find foo
+	// - we will fetch the latest log and because it's a failure, notify
+	// - but the log predates the subscription, so we notified on a stale log
+	purl := packageURL(pkgName)
+	date, hasError := fetchLastLog(purl)
+	if _, err := db.Exec("UPDATE packages SET last_visited = ?, error = ? WHERE attr_path = ?", date, hasError, pkgName); err != nil {
+		panic(err)
+	}
+
 	if _, err := db.Exec("INSERT INTO subscriptions(roomid,attr_path,mxid) VALUES (?, ?, ?)", evt.RoomID, pkgName, evt.Sender); err != nil {
 		panic(err)
 	}
