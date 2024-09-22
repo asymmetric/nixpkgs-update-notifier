@@ -48,6 +48,8 @@ var erroRE = regexp.MustCompile(`error:|ExitFailure|failed with`)
 
 var ignoRE = regexp.MustCompile(`^~.*|^\.\.`)
 
+var hc = &http.Client{}
+
 func main() {
 	flag.Parse()
 
@@ -81,24 +83,17 @@ func main() {
 	// - new sub
 	// - new broken package, send to subbers
 
-	hCli := &http.Client{
-		Transport: &http.Transport{
-			TLSHandshakeTimeout: 30 * time.Second,
-			// TODO: does this do anyting?
-			MaxConnsPerHost: 5,
-		},
-	}
 	slog.Info("initialized", "delay", tickerOpt)
 
-	storeAttrPaths(*mainURL, hCli)
-	scrapeSubs(hCli)
+	storeAttrPaths(*mainURL)
+	scrapeSubs()
 
 	for {
 		select {
 		case <-ticker.C:
 			slog.Info("new ticker run")
-			storeAttrPaths(*mainURL, hCli)
-			scrapeSubs(hCli)
+			storeAttrPaths(*mainURL)
+			scrapeSubs()
 		case <-optimizeTicker.C:
 			slog.Info("optimizing DB")
 			if _, err := db.Exec("PRAGMA optimize;"); err != nil {
@@ -109,13 +104,13 @@ func main() {
 }
 
 // scrapes the main page, saving package names to db
-func storeAttrPaths(url string, hCli *http.Client) {
+func storeAttrPaths(url string) {
 	req, err := newReqWithUA(url)
 	if err != nil {
 		panic(err)
 	}
 
-	resp, err := hCli.Do(req)
+	resp, err := hc.Do(req)
 	if err != nil {
 		panic(err)
 	}
@@ -140,7 +135,7 @@ func storeAttrPaths(url string, hCli *http.Client) {
 }
 
 // iterates over subscrubed packages, and fetches their latest logs
-func scrapeSubs(hc *http.Client) {
+func scrapeSubs() {
 	rows, err := db.Query("SELECT attr_path FROM subscriptions")
 	if err != nil {
 		panic(err)
@@ -163,7 +158,7 @@ func scrapeSubs(hc *http.Client) {
 		url := packageURL(ap)
 		// TODO: make async
 		// TODO: we could sometimes avoid fetching altogether if we passed last_visited
-		date, hasError := fetchLastLog(url, hc)
+		date, hasError := fetchLastLog(url)
 
 		// avoid duplicate notifications by ensuring we haven't already notified for this log
 		var last string
@@ -172,17 +167,17 @@ func scrapeSubs(hc *http.Client) {
 		}
 		if date > last {
 			if hasError {
-				notifySubscribers(ap)
-				slog.Info("new log found", "err", true, "url", url)
+				notifySubscribers(ap, date)
+				slog.Info("new log", "err", true, "url", url)
 			} else {
-				slog.Info("new log found", "err", false, "url", url)
+				slog.Info("new log", "err", false, "url", url)
 			}
 
 			if _, err := db.Exec("UPDATE packages SET last_visited = ?, error = ? WHERE attr_path = ?", date, hasError, ap); err != nil {
 				panic(err)
 			}
 		} else {
-			slog.Info("no new log", "url", url)
+			slog.Info("no new log", "url", url, "date", date)
 		}
 	}
 }
@@ -190,7 +185,7 @@ func scrapeSubs(hc *http.Client) {
 // fetch package page
 // find last log
 // fetch last log
-func fetchLastLog(url string, hc *http.Client) (date string, hasError bool) {
+func fetchLastLog(url string) (date string, hasError bool) {
 	req, err := newReqWithUA(url)
 	if err != nil {
 		panic(err)
@@ -515,12 +510,12 @@ func sendMarkdown(s string, rid id.RoomID) (*mautrix.RespSendEvent, error) {
 	return client.SendMessageEvent(context.TODO(), rid, event.EventMessage, m)
 }
 
-func notifySubscribers(url string) {
+func notifySubscribers(attr_path, date string) {
 	// - find all subscribers for package
 	// - send message in respective room
 	// - if we're not in that room, drop from db of subs?
-	attr_path, _ := getComponents(url)
-
+	logPath := fmt.Sprintf("%s/%s/%s.log", *mainURL, attr_path, date)
+	slog.Debug("lp", "lp", logPath)
 	rows, err := db.Query("SELECT roomid FROM subscriptions WHERE attr_path = ?", attr_path)
 	if err != nil {
 		panic(err)
@@ -541,7 +536,7 @@ func notifySubscribers(url string) {
 
 	for _, roomID := range roomIDs {
 		slog.Info("notifying subscriber", "roomid", roomID)
-		s := fmt.Sprintf("potential new build error for package `%s`: %s", attr_path, url)
+		s := fmt.Sprintf("potential new build error for package `%s`: %s", attr_path, logPath)
 		if _, err := sendMarkdown(s, id.RoomID(roomID)); err != nil {
 			// TODO check if we're not in room, in that case remove sub
 			slog.Error(err.Error())
