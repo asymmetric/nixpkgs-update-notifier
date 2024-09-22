@@ -484,6 +484,19 @@ func setupDB() (err error) {
 		return
 	}
 
+	// Ensure invariant: a subscription can't be added before the corresponding package has had its last_visited column set
+	// Otherwise we have cases where Scan fails (because it can't cast NULL to a string), and also we can end up sending notifications for old errors.
+	if _, err = db.Exec(`
+  CREATE TRIGGER IF NOT EXISTS ensure_packages_last_visited_set BEFORE INSERT ON subscriptions
+  BEGIN
+    SELECT CASE
+      WHEN (SELECT last_visited FROM packages WHERE attr_path = NEW.attr_path) IS NULL THEN
+        RAISE(ABORT, 'Insert aborted: last_visited is NULL')
+      END;
+  END;`); err != nil {
+		return
+	}
+
 	return nil
 }
 
