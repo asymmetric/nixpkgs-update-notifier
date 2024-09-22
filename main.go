@@ -44,8 +44,9 @@ var tombstone string
 // - "error: " is a nix build error
 // - "ExitFailure" is a nixpkgs-update error
 // - "failed with" is a nixpkgs/maintainers/scripts/update.py error
-var errRE = regexp.MustCompile(`error:|ExitFailure|failed with`)
-var tildeRE = regexp.MustCompile("^~")
+var erroRE = regexp.MustCompile(`error:|ExitFailure|failed with`)
+
+var ignoRE = regexp.MustCompile(`^~.*|^\.\.`)
 
 func main() {
 	flag.Parse()
@@ -125,9 +126,13 @@ func storeAttrPaths(url string, hCli *http.Client) {
 		panic(err)
 	}
 
-	nodes := htmlquery.Find(doc, "//a/@href")
-	for _, n := range nodes {
-		attr_path := strings.TrimSuffix(htmlquery.InnerText(n), "/")
+	hrefs := htmlquery.Find(doc, "//a/@href")
+	slog.Info("storing attr paths", "count", len(hrefs))
+	for _, href := range hrefs {
+		attr_path := strings.TrimSuffix(htmlquery.InnerText(href), "/")
+		if ignoRE.MatchString(attr_path) {
+			continue
+		}
 		if _, err := db.Exec("INSERT OR IGNORE INTO packages(attr_path) VALUES (?)", attr_path); err != nil {
 			panic(err)
 		}
@@ -212,7 +217,7 @@ func fetchLastLog(url string, hc *http.Client) (date string, hasError bool) {
 
 	_, date = getComponents(fullURL.String())
 
-	slog.Info("fetching log", "url", fullURL)
+	slog.Debug("fetching log", "url", fullURL)
 
 	req, err = newReqWithUA(fullURL.String())
 	if err != nil {
@@ -230,7 +235,7 @@ func fetchLastLog(url string, hc *http.Client) (date string, hasError bool) {
 		panic(err)
 	}
 
-	hasError = errRE.Find(body) != nil
+	hasError = erroRE.Find(body) != nil
 
 	return date, hasError
 }
