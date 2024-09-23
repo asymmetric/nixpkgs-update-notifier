@@ -313,9 +313,6 @@ func setupMatrix() *mautrix.Client {
 			return
 		}
 
-		// TODO
-		// - last success/first fail
-
 		if matches := subRegexp.FindStringSubmatch(msg); matches != nil {
 			handleSubUnsub(matches, evt)
 
@@ -385,8 +382,6 @@ func setupMatrix() *mautrix.Client {
 func handleSubUnsub(matches []string, evt *event.Event) {
 	pkgName := matches[2]
 	rID := evt.RoomID
-
-	// TODO check if sub already exists
 
 	// check if package exists
 	var c int
