@@ -19,7 +19,6 @@ import (
 	"golang.org/x/net/html"
 	"maunium.net/go/mautrix"
 	"maunium.net/go/mautrix/event"
-	"maunium.net/go/mautrix/format"
 	"maunium.net/go/mautrix/id"
 )
 
@@ -167,10 +166,10 @@ func scrapeSubs() {
 		}
 		if date > last {
 			if hasError {
+				slog.Info("new log", "err", true, "url", logURL(ap, date))
 				notifySubscribers(ap, date)
-				slog.Info("new log", "err", true, "url", url)
 			} else {
-				slog.Info("new log", "err", false, "url", url)
+				slog.Info("new log", "err", false, "url", logURL(ap, date))
 			}
 
 			if _, err := db.Exec("UPDATE packages SET last_visited = ?, error = ? WHERE attr_path = ?", date, hasError, ap); err != nil {
@@ -460,6 +459,40 @@ func handleSubUnsub(matches []string, evt *event.Event) {
 
 }
 
+func notifySubscribers(attr_path, date string) {
+	// - find all subscribers for package
+	// - send message in respective room
+	// - if we're not in that room, drop from db of subs?
+	logPath := fmt.Sprintf("%s/%s/%s.log", *mainURL, attr_path, date)
+	slog.Debug("lp", "lp", logPath)
+	rows, err := db.Query("SELECT roomid FROM subscriptions WHERE attr_path = ?", attr_path)
+	if err != nil {
+		panic(err)
+	}
+	defer rows.Close()
+
+	roomIDs := make([]string, 0)
+	for rows.Next() {
+		var roomID string
+		if err := rows.Scan(&roomID); err != nil {
+			panic(err)
+		}
+		roomIDs = append(roomIDs, roomID)
+	}
+	if err := rows.Err(); err != nil {
+		panic(err)
+	}
+
+	for _, roomID := range roomIDs {
+		slog.Info("notifying subscriber", "roomid", roomID)
+		s := fmt.Sprintf("potential new build error for package `%s`: %s", attr_path, logPath)
+		if _, err := sendMarkdown(s, id.RoomID(roomID)); err != nil {
+			// TODO check if we're not in room, in that case remove sub
+			slog.Error(err.Error())
+		}
+	}
+}
+
 func setupLogger() {
 	opts := &slog.HandlerOptions{}
 
@@ -503,71 +536,4 @@ func setupDB() (err error) {
 	}
 
 	return nil
-}
-
-func newReqWithUA(url string) (*http.Request, error) {
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("User-Agent", "https://github.com/asymmetric/nixpkgs-update-notifier")
-
-	return req, nil
-}
-
-func sendMarkdown(s string, rid id.RoomID) (*mautrix.RespSendEvent, error) {
-	m := format.RenderMarkdown(s, true, true)
-	return client.SendMessageEvent(context.TODO(), rid, event.EventMessage, m)
-}
-
-func notifySubscribers(attr_path, date string) {
-	// - find all subscribers for package
-	// - send message in respective room
-	// - if we're not in that room, drop from db of subs?
-	logPath := fmt.Sprintf("%s/%s/%s.log", *mainURL, attr_path, date)
-	slog.Debug("lp", "lp", logPath)
-	rows, err := db.Query("SELECT roomid FROM subscriptions WHERE attr_path = ?", attr_path)
-	if err != nil {
-		panic(err)
-	}
-	defer rows.Close()
-
-	roomIDs := make([]string, 0)
-	for rows.Next() {
-		var roomID string
-		if err := rows.Scan(&roomID); err != nil {
-			panic(err)
-		}
-		roomIDs = append(roomIDs, roomID)
-	}
-	if err := rows.Err(); err != nil {
-		panic(err)
-	}
-
-	for _, roomID := range roomIDs {
-		slog.Info("notifying subscriber", "roomid", roomID)
-		s := fmt.Sprintf("potential new build error for package `%s`: %s", attr_path, logPath)
-		if _, err := sendMarkdown(s, id.RoomID(roomID)); err != nil {
-			// TODO check if we're not in room, in that case remove sub
-			slog.Error(err.Error())
-		}
-	}
-}
-
-func getComponents(url string) (attr_path, date string) {
-	components := strings.Split(url, "/")
-
-	attr_path = components[len(components)-2]
-	date = strings.Trim(components[len(components)-1], ".log")
-
-	return
-}
-
-func packageURL(attr_path string) string {
-	parsedURL, err := u.Parse(*mainURL)
-	if err != nil {
-		panic(err)
-	}
-
-	return parsedURL.JoinPath(attr_path).String()
 }
