@@ -7,14 +7,14 @@ pkgs.buildGoModule rec {
   # TODO convert to whitelist
   src =
     let fs = pkgs.lib.fileset; in
-    fs.toSource {
+    fs.toSource rec {
       root = ./.;
       fileset = fs.unions [
         ./COPYING
         ./README.md
         ./go.mod
         ./go.sum
-        ./main.go
+        (fs.fileFilter (file: file.hasExt "go") root)
       ];
     };
 
