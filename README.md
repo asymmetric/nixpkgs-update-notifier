@@ -1,5 +1,5 @@
-> [!NOTE]
-> Status: beta
+> [!Warning]
+> The bot does not handle encryption, so it currently does **not** work with Element X. Follow [this issue](https://github.com/asymmetric/nixpkgs-update-notifier/issues/1) for progress.
 
 # nixpkgs-update-notifier
 
