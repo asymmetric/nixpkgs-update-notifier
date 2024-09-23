@@ -44,7 +44,7 @@ var tombstone string
 // - "error: " is a nix build error
 // - "ExitFailure" is a nixpkgs-update error
 // - "failed with" is a nixpkgs/maintainers/scripts/update.py error
-var erroRE = regexp.MustCompile(`error:|ExitFailure|failed with`)
+var erroRE = regexp.MustCompile(`^error:|ExitFailure|failed with`)
 
 var ignoRE = regexp.MustCompile(`^~.*|^\.\.`)
 

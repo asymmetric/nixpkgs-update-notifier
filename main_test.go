@@ -20,4 +20,19 @@ func TestErrRegexp(t *testing.T) {
 			t.Errorf("should have matched: %s", s)
 		}
 	}
+
+	falsePositives := []string{
+		// https://nixpkgs-update-logs.nix-community.org/glibc/2024-08-05.log
+		`"configure: error: Pthreads are required to build libgomp"`,
+		// https://nixpkgs-update-logs.nix-community.org/rPackages.MBESS/2023-12-24.log
+		`"flock ${xvfb-run} xvfb-run -a -e xvfb-error R"`,
+		// https://nixpkgs-update-logs.nix-community.org/testlib/2024-09-13.log
+		`copying nixpkgs_review/errors.py -> build/lib/nixpkgs_review`,
+	}
+
+	for _, s := range falsePositives {
+		if erroRE.FindString(s) != "" {
+			t.Errorf("should not have matched: %s", s)
+		}
+	}
 }
