@@ -1,5 +1,5 @@
-> [!WARNING]
-> Status: alpha
+> [!NOTE]
+> Status: beta
 
 # nixpkgs-update-notifier
 
