@@ -203,7 +203,7 @@ The update script for kyverno-chainsaw-0.2.8 failed with exit code 1
 `),
 	}
 	for _, s := range strings {
-		if errRE.Find(s) == nil {
+		if erroRE.Find(s) == nil {
 			t.Errorf("error not caught: %s", s)
 		}
 	}
