@@ -389,7 +389,7 @@ func handleSubUnsub(matches []string, evt *event.Event) {
 	}
 
 	if c == 0 {
-		if _, err := sendMarkdown(fmt.Sprintf("could not find package `%s`", pkgName), evt.RoomID); err != nil {
+		if _, err := sendMarkdown(fmt.Sprintf("could not find package `%s`. The list is [here](https://nixpkgs-update-logs.nix-community.org/)", pkgName), evt.RoomID); err != nil {
 			slog.Error(err.Error())
 		}
 
