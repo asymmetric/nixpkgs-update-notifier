@@ -1,13 +1,15 @@
-{ config, lib, pkgs, ... }: {
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
+{
   options = {
     services.nixpkgs-update-notifier = {
       enable = lib.mkEnableOption "nixpkgs-update-notifier";
-      username = lib.mkOption {
-        type = lib.types.str;
-      };
-      passwordFile = lib.mkOption {
-        type = lib.types.path;
-      };
+      username = lib.mkOption { type = lib.types.str; };
+      passwordFile = lib.mkOption { type = lib.types.path; };
       dataDir = lib.mkOption {
         type = lib.types.path;
         default = "/var/lib/nixpkgs-update-notifier";
@@ -24,13 +26,14 @@
   };
 
   config =
-    let cfg = config.services.nixpkgs-update-notifier;
-    in lib.mkIf cfg.enable {
+    let
+      cfg = config.services.nixpkgs-update-notifier;
+    in
+    lib.mkIf cfg.enable {
       systemd.services.nixpkgs-update-notifier = {
         wantedBy = [ "multi-user.target" ];
         after = [ "network.target" ];
-        startLimitIntervalSec = 10;
-        startLimitBurst = 3;
+        startLimitIntervalSec = 0;
         serviceConfig = {
           Restart = "on-failure";
           EnvironmentFile = cfg.passwordFile;
