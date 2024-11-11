@@ -36,6 +36,7 @@
         startLimitIntervalSec = 0;
         serviceConfig = {
           Restart = "on-failure";
+          RestartPreventExitStatus = [ 100 ];
           EnvironmentFile = cfg.passwordFile;
           ExecStart = toString [
             (lib.getExe pkgs.nixpkgs-update-notifier)

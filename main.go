@@ -55,7 +55,7 @@ func main() {
 	setupLogger()
 
 	if err := setupDB(); err != nil {
-		panic(err)
+		fatal(err)
 	}
 	defer db.Close()
 
@@ -128,7 +128,7 @@ func storeAttrPaths(url string) {
 			continue
 		}
 		if _, err := db.Exec("INSERT OR IGNORE INTO packages(attr_path) VALUES (?)", attr_path); err != nil {
-			panic(err)
+			fatal(err)
 		}
 	}
 }
@@ -137,7 +137,7 @@ func storeAttrPaths(url string) {
 func scrapeSubs() {
 	rows, err := db.Query("SELECT attr_path FROM subscriptions")
 	if err != nil {
-		panic(err)
+		fatal(err)
 	}
 	defer rows.Close()
 
@@ -145,12 +145,12 @@ func scrapeSubs() {
 	for rows.Next() {
 		var ap string
 		if err := rows.Scan(&ap); err != nil {
-			panic(err)
+			fatal(err)
 		}
 		aps = append(aps, ap)
 	}
 	if err := rows.Err(); err != nil {
-		panic(err)
+		fatal(err)
 	}
 
 	for _, ap := range aps {
@@ -162,7 +162,7 @@ func scrapeSubs() {
 		// avoid duplicate notifications by ensuring we haven't already notified for this log
 		var last string
 		if err := db.QueryRow("SELECT last_visited FROM packages WHERE attr_path = ?", ap).Scan(&last); err != nil {
-			panic(err)
+			fatal(err)
 		}
 		if date > last {
 			if hasError {
@@ -173,7 +173,7 @@ func scrapeSubs() {
 			}
 
 			if _, err := db.Exec("UPDATE packages SET last_visited = ?, error = ? WHERE attr_path = ?", date, hasError, ap); err != nil {
-				panic(err)
+				fatal(err)
 			}
 		} else {
 			slog.Info("no new log", "url", url, "date", date)
@@ -243,7 +243,7 @@ func setupMatrix() *mautrix.Client {
 	envVar := "NIXPKGS_UPDATE_NOTIFIER_PASSWORD"
 	pwd, found := os.LookupEnv(envVar)
 	if !found {
-		panic(fmt.Errorf("could not read password env var %s", envVar))
+		fatal(fmt.Errorf("could not read password env var %s", envVar))
 	}
 
 	_, err = client.Login(context.TODO(), &mautrix.ReqLogin{

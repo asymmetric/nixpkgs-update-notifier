@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	u "net/url"
+	"os"
 	"strings"
 
 	"maunium.net/go/mautrix"
@@ -12,6 +14,8 @@ import (
 	"maunium.net/go/mautrix/format"
 	"maunium.net/go/mautrix/id"
 )
+
+const restartExitCode = 100
 
 func newReqWithUA(url string) (*http.Request, error) {
 	req, err := http.NewRequest("GET", url, nil)
@@ -52,4 +56,9 @@ func logURL(attr_path, date string) string {
 	// it's safe to just use string concatenation here because we're sure any
 	// trailing / has been removed by call to packageURL
 	return fmt.Sprintf("%s/%s.log", purl, date)
+}
+
+func fatal(err error) {
+	slog.Error("error", err)
+	os.Exit(restartExitCode)
 }
