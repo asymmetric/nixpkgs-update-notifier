@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	_ "embed"
 	"flag"
 	"fmt"
 	"io"
@@ -20,7 +21,18 @@ import (
 	"maunium.net/go/mautrix"
 	"maunium.net/go/mautrix/event"
 	"maunium.net/go/mautrix/id"
+
+	"github.com/asymmetric/nixpkgs-update-notifier/db"
 )
+
+// Note: the ddl contains a trigger, which ensures the following invariant: a
+// subscription can't be added before the corresponding package has had its
+// last_visited column set Otherwise we have cases where Scan fails (because it
+// can't cast NULL to a string), and also we can end up sending notifications
+// for old errors.
+//
+//go:embed db/schema.sql
+var ddl string
 
 var matrixHomeserver = flag.String("matrix.homeserver", "matrix.org", "Matrix homeserver for the bot account")
 var matrixUsername = flag.String("matrix.username", "", "Matrix bot username")
@@ -31,8 +43,6 @@ var tickerOpt = flag.Duration("ticker", 24*time.Hour, "How often to check url")
 var debug = flag.Bool("debug", false, "Enable debug logging")
 
 var client *mautrix.Client
-
-var db *sql.DB
 
 // This is set to the date the visited table is created, so we ignore logs
 // older than this date -- the user is not interested in all past failures,
@@ -47,17 +57,26 @@ var erroRE = regexp.MustCompile(`^error:|ExitFailure|failed with`)
 
 var ignoRE = regexp.MustCompile(`^~.*|^\.\.`)
 
+var subUnsubRE = regexp.MustCompile(`^(un)?sub ([a-zA-Z\d][\w._-]*)$`)
+
 var hc = &http.Client{}
 
+var queries *db.Queries
+
+var ctx context.Context
+
 func main() {
+	ctx = context.Background()
+
 	flag.Parse()
 
 	setupLogger()
 
-	if err := setupDB(); err != nil {
-		fatal(err)
+	var err error
+	queries, err = setupDB(ctx)
+	if err != nil {
+		panic(err)
 	}
-	defer db.Close()
 
 	client = setupMatrix()
 	go func() {
@@ -67,7 +86,6 @@ func main() {
 	}()
 
 	ticker := time.NewTicker(*tickerOpt)
-	optimizeTicker := time.NewTicker(24 * time.Hour)
 	slog.Debug("delay set", "value", *tickerOpt)
 
 	// - fetch main page, add list of packages to mem
@@ -93,11 +111,6 @@ func main() {
 			slog.Info("new ticker run")
 			storeAttrPaths(*mainURL)
 			scrapeSubs()
-		case <-optimizeTicker.C:
-			slog.Info("optimizing DB")
-			if _, err := db.Exec("PRAGMA optimize;"); err != nil {
-				panic(err)
-			}
 		}
 	}
 }
@@ -127,7 +140,7 @@ func storeAttrPaths(url string) {
 		if ignoRE.MatchString(attr_path) {
 			continue
 		}
-		if _, err := db.Exec("INSERT OR IGNORE INTO packages(attr_path) VALUES (?)", attr_path); err != nil {
+		if err := queries.CreatePackage(ctx, attr_path); err != nil {
 			fatal(err)
 		}
 	}
@@ -135,21 +148,8 @@ func storeAttrPaths(url string) {
 
 // iterates over subscrubed packages, and fetches their latest logs
 func scrapeSubs() {
-	rows, err := db.Query("SELECT attr_path FROM subscriptions")
+	aps, err := queries.GetAttrPaths(ctx)
 	if err != nil {
-		fatal(err)
-	}
-	defer rows.Close()
-
-	aps := make([]string, 0)
-	for rows.Next() {
-		var ap string
-		if err := rows.Scan(&ap); err != nil {
-			fatal(err)
-		}
-		aps = append(aps, ap)
-	}
-	if err := rows.Err(); err != nil {
 		fatal(err)
 	}
 
@@ -160,11 +160,11 @@ func scrapeSubs() {
 		date, hasError := fetchLastLog(url)
 
 		// avoid duplicate notifications by ensuring we haven't already notified for this log
-		var last string
-		if err := db.QueryRow("SELECT last_visited FROM packages WHERE attr_path = ?", ap).Scan(&last); err != nil {
+		last, err := queries.GetLastVisitedByAttrPath(ctx, ap)
+		if err != nil {
 			fatal(err)
 		}
-		if date > last {
+		if last.Valid && date > last.String {
 			if hasError {
 				slog.Info("new log", "err", true, "url", logURL(ap, date))
 				notifySubscribers(ap, date)
@@ -172,7 +172,12 @@ func scrapeSubs() {
 				slog.Info("new log", "err", false, "url", logURL(ap, date))
 			}
 
-			if _, err := db.Exec("UPDATE packages SET last_visited = ?, error = ? WHERE attr_path = ?", date, hasError, ap); err != nil {
+			params := db.UpdatePackageLastVisitedParams{
+				LastVisited: sql.NullString{String: date},
+				Error:       hasError,
+				AttrPath:    ap,
+			}
+			if err := queries.UpdatePackageLastVisited(ctx, params); err != nil {
 				fatal(err)
 			}
 		} else {
@@ -272,7 +277,7 @@ func setupMatrix() *mautrix.Client {
 			slog.Debug("joining room", "id", evt.RoomID)
 		case event.MembershipLeave:
 			// remove subscription, then leave room
-			if _, err := db.Exec("DELETE FROM subscriptions WHERE roomid = ?", evt.RoomID); err != nil {
+			if err := queries.DeleteSubscriptionsByRoomID(ctx, evt.RoomID.String()); err != nil {
 				panic(err)
 			}
 
@@ -288,7 +293,6 @@ func setupMatrix() *mautrix.Client {
 		}
 	})
 
-	subRegexp := regexp.MustCompile(`^(un)?sub ([\w._-]+)$`)
 	helpText := `Welcome to the nixpkgs-update-notifier bot!
 
   These are the available commands:
@@ -312,7 +316,7 @@ func setupMatrix() *mautrix.Client {
 			return
 		}
 
-		if matches := subRegexp.FindStringSubmatch(msg); matches != nil {
+		if matches := subUnsubRE.FindStringSubmatch(msg); matches != nil {
 			handleSubUnsub(matches, evt)
 
 			return
@@ -320,31 +324,18 @@ func setupMatrix() *mautrix.Client {
 
 		switch msg {
 		case "subs":
-			rows, err := db.Query("SELECT attr_path FROM subscriptions WHERE roomid = ?", evt.RoomID)
+			aps, err := queries.GetAttrPathsByRoomID(ctx, string(evt.RoomID))
 			if err != nil {
-				panic(err)
-			}
-			defer rows.Close()
-
-			names := make([]string, 0)
-			for rows.Next() {
-				var name string
-				if err := rows.Scan(&name); err != nil {
-					panic(err)
-				}
-				names = append(names, name)
-			}
-			if err := rows.Err(); err != nil {
-				panic(err)
+				panic(nil)
 			}
 
 			var msg string
-			if len(names) == 0 {
+			if len(aps) == 0 {
 				msg = "no subs"
 			} else {
 				sts := []string{"Your subscriptions:"}
 
-				for _, n := range names {
+				for _, n := range aps {
 					sts = append(sts, fmt.Sprintf("- %s", n))
 				}
 
@@ -383,8 +374,8 @@ func handleSubUnsub(matches []string, evt *event.Event) {
 	rID := evt.RoomID
 
 	// check if package exists
-	var c int
-	if err := db.QueryRow("SELECT COUNT(*) FROM packages WHERE attr_path = ?", pkgName).Scan(&c); err != nil {
+	c, err := queries.CountPackagesByAttrPath(context.Background(), pkgName)
+	if err != nil {
 		panic(err)
 	}
 
@@ -399,7 +390,12 @@ func handleSubUnsub(matches []string, evt *event.Event) {
 	// matches[1] is the optional "un" prefix
 	if matches[1] != "" {
 		slog.Info("received unsub", "pkg", pkgName, "sender", evt.Sender)
-		res, err := db.Exec("DELETE FROM subscriptions WHERE attr_path = ?", pkgName)
+
+		params := db.DeleteSubscriptionParams{
+			Roomid:   rID.String(),
+			AttrPath: pkgName,
+		}
+		res, err := queries.DeleteSubscription(ctx, params)
 		if err != nil {
 			panic(err)
 		}
@@ -422,7 +418,13 @@ func handleSubUnsub(matches []string, evt *event.Event) {
 
 	slog.Info("received sub", "pkg", pkgName, "sender", evt.Sender)
 
-	if err := db.QueryRow("SELECT COUNT(*) FROM subscriptions WHERE roomid = ? AND attr_path = ?", rID, pkgName).Scan(&c); err != nil {
+	params := db.CountSubscriptionsByRoomIDAndAttrPathParams{
+		Roomid:   rID.String(),
+		AttrPath: pkgName,
+	}
+
+	c, err = queries.CountSubscriptionsByRoomIDAndAttrPath(ctx, params)
+	if err != nil {
 		panic(err)
 	}
 
@@ -444,11 +446,23 @@ func handleSubUnsub(matches []string, evt *event.Event) {
 	// - but the log predates the subscription, so we notified on a stale log
 	purl := packageURL(pkgName)
 	date, hasError := fetchLastLog(purl)
-	if _, err := db.Exec("UPDATE packages SET last_visited = ?, error = ? WHERE attr_path = ?", date, hasError, pkgName); err != nil {
+	// TODO: resolve naming conflict
+	pars := db.UpdatePackageLastVisitedParams{
+		LastVisited: sql.NullString{String: date},
+		Error:       hasError,
+		AttrPath:    pkgName,
+	}
+	if err := queries.UpdatePackageLastVisited(ctx, pars); err != nil {
 		panic(err)
 	}
 
-	if _, err := db.Exec("INSERT INTO subscriptions(roomid,attr_path,mxid) VALUES (?, ?, ?)", evt.RoomID, pkgName, evt.Sender); err != nil {
+	foo := db.CreateSubscriptionParams{
+		// TODO: use rID ?
+		Roomid:   evt.RoomID.String(),
+		AttrPath: pkgName,
+		Mxid:     evt.Sender.String(),
+	}
+	if err := queries.CreateSubscription(ctx, foo); err != nil {
 		panic(err)
 	}
 
@@ -465,21 +479,8 @@ func notifySubscribers(attr_path, date string) {
 	// - if we're not in that room, drop from db of subs?
 	logPath := fmt.Sprintf("%s/%s/%s.log", *mainURL, attr_path, date)
 	slog.Debug("lp", "lp", logPath)
-	rows, err := db.Query("SELECT roomid FROM subscriptions WHERE attr_path = ?", attr_path)
+	roomIDs, err := queries.GetRoomIDsByAttrPath(ctx, attr_path)
 	if err != nil {
-		panic(err)
-	}
-	defer rows.Close()
-
-	roomIDs := make([]string, 0)
-	for rows.Next() {
-		var roomID string
-		if err := rows.Scan(&roomID); err != nil {
-			panic(err)
-		}
-		roomIDs = append(roomIDs, roomID)
-	}
-	if err := rows.Err(); err != nil {
 		panic(err)
 	}
 
@@ -504,36 +505,21 @@ func setupLogger() {
 	slog.SetDefault(slog.New(h))
 }
 
-func setupDB() (err error) {
-	db, err = sql.Open("sqlite3", fmt.Sprintf("file:%s?_journal_mode=WAL&_synchronous=NORMAL&_foreign_keys=true", *dbPath))
+func setupDB(ctx context.Context) (*db.Queries, error) {
+	dbh, err := sql.Open("sqlite3", fmt.Sprintf("file:%s?_journal_mode=WAL&_synchronous=NORMAL&_foreign_keys=true", *dbPath))
 	if err != nil {
-		return
+		return nil, err
 	}
 
-	if err = db.Ping(); err != nil {
-		return
+	if err = dbh.PingContext(ctx); err != nil {
+		return nil, err
 	}
 
-	if _, err = db.Exec("CREATE TABLE IF NOT EXISTS packages (attr_path TEXT PRIMARY KEY, last_visited TEXT, error INTEGER) STRICT"); err != nil {
-		return
+	if _, err = dbh.ExecContext(ctx, ddl); err != nil {
+		return nil, err
 	}
 
-	if _, err = db.Exec("CREATE TABLE IF NOT EXISTS subscriptions (id INTEGER PRIMARY KEY, roomid TEXT, mxid TEXT NOT NULL, attr_path TEXT NOT NULL, FOREIGN KEY(attr_path) REFERENCES packages(attr_path)) STRICT"); err != nil {
-		return
-	}
+	queries := db.New(dbh)
 
-	// Ensure invariant: a subscription can't be added before the corresponding package has had its last_visited column set
-	// Otherwise we have cases where Scan fails (because it can't cast NULL to a string), and also we can end up sending notifications for old errors.
-	if _, err = db.Exec(`
-  CREATE TRIGGER IF NOT EXISTS ensure_packages_last_visited_set BEFORE INSERT ON subscriptions
-  BEGIN
-    SELECT CASE
-      WHEN (SELECT last_visited FROM packages WHERE attr_path = NEW.attr_path) IS NULL THEN
-        RAISE(ABORT, 'Insert aborted: last_visited is NULL')
-      END;
-  END;`); err != nil {
-		return
-	}
-
-	return nil
+	return queries, nil
 }

@@ -43,6 +43,7 @@
               go-tools # staticcheck
               gopls
               gotools
+              sqlc
             ];
           };
         });

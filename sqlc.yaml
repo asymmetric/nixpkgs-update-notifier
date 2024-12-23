@@ -1,0 +1,12 @@
+version: "2"
+sql:
+  - engine: "sqlite"
+    queries: "db/query.sql"
+    schema: "db/schema.sql"
+    gen:
+      go:
+        package: "db"
+        out: "db"
+        overrides:
+          - column: "packages.error"
+            go_type: "bool"
