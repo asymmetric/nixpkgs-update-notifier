@@ -36,3 +36,27 @@ func TestErrRegexp(t *testing.T) {
 		}
 	}
 }
+
+func TestSubUnsubRegexp(t *testing.T) {
+	positives := []string{
+		"sub foo",
+		"unsub foo",
+	}
+
+	for _, s := range positives {
+		if subUnsubRE.FindString(s) == "" {
+			t.Errorf("should have matched: %s", s)
+		}
+	}
+
+	falsePositives := []string{
+		`sub -foo`,
+		`unsub -foo`,
+	}
+
+	for _, s := range falsePositives {
+		if subUnsubRE.FindString(s) != "" {
+			t.Errorf("should not have matched: %s", s)
+		}
+	}
+}

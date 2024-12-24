@@ -47,6 +47,8 @@ var erroRE = regexp.MustCompile(`^error:|ExitFailure|failed with`)
 
 var ignoRE = regexp.MustCompile(`^~.*|^\.\.`)
 
+var subUnsubRE = regexp.MustCompile(`^(un)?sub ([a-zA-Z\d][\w._-]*)$`)
+
 var hc = &http.Client{}
 
 func main() {
@@ -288,7 +290,6 @@ func setupMatrix() *mautrix.Client {
 		}
 	})
 
-	subRegexp := regexp.MustCompile(`^(un)?sub ([\w._-]+)$`)
 	helpText := `Welcome to the nixpkgs-update-notifier bot!
 
   These are the available commands:
@@ -312,7 +313,7 @@ func setupMatrix() *mautrix.Client {
 			return
 		}
 
-		if matches := subRegexp.FindStringSubmatch(msg); matches != nil {
+		if matches := subUnsubRE.FindStringSubmatch(msg); matches != nil {
 			handleSubUnsub(matches, evt)
 
 			return
