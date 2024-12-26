@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	_ "embed"
 	"flag"
 	"fmt"
 	"io"
@@ -34,6 +35,12 @@ var client *mautrix.Client
 
 var db *sql.DB
 
+// Ensure invariant: a subscription can't be added before the corresponding package has had its last_visited column set.
+// Otherwise we have cases where Scan fails (because it can't cast NULL to a string), and also we can end up sending notifications for old errors.
+//
+//go:embed db/schema.sql
+var ddl string
+
 // This is set to the date the visited table is created, so we ignore logs
 // older than this date -- the user is not interested in all past failures,
 // just the ones since they subscribed, which by definition is after the first
@@ -52,12 +59,15 @@ var subUnsubRE = regexp.MustCompile(`^(un)?sub ([a-zA-Z\d][\w._-]*)$`)
 var hc = &http.Client{}
 
 func main() {
+	ctx := context.Background()
+
 	flag.Parse()
 
 	setupLogger()
 
-	if err := setupDB(); err != nil {
-		fatal(err)
+	var err error
+	if err = setupDB(ctx, fmt.Sprintf("file:%s", *dbPath)); err != nil {
+		panic(err)
 	}
 	defer db.Close()
 
@@ -505,36 +515,19 @@ func setupLogger() {
 	slog.SetDefault(slog.New(h))
 }
 
-func setupDB() (err error) {
-	db, err = sql.Open("sqlite3", fmt.Sprintf("file:%s?_journal_mode=WAL&_synchronous=NORMAL&_foreign_keys=true", *dbPath))
+func setupDB(ctx context.Context, path string) (err error) {
+	db, err = sql.Open("sqlite3", fmt.Sprintf("%s?_journal_mode=WAL&_synchronous=NORMAL&_foreign_keys=true", path))
 	if err != nil {
 		return
 	}
 
-	if err = db.Ping(); err != nil {
+	if err = db.PingContext(ctx); err != nil {
 		return
 	}
 
-	if _, err = db.Exec("CREATE TABLE IF NOT EXISTS packages (attr_path TEXT PRIMARY KEY, last_visited TEXT, error INTEGER) STRICT"); err != nil {
+	if _, err = db.ExecContext(ctx, ddl); err != nil {
 		return
 	}
 
-	if _, err = db.Exec("CREATE TABLE IF NOT EXISTS subscriptions (id INTEGER PRIMARY KEY, roomid TEXT, mxid TEXT NOT NULL, attr_path TEXT NOT NULL, FOREIGN KEY(attr_path) REFERENCES packages(attr_path)) STRICT"); err != nil {
-		return
-	}
-
-	// Ensure invariant: a subscription can't be added before the corresponding package has had its last_visited column set
-	// Otherwise we have cases where Scan fails (because it can't cast NULL to a string), and also we can end up sending notifications for old errors.
-	if _, err = db.Exec(`
-  CREATE TRIGGER IF NOT EXISTS ensure_packages_last_visited_set BEFORE INSERT ON subscriptions
-  BEGIN
-    SELECT CASE
-      WHEN (SELECT last_visited FROM packages WHERE attr_path = NEW.attr_path) IS NULL THEN
-        RAISE(ABORT, 'Insert aborted: last_visited is NULL')
-      END;
-  END;`); err != nil {
-		return
-	}
-
-	return nil
+	return
 }
