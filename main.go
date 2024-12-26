@@ -410,7 +410,7 @@ func handleSubUnsub(matches []string, evt *event.Event) {
 	// matches[1] is the optional "un" prefix
 	if matches[1] != "" {
 		slog.Info("received unsub", "pkg", pkgName, "sender", evt.Sender)
-		res, err := db.Exec("DELETE FROM subscriptions WHERE attr_path = ?", pkgName)
+		res, err := db.Exec("DELETE FROM subscriptions WHERE roomid = ? AND attr_path = ?", evt.RoomID, pkgName)
 		if err != nil {
 			panic(err)
 		}
