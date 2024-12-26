@@ -391,7 +391,6 @@ func setupMatrix() *mautrix.Client {
 
 func handleSubUnsub(matches []string, evt *event.Event) {
 	pkgName := matches[2]
-	rID := evt.RoomID
 
 	// check if package exists
 	var c int
@@ -433,12 +432,12 @@ func handleSubUnsub(matches []string, evt *event.Event) {
 
 	slog.Info("received sub", "pkg", pkgName, "sender", evt.Sender)
 
-	if err := db.QueryRow("SELECT COUNT(*) FROM subscriptions WHERE roomid = ? AND attr_path = ?", rID, pkgName).Scan(&c); err != nil {
+	if err := db.QueryRow("SELECT COUNT(*) FROM subscriptions WHERE roomid = ? AND attr_path = ?", evt.RoomID, pkgName).Scan(&c); err != nil {
 		panic(err)
 	}
 
 	if c != 0 {
-		if _, err := client.SendText(context.TODO(), rID, "already subscribed"); err != nil {
+		if _, err := client.SendText(context.TODO(), evt.RoomID, "already subscribed"); err != nil {
 			slog.Error(err.Error())
 		}
 		return
