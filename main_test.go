@@ -1,7 +1,10 @@
 package main
 
 import (
+	"context"
 	"testing"
+
+	"maunium.net/go/mautrix/event"
 )
 
 func TestErrRegexp(t *testing.T) {
@@ -58,5 +61,40 @@ func TestSubUnsubRegexp(t *testing.T) {
 		if subUnsubRE.FindString(s) != "" {
 			t.Errorf("should not have matched: %s", s)
 		}
+	}
+}
+
+func TestSub(t *testing.T) {
+	ctx := context.Background()
+
+	if err := setupDB(ctx, ":memory:"); err != nil {
+		panic(err)
+	}
+
+	// setup
+	aps := []string{
+		"foo",
+		"python312Packages.bar",
+	}
+	for _, ap := range aps {
+		if _, err := db.Exec("INSERT OR IGNORE INTO packages(attr_path) VALUES (?)", ap); err != nil {
+			panic(err)
+		}
+	}
+
+	// it should sub
+	evt := &event.Event{
+		RoomID: "foo",
+		Sender: "bar",
+	}
+	handleSubUnsub("sub foo", evt)
+
+	var mxid string
+	if err := db.QueryRow("SELECT mxid FROM subscriptions WHERE attr_path = ?", "foo").Scan(&mxid); err != nil {
+		panic(err)
+	}
+
+	if mxid != "bar" {
+		t.Errorf("Wrong subscriber: %s", mxid)
 	}
 }

@@ -323,8 +323,8 @@ func setupMatrix() *mautrix.Client {
 			return
 		}
 
-		if matches := subUnsubRE.FindStringSubmatch(msg); matches != nil {
-			handleSubUnsub(matches, evt)
+		if subUnsubRE.MatchString(msg) {
+			handleSubUnsub(msg, evt)
 
 			return
 		}
@@ -389,7 +389,13 @@ func setupMatrix() *mautrix.Client {
 	return client
 }
 
-func handleSubUnsub(matches []string, evt *event.Event) {
+func handleSubUnsub(msg string, evt *event.Event) {
+	matches := subUnsubRE.FindStringSubmatch(msg)
+	if matches == nil {
+		slog.Error("We should not be here")
+		return
+	}
+
 	pkgName := matches[2]
 
 	// check if package exists
