@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"maunium.net/go/mautrix"
@@ -74,37 +75,44 @@ func TestSub(t *testing.T) {
 	}
 
 	// setup
-	aps := []string{
-		"foo",
-		"python312Packages.bar",
-	}
-	for _, ap := range aps {
-		if _, err := db.Exec("INSERT OR IGNORE INTO packages(attr_path) VALUES (?)", ap); err != nil {
-			panic(err)
-		}
-	}
-
 	h = handlers{
 		logFetcher: testFetcher,
 		sender:     testSender,
 	}
 	client, _ = mautrix.NewClient("http://localhost", "", "")
 
-	// it should sub
+	rid := id.RoomID("test-room")
+	sender := id.UserID("test-sender")
 	evt := &event.Event{
-		RoomID: "foo",
-		Sender: "bar",
+		RoomID: rid,
+		Sender: sender,
 	}
 
-	handleSubUnsub("sub foo", evt)
-
-	var mxid string
-	if err := db.QueryRow("SELECT mxid FROM subscriptions WHERE attr_path = ?", "foo").Scan(&mxid); err != nil {
-		panic(err)
+	var count int
+	aps := []string{
+		"foo",
+		"python312Packages.bar",
 	}
+	for _, ap := range aps {
+		if _, err := db.Exec("INSERT INTO packages(attr_path) VALUES (?)", ap); err != nil {
+			panic(err)
+		}
 
-	if mxid != "bar" {
-		t.Errorf("Wrong subscriber: %s", mxid)
+		handleSubUnsub(fmt.Sprintf("sub %s", ap), evt)
+
+		if err := db.QueryRow(`
+      SELECT COUNT(*)
+      FROM subscriptions
+      WHERE roomid = ?
+        AND mxid = ?
+        AND attr_path = ?`, rid, sender, ap).
+			Scan(&count); err != nil {
+			panic(err)
+		}
+
+		if count != 1 {
+			t.Error("Subscription not found")
+		}
 	}
 }
 
