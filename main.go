@@ -66,6 +66,17 @@ type handlers struct {
 
 var h handlers
 
+var helpText = `Welcome to the nixpkgs-update-notifier bot!
+
+These are the available commands:
+- **help**: show this help message
+- **sub foo**: subscribe to package <code>foo</code>
+- **unsub foo**: unsubscribe from package <code>foo</code>
+- **subs**: list subscriptions
+
+The code for the bot is [here](https://github.com/asymmetric/nixpkgs-update-notifier).
+`
+
 func main() {
 	ctx := context.Background()
 
@@ -313,79 +324,9 @@ func setupMatrix() *mautrix.Client {
 		}
 	})
 
-	helpText := `Welcome to the nixpkgs-update-notifier bot!
-
-  These are the available commands:
-  - **help**: show this help message
-  - **sub foo**: subscribe to package <code>foo</code>
-  - **unsub foo**: unsubscribe from package <code>foo</code>
-  - **subs**: list subscriptions
-
-  The code for the bot is [here](https://github.com/asymmetric/nixpkgs-update-notifier).
-  `
 	subEventID := "io.github.nixpkgs-update-notifier.subscription"
 
-	syncer.OnEventType(event.EventMessage, func(ctx context.Context, evt *event.Event) {
-		msg := evt.Content.AsMessage().Body
-		sender := evt.Sender.String()
-
-		slog.Debug("received msg", "msg", msg, "sender", sender)
-
-		if sender == fmt.Sprintf("@%s:%s", *matrixUsername, *matrixHomeserver) {
-			slog.Debug("ignoring our own message", "msg", msg)
-			return
-		}
-
-		if subUnsubRE.MatchString(msg) {
-			handleSubUnsub(msg, evt)
-
-			return
-		}
-
-		switch msg {
-		case "subs":
-			rows, err := db.Query("SELECT attr_path FROM subscriptions WHERE roomid = ?", evt.RoomID)
-			if err != nil {
-				panic(err)
-			}
-			defer rows.Close()
-
-			names := make([]string, 0)
-			for rows.Next() {
-				var name string
-				if err := rows.Scan(&name); err != nil {
-					panic(err)
-				}
-				names = append(names, name)
-			}
-			if err := rows.Err(); err != nil {
-				panic(err)
-			}
-
-			var msg string
-			if len(names) == 0 {
-				msg = "no subs"
-			} else {
-				sts := []string{"Your subscriptions:"}
-
-				for _, n := range names {
-					sts = append(sts, fmt.Sprintf("- %s", n))
-				}
-
-				msg = strings.Join(sts, "\n")
-			}
-			if _, err = client.SendText(context.TODO(), evt.RoomID, msg); err != nil {
-				slog.Error(err.Error())
-			}
-
-		default:
-			// anything else, so print help
-			if _, err := h.sender(helpText, evt.RoomID); err != nil {
-				slog.Error(err.Error())
-			}
-			slog.Debug("received help", "sender", sender)
-		}
-	})
+	syncer.OnEventType(event.EventMessage, handleMessage)
 
 	// NOTE: changing this will re-play all received Matrix messages
 	syncer.FilterJSON = &mautrix.Filter{
@@ -548,4 +489,66 @@ func setupDB(ctx context.Context, path string) (err error) {
 	}
 
 	return
+}
+
+func handleMessage(ctx context.Context, evt *event.Event) {
+	msg := evt.Content.AsMessage().Body
+	sender := evt.Sender.String()
+
+	slog.Debug("received msg", "msg", msg, "sender", sender)
+
+	if sender == fmt.Sprintf("@%s:%s", *matrixUsername, *matrixHomeserver) {
+		slog.Debug("ignoring our own message", "msg", msg)
+		return
+	}
+
+	if subUnsubRE.MatchString(msg) {
+		handleSubUnsub(msg, evt)
+
+		return
+	}
+
+	switch msg {
+	case "subs":
+		rows, err := db.Query("SELECT attr_path FROM subscriptions WHERE roomid = ?", evt.RoomID)
+		if err != nil {
+			panic(err)
+		}
+		defer rows.Close()
+
+		names := make([]string, 0)
+		for rows.Next() {
+			var name string
+			if err := rows.Scan(&name); err != nil {
+				panic(err)
+			}
+			names = append(names, name)
+		}
+		if err := rows.Err(); err != nil {
+			panic(err)
+		}
+
+		var msg string
+		if len(names) == 0 {
+			msg = "no subs"
+		} else {
+			sts := []string{"Your subscriptions:"}
+
+			for _, n := range names {
+				sts = append(sts, fmt.Sprintf("- %s", n))
+			}
+
+			msg = strings.Join(sts, "\n")
+		}
+		if _, err = client.SendText(context.TODO(), evt.RoomID, msg); err != nil {
+			slog.Error(err.Error())
+		}
+
+	default:
+		// anything else, so print help
+		if _, err := h.sender(helpText, evt.RoomID); err != nil {
+			slog.Error(err.Error())
+		}
+		slog.Debug("received help", "sender", sender)
+	}
 }

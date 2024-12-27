@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"testing"
@@ -102,6 +103,10 @@ func TestSub(t *testing.T) {
 			err: true,
 		},
 	}
+
+	// TODO move somewhere else
+	slog.SetLogLoggerLevel(slog.LevelError)
+
 	for _, v := range tt {
 		h = handlers{
 			logFetcher: func(string) (string, bool) {
@@ -113,8 +118,13 @@ func TestSub(t *testing.T) {
 			panic(err)
 		}
 
-		slog.SetLogLoggerLevel(slog.LevelError)
-		handleSubUnsub(fmt.Sprintf("sub %s", v.ap), evt)
+		evt.Content = event.Content{
+			Parsed: &event.MessageEventContent{
+				MsgType: event.MsgText,
+				Body:    fmt.Sprintf("sub %s", v.ap),
+			},
+		}
+		handleMessage(ctx, evt)
 
 		if err := db.QueryRow(`
       SELECT COUNT(*)
@@ -148,4 +158,29 @@ func TestSub(t *testing.T) {
 
 func testSender(text string, _ id.RoomID) (*mautrix.RespSendEvent, error) {
 	return nil, nil
+}
+
+func newFakeEvent(evtType event.Type, parsed interface{}) *event.Event {
+	data, err := json.Marshal(parsed)
+	if err != nil {
+		panic(err)
+	}
+	var raw map[string]interface{}
+	err = json.Unmarshal(data, &raw)
+	if err != nil {
+		panic(err)
+	}
+	content := event.Content{
+		VeryRaw: data,
+		Raw:     raw,
+		Parsed:  parsed,
+	}
+	return &event.Event{
+		Sender:    "@foo:bar.net",
+		Type:      evtType,
+		Timestamp: 1523791120,
+		ID:        "$123:bar.net",
+		RoomID:    "!fakeroom:bar.net",
+		Content:   content,
+	}
 }
