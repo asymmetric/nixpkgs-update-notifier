@@ -58,12 +58,17 @@ var subUnsubRE = regexp.MustCompile(`^(un)?sub ([a-zA-Z\d][\w._-]*)$`)
 
 var hc = &http.Client{}
 
+// This is abstracted so that we can pass a different function in tests.
+var logFetcherFunc func(string) (string, bool)
+
 func main() {
 	ctx := context.Background()
 
 	flag.Parse()
 
 	setupLogger()
+
+	logFetcherFunc = fetchLastLog
 
 	var err error
 	if err = setupDB(ctx, fmt.Sprintf("file:%s", *dbPath)); err != nil {
@@ -169,7 +174,7 @@ func scrapeSubs() {
 		url := packageURL(ap)
 		// TODO: make async
 		// TODO: we could sometimes avoid fetching altogether if we passed last_visited
-		date, hasError := fetchLastLog(url)
+		date, hasError := logFetcherFunc(url)
 
 		// avoid duplicate notifications by ensuring we haven't already notified for this log
 		var last string
@@ -459,7 +464,7 @@ func handleSubUnsub(msg string, evt *event.Event) {
 	// - we will fetch the latest log and because it's a failure, notify
 	// - but the log predates the subscription, so we notified on a stale log
 	purl := packageURL(pkgName)
-	date, hasError := fetchLastLog(purl)
+	date, hasError := logFetcherFunc(purl)
 	if _, err := db.Exec("UPDATE packages SET last_visited = ?, error = ? WHERE attr_path = ?", date, hasError, pkgName); err != nil {
 		panic(err)
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"maunium.net/go/mautrix"
 	"maunium.net/go/mautrix/event"
 )
 
@@ -82,6 +83,8 @@ func TestSub(t *testing.T) {
 		}
 	}
 
+	logFetcherFunc = testFetcher
+	client, _ = mautrix.NewClient("http://localhost", "", "")
 	// it should sub
 	evt := &event.Event{
 		RoomID: "foo",
@@ -97,4 +100,8 @@ func TestSub(t *testing.T) {
 	if mxid != "bar" {
 		t.Errorf("Wrong subscriber: %s", mxid)
 	}
+}
+
+func testFetcher(string) (string, bool) {
+	return "foo", false
 }
