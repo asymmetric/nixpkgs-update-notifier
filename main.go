@@ -59,8 +59,12 @@ var subUnsubRE = regexp.MustCompile(`^(un)?sub ([a-zA-Z\d][\w._-]*)$`)
 var hc = &http.Client{}
 
 // These are abstracted so that we can pass a different function in tests.
-var logFetcherFunc func(string) (string, bool)
-var senderFunc func(string, id.RoomID) (*mautrix.RespSendEvent, error)
+type handlers struct {
+	logFetcher func(string) (string, bool)
+	sender     func(string, id.RoomID) (*mautrix.RespSendEvent, error)
+}
+
+var h handlers
 
 func main() {
 	ctx := context.Background()
@@ -69,8 +73,10 @@ func main() {
 
 	setupLogger()
 
-	logFetcherFunc = fetchLastLog
-	senderFunc = sendMarkdown
+	h = handlers{
+		logFetcher: fetchLastLog,
+		sender:     sendMarkdown,
+	}
 
 	var err error
 	if err = setupDB(ctx, fmt.Sprintf("file:%s", *dbPath)); err != nil {
@@ -176,7 +182,7 @@ func scrapeSubs() {
 		url := packageURL(ap)
 		// TODO: make async
 		// TODO: we could sometimes avoid fetching altogether if we passed last_visited
-		date, hasError := logFetcherFunc(url)
+		date, hasError := h.logFetcher(url)
 
 		// avoid duplicate notifications by ensuring we haven't already notified for this log
 		var last string
@@ -374,7 +380,7 @@ func setupMatrix() *mautrix.Client {
 
 		default:
 			// anything else, so print help
-			if _, err := senderFunc(helpText, evt.RoomID); err != nil {
+			if _, err := h.sender(helpText, evt.RoomID); err != nil {
 				slog.Error(err.Error())
 			}
 			slog.Debug("received help", "sender", sender)
@@ -412,7 +418,7 @@ func handleSubUnsub(msg string, evt *event.Event) {
 	}
 
 	if c == 0 {
-		if _, err := senderFunc(fmt.Sprintf("could not find package `%s`. The list is [here](https://nixpkgs-update-logs.nix-community.org/)", pkgName), evt.RoomID); err != nil {
+		if _, err := h.sender(fmt.Sprintf("could not find package `%s`. The list is [here](https://nixpkgs-update-logs.nix-community.org/)", pkgName), evt.RoomID); err != nil {
 			slog.Error(err.Error())
 		}
 
@@ -437,7 +443,7 @@ func handleSubUnsub(msg string, evt *event.Event) {
 		}
 
 		// send confirmation message
-		if _, err := senderFunc(msg, evt.RoomID); err != nil {
+		if _, err := h.sender(msg, evt.RoomID); err != nil {
 			slog.Error(err.Error())
 		}
 		return
@@ -466,7 +472,7 @@ func handleSubUnsub(msg string, evt *event.Event) {
 	// - we will fetch the latest log and because it's a failure, notify
 	// - but the log predates the subscription, so we notified on a stale log
 	purl := packageURL(pkgName)
-	date, hasError := logFetcherFunc(purl)
+	date, hasError := h.logFetcher(purl)
 	if _, err := db.Exec("UPDATE packages SET last_visited = ?, error = ? WHERE attr_path = ?", date, hasError, pkgName); err != nil {
 		panic(err)
 	}
@@ -476,7 +482,7 @@ func handleSubUnsub(msg string, evt *event.Event) {
 	}
 
 	// send confirmation message
-	if _, err := senderFunc(fmt.Sprintf("subscribed to package `%s`", pkgName), evt.RoomID); err != nil {
+	if _, err := h.sender(fmt.Sprintf("subscribed to package `%s`", pkgName), evt.RoomID); err != nil {
 		slog.Error(err.Error())
 	}
 
@@ -509,7 +515,7 @@ func notifySubscribers(attr_path, date string) {
 	for _, roomID := range roomIDs {
 		slog.Info("notifying subscriber", "roomid", roomID)
 		s := fmt.Sprintf("potential new build error for package `%s`: %s", attr_path, logPath)
-		if _, err := senderFunc(s, id.RoomID(roomID)); err != nil {
+		if _, err := h.sender(s, id.RoomID(roomID)); err != nil {
 			// TODO check if we're not in room, in that case remove sub
 			slog.Error(err.Error())
 		}

@@ -84,8 +84,10 @@ func TestSub(t *testing.T) {
 		}
 	}
 
-	logFetcherFunc = testFetcher
-	senderFunc = testSender
+	h = handlers{
+		logFetcher: testFetcher,
+		sender:     testSender,
+	}
 	client, _ = mautrix.NewClient("http://localhost", "", "")
 
 	// it should sub
@@ -93,6 +95,7 @@ func TestSub(t *testing.T) {
 		RoomID: "foo",
 		Sender: "bar",
 	}
+
 	handleSubUnsub("sub foo", evt)
 
 	var mxid string
