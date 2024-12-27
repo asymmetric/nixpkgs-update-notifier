@@ -27,9 +27,9 @@ func newReqWithUA(url string) (*http.Request, error) {
 	return req, nil
 }
 
-func sendMarkdown(s string, rid id.RoomID) (*mautrix.RespSendEvent, error) {
-	m := format.RenderMarkdown(s, true, true)
-	return client.SendMessageEvent(context.TODO(), rid, event.EventMessage, m)
+func sendMarkdown(text string, rid id.RoomID) (*mautrix.RespSendEvent, error) {
+	md := format.RenderMarkdown(text, true, true)
+	return client.SendMessageEvent(context.TODO(), rid, event.EventMessage, md)
 }
 
 func getComponents(url string) (attr_path, date string) {
