@@ -6,6 +6,7 @@ import (
 
 	"maunium.net/go/mautrix"
 	"maunium.net/go/mautrix/event"
+	"maunium.net/go/mautrix/id"
 )
 
 func TestErrRegexp(t *testing.T) {
@@ -84,7 +85,9 @@ func TestSub(t *testing.T) {
 	}
 
 	logFetcherFunc = testFetcher
+	senderFunc = testSender
 	client, _ = mautrix.NewClient("http://localhost", "", "")
+
 	// it should sub
 	evt := &event.Event{
 		RoomID: "foo",
@@ -104,4 +107,8 @@ func TestSub(t *testing.T) {
 
 func testFetcher(string) (string, bool) {
 	return "foo", false
+}
+
+func testSender(text string, _ id.RoomID) (*mautrix.RespSendEvent, error) {
+	return nil, nil
 }

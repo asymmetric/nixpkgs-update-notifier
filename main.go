@@ -58,8 +58,9 @@ var subUnsubRE = regexp.MustCompile(`^(un)?sub ([a-zA-Z\d][\w._-]*)$`)
 
 var hc = &http.Client{}
 
-// This is abstracted so that we can pass a different function in tests.
+// These are abstracted so that we can pass a different function in tests.
 var logFetcherFunc func(string) (string, bool)
+var senderFunc func(string, id.RoomID) (*mautrix.RespSendEvent, error)
 
 func main() {
 	ctx := context.Background()
@@ -69,6 +70,7 @@ func main() {
 	setupLogger()
 
 	logFetcherFunc = fetchLastLog
+	senderFunc = sendMarkdown
 
 	var err error
 	if err = setupDB(ctx, fmt.Sprintf("file:%s", *dbPath)); err != nil {
@@ -372,7 +374,7 @@ func setupMatrix() *mautrix.Client {
 
 		default:
 			// anything else, so print help
-			if _, err := sendMarkdown(helpText, evt.RoomID); err != nil {
+			if _, err := senderFunc(helpText, evt.RoomID); err != nil {
 				slog.Error(err.Error())
 			}
 			slog.Debug("received help", "sender", sender)
@@ -410,7 +412,7 @@ func handleSubUnsub(msg string, evt *event.Event) {
 	}
 
 	if c == 0 {
-		if _, err := sendMarkdown(fmt.Sprintf("could not find package `%s`. The list is [here](https://nixpkgs-update-logs.nix-community.org/)", pkgName), evt.RoomID); err != nil {
+		if _, err := senderFunc(fmt.Sprintf("could not find package `%s`. The list is [here](https://nixpkgs-update-logs.nix-community.org/)", pkgName), evt.RoomID); err != nil {
 			slog.Error(err.Error())
 		}
 
@@ -435,7 +437,7 @@ func handleSubUnsub(msg string, evt *event.Event) {
 		}
 
 		// send confirmation message
-		if _, err := sendMarkdown(msg, evt.RoomID); err != nil {
+		if _, err := senderFunc(msg, evt.RoomID); err != nil {
 			slog.Error(err.Error())
 		}
 		return
@@ -474,7 +476,7 @@ func handleSubUnsub(msg string, evt *event.Event) {
 	}
 
 	// send confirmation message
-	if _, err := sendMarkdown(fmt.Sprintf("subscribed to package `%s`", pkgName), evt.RoomID); err != nil {
+	if _, err := senderFunc(fmt.Sprintf("subscribed to package `%s`", pkgName), evt.RoomID); err != nil {
 		slog.Error(err.Error())
 	}
 
@@ -507,7 +509,7 @@ func notifySubscribers(attr_path, date string) {
 	for _, roomID := range roomIDs {
 		slog.Info("notifying subscriber", "roomid", roomID)
 		s := fmt.Sprintf("potential new build error for package `%s`: %s", attr_path, logPath)
-		if _, err := sendMarkdown(s, id.RoomID(roomID)); err != nil {
+		if _, err := senderFunc(s, id.RoomID(roomID)); err != nil {
 			// TODO check if we're not in room, in that case remove sub
 			slog.Error(err.Error())
 		}
