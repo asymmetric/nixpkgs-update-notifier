@@ -32,6 +32,7 @@ func sendMarkdown(text string, rid id.RoomID) (*mautrix.RespSendEvent, error) {
 	return client.SendMessageEvent(context.TODO(), rid, event.EventMessage, md)
 }
 
+// date looks like 2024-12-10
 func getComponents(url string) (attr_path, date string) {
 	components := strings.Split(url, "/")
 
@@ -41,6 +42,7 @@ func getComponents(url string) (attr_path, date string) {
 	return
 }
 
+// Returns the full package URL by appending its attr_path to the base URL.
 func packageURL(attr_path string) string {
 	parsedURL, err := u.Parse(*mainURL)
 	if err != nil {

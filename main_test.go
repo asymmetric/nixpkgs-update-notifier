@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"testing"
 
 	"maunium.net/go/mautrix"
@@ -75,10 +76,6 @@ func TestSub(t *testing.T) {
 	}
 
 	// setup
-	h = handlers{
-		logFetcher: testFetcher,
-		sender:     testSender,
-	}
 	client, _ = mautrix.NewClient("http://localhost", "", "")
 
 	rid := id.RoomID("test-room")
@@ -89,23 +86,42 @@ func TestSub(t *testing.T) {
 	}
 
 	var count int
-	aps := []string{
-		"foo",
-		"python312Packages.bar",
+	tt := []struct {
+		ap  string
+		lv  string
+		err bool
+	}{
+		{
+			ap:  "foo",
+			lv:  "1970-01-01",
+			err: false,
+		},
+		{
+			ap:  "python312Packages.bar",
+			lv:  "1980-01-01",
+			err: true,
+		},
 	}
-	for _, ap := range aps {
-		if _, err := db.Exec("INSERT INTO packages(attr_path) VALUES (?)", ap); err != nil {
+	for _, v := range tt {
+		h = handlers{
+			logFetcher: func(string) (string, bool) {
+				return v.lv, v.err
+			},
+			sender: testSender,
+		}
+		if _, err := db.Exec("INSERT INTO packages(attr_path) VALUES (?)", v.ap); err != nil {
 			panic(err)
 		}
 
-		handleSubUnsub(fmt.Sprintf("sub %s", ap), evt)
+		slog.SetLogLoggerLevel(slog.LevelError)
+		handleSubUnsub(fmt.Sprintf("sub %s", v.ap), evt)
 
 		if err := db.QueryRow(`
       SELECT COUNT(*)
       FROM subscriptions
       WHERE roomid = ?
         AND mxid = ?
-        AND attr_path = ?`, rid, sender, ap).
+        AND attr_path = ?`, rid, sender, v.ap).
 			Scan(&count); err != nil {
 			panic(err)
 		}
@@ -113,11 +129,21 @@ func TestSub(t *testing.T) {
 		if count != 1 {
 			t.Error("Subscription not found")
 		}
-	}
-}
 
-func testFetcher(string) (string, bool) {
-	return "foo", false
+		var lv string
+		var hasErr bool
+		if err := db.QueryRow(`SELECT last_visited, error FROM packages WHERE attr_path = ?`, v.ap).Scan(&lv, &hasErr); err != nil {
+			panic(err)
+		}
+
+		if lv != v.lv {
+			t.Errorf("Wrong last_visited date: %s", lv)
+		}
+
+		if hasErr != v.err {
+			t.Errorf("Wrong hasError: %v", hasErr)
+		}
+	}
 }
 
 func testSender(text string, _ id.RoomID) (*mautrix.RespSendEvent, error) {
