@@ -98,6 +98,83 @@ func TestSub(t *testing.T) {
 	}
 }
 
+// TODO: test non-existent package
+func TestUnsub(t *testing.T) {
+	ctx := context.Background()
+
+	if err := setupDB(ctx, ":memory:"); err != nil {
+		panic(err)
+	}
+
+	// setup barebones matrix stuff
+	client, _ = mautrix.NewClient("http://localhost", "", "")
+
+	evt := &event.Event{
+		RoomID: id.RoomID("test-room"),
+		Sender: id.UserID("test-sender"),
+	}
+
+	// TODO: what's the point of having two test cases here?
+	tt := []struct {
+		ap  string
+		lv  string
+		err bool
+	}{
+		{
+			ap:  "foo",
+			lv:  "1970-01-01",
+			err: false,
+		},
+		{
+			ap:  "python312Packages.bar",
+			lv:  "1980-01-01",
+			err: true,
+		},
+	}
+
+	var count int
+	for _, v := range tt {
+		h = handlers{
+			logFetcher: func(string) (string, bool) {
+				return v.lv, v.err
+			},
+			sender: testSender,
+		}
+		if _, err := db.Exec("INSERT INTO packages(attr_path, last_visited) VALUES (?, ?)", v.ap, v.lv); err != nil {
+			panic(err)
+		}
+
+		// NOTE: in this test, we insert last_visited ourselves instead of relying
+		// on the Go logic, since we've tested that logic in the TestSub test
+		if _, err := db.Exec("INSERT INTO subscriptions (roomid, mxid, attr_path) VALUES (?, ?, ?)",
+			evt.RoomID, evt.Sender, v.ap); err != nil {
+			panic(err)
+		}
+
+		evt.Content = event.Content{
+			Parsed: &event.MessageEventContent{
+				MsgType: event.MsgText,
+				Body:    fmt.Sprintf("unsub %s", v.ap),
+			},
+		}
+		handleMessage(ctx, evt)
+
+		if err := db.QueryRow(`
+      SELECT COUNT(*)
+      FROM subscriptions
+      WHERE roomid = ?
+        AND mxid = ?
+        AND attr_path = ?`, evt.RoomID, evt.Sender, v.ap).
+			Scan(&count); err != nil {
+			panic(err)
+		}
+
+		if count != 0 {
+			t.Error("Subscription not removed")
+		}
+	}
+}
+
 func testSender(text string, _ id.RoomID) (*mautrix.RespSendEvent, error) {
 	return nil, nil
 }

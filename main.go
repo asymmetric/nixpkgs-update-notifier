@@ -85,7 +85,10 @@ func main() {
 
 	h = handlers{
 		logFetcher: fetchLastLog,
-		sender:     sendMarkdown,
+		// FIXME: this only works because I'm only hitting sendMarkdown in tests.
+		// When in the future I'll test code that hits client.SendText (or client.Login), I'll need another solution,
+		// perhaps a full-blown mock of the client struct.
+		sender: sendMarkdown,
 	}
 
 	var err error
