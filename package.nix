@@ -14,6 +14,7 @@ pkgs.buildGoModule rec {
         ./README.md
         ./go.mod
         ./go.sum
+        ./db
         (fs.fileFilter (file: file.hasExt "go") root)
       ];
     };
