@@ -11,24 +11,28 @@ import (
 	"maunium.net/go/mautrix/id"
 )
 
+var ctx context.Context
+var evt *event.Event
+var testSender = func(text string, _ id.RoomID) (*mautrix.RespSendEvent, error) {
+	return nil, nil
+}
+
 func init() {
 	slog.SetLogLoggerLevel(slog.LevelError)
+	ctx = context.Background()
+
+	evt = &event.Event{
+		RoomID: id.RoomID("test-room"),
+		Sender: id.UserID("test-sender"),
+	}
+
+	client, _ = mautrix.NewClient("http://localhost", "", "")
 }
 
 // TODO: test non-existent package
 func TestSub(t *testing.T) {
-	ctx := context.Background()
-
 	if err := setupDB(ctx, ":memory:"); err != nil {
 		panic(err)
-	}
-
-	// setup barebones matrix stuff
-	client, _ = mautrix.NewClient("http://localhost", "", "")
-
-	evt := &event.Event{
-		RoomID: id.RoomID("test-room"),
-		Sender: id.UserID("test-sender"),
 	}
 
 	tt := []struct {
@@ -100,18 +104,8 @@ func TestSub(t *testing.T) {
 
 // TODO: test non-existent package
 func TestUnsub(t *testing.T) {
-	ctx := context.Background()
-
 	if err := setupDB(ctx, ":memory:"); err != nil {
 		panic(err)
-	}
-
-	// setup barebones matrix stuff
-	client, _ = mautrix.NewClient("http://localhost", "", "")
-
-	evt := &event.Event{
-		RoomID: id.RoomID("test-room"),
-		Sender: id.UserID("test-sender"),
 	}
 
 	// TODO: what's the point of having two test cases here?
@@ -173,8 +167,4 @@ func TestUnsub(t *testing.T) {
 			t.Error("Subscription not removed")
 		}
 	}
-}
-
-func testSender(text string, _ id.RoomID) (*mautrix.RespSendEvent, error) {
-	return nil, nil
 }
