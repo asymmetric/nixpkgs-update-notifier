@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 
 	"maunium.net/go/mautrix/event"
 )
@@ -92,4 +93,41 @@ func handleSubUnsub(msg string, evt *event.Event) {
 		slog.Error(err.Error())
 	}
 
+}
+
+// TODO find ways to test this
+func handleSubs(evt *event.Event) {
+	rows, err := db.Query("SELECT attr_path FROM subscriptions WHERE roomid = ?", evt.RoomID)
+	if err != nil {
+		panic(err)
+	}
+	defer rows.Close()
+
+	names := make([]string, 0)
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			panic(err)
+		}
+		names = append(names, name)
+	}
+	if err := rows.Err(); err != nil {
+		panic(err)
+	}
+
+	var msg string
+	if len(names) == 0 {
+		msg = "no subs"
+	} else {
+		sts := []string{"Your subscriptions:"}
+
+		for _, n := range names {
+			sts = append(sts, fmt.Sprintf("- %s", n))
+		}
+
+		msg = strings.Join(sts, "\n")
+	}
+	if _, err = client.SendText(context.TODO(), evt.RoomID, msg); err != nil {
+		slog.Error(err.Error())
+	}
 }

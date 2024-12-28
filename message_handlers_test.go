@@ -64,12 +64,7 @@ func TestSub(t *testing.T) {
 			panic(err)
 		}
 
-		evt.Content = event.Content{
-			Parsed: &event.MessageEventContent{
-				MsgType: event.MsgText,
-				Body:    fmt.Sprintf("sub %s", v.ap),
-			},
-		}
+		fillEventContent(evt, fmt.Sprintf("sub %s", v.ap))
 		handleMessage(ctx, evt)
 
 		if err := db.QueryRow(`
@@ -145,12 +140,7 @@ func TestUnsub(t *testing.T) {
 			panic(err)
 		}
 
-		evt.Content = event.Content{
-			Parsed: &event.MessageEventContent{
-				MsgType: event.MsgText,
-				Body:    fmt.Sprintf("unsub %s", v.ap),
-			},
-		}
+		fillEventContent(evt, fmt.Sprintf("unsub %s", v.ap))
 		handleMessage(ctx, evt)
 
 		if err := db.QueryRow(`
@@ -166,5 +156,14 @@ func TestUnsub(t *testing.T) {
 		if count != 0 {
 			t.Error("Subscription not removed")
 		}
+	}
+}
+
+func fillEventContent(evt *event.Event, body string) {
+	evt.Content = event.Content{
+		Parsed: &event.MessageEventContent{
+			MsgType: event.MsgText,
+			Body:    body,
+		},
 	}
 }
