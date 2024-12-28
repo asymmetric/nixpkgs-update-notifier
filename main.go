@@ -314,17 +314,14 @@ func handleMessage(ctx context.Context, evt *event.Event) {
 
 	if sender == fmt.Sprintf("@%s:%s", *matrixUsername, *matrixHomeserver) {
 		slog.Debug("ignoring our own message", "msg", msg)
+
 		return
 	}
 
-	if subUnsubRE.MatchString(msg) {
+	switch {
+	case subUnsubRE.MatchString(msg):
 		handleSubUnsub(msg, evt)
-
-		return
-	}
-
-	switch msg {
-	case "subs":
+	case msg == "subs":
 		rows, err := db.Query("SELECT attr_path FROM subscriptions WHERE roomid = ?", evt.RoomID)
 		if err != nil {
 			panic(err)
@@ -358,7 +355,6 @@ func handleMessage(ctx context.Context, evt *event.Event) {
 		if _, err = client.SendText(context.TODO(), evt.RoomID, msg); err != nil {
 			slog.Error(err.Error())
 		}
-
 	default:
 		// anything else, so print help
 		if _, err := h.sender(helpText, evt.RoomID); err != nil {
