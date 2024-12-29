@@ -34,25 +34,8 @@ func handleSubUnsub(msg string, evt *event.Event) {
 
 	// matches[1] is the optional "un" prefix
 	if matches[1] != "" {
-		slog.Info("received unsub", "pkg", pkgName, "sender", evt.Sender)
-		res, err := db.Exec("DELETE FROM subscriptions WHERE roomid = ? AND attr_path = ?", evt.RoomID, pkgName)
-		if err != nil {
-			panic(err)
-		}
+		handleUnsub(pkgName, evt)
 
-		var msg string
-		if val, err := res.RowsAffected(); err != nil {
-			panic(err)
-		} else if val == 0 {
-			msg = fmt.Sprintf("could not find subscription for package `%s`", pkgName)
-		} else {
-			msg = fmt.Sprintf("unsubscribed from package `%s`", pkgName)
-		}
-
-		// send confirmation message
-		if _, err := h.sender(msg, evt.RoomID); err != nil {
-			slog.Error(err.Error())
-		}
 		return
 	}
 
@@ -93,6 +76,28 @@ func handleSubUnsub(msg string, evt *event.Event) {
 		slog.Error(err.Error())
 	}
 
+}
+
+func handleUnsub(attr_path string, evt *event.Event) {
+	slog.Info("received unsub", "pkg", attr_path, "sender", evt.Sender)
+	res, err := db.Exec("DELETE FROM subscriptions WHERE roomid = ? AND attr_path GLOB ?", evt.RoomID, attr_path)
+	if err != nil {
+		panic(err)
+	}
+
+	var msg string
+	if val, err := res.RowsAffected(); err != nil {
+		panic(err)
+	} else if val == 0 {
+		msg = fmt.Sprintf("could not find subscription for package `%s`", attr_path)
+	} else {
+		msg = fmt.Sprintf("unsubscribed from package `%s`", attr_path)
+	}
+
+	// send confirmation message
+	if _, err := h.sender(msg, evt.RoomID); err != nil {
+		slog.Error(err.Error())
+	}
 }
 
 // TODO find ways to test this
