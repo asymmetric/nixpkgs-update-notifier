@@ -40,12 +40,6 @@ var db *sql.DB
 //go:embed db/schema.sql
 var ddl string
 
-// This is set to the date the visited table is created, so we ignore logs
-// older than this date -- the user is not interested in all past failures,
-// just the ones since they subscribed, which by definition is after the first
-// run of this program.
-var tombstone string
-
 // - "error: " is a nix build error
 // - "ExitFailure" is a nixpkgs-update error
 // - "failed with" is a nixpkgs/maintainers/scripts/update.py error

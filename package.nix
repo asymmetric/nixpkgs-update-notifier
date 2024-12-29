@@ -4,7 +4,6 @@ pkgs.buildGoModule rec {
   pname = "nixpkgs-update-notifier";
   inherit version;
 
-  # TODO convert to whitelist
   src =
     let fs = pkgs.lib.fileset; in
     fs.toSource rec {
