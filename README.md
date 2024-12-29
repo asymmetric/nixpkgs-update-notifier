@@ -14,7 +14,6 @@ This is obviously fallible, and can lead to false positives and false negatives 
 
 ## TODO
 
-- Subscribe to packages under multiple package subsets (e.g. `python311Packages` and `python312Packages`)
 - Subscribe to multiple packages at once
 - Subscribe to packages by maintainer
 - Subscribe to packages by team

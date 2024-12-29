@@ -46,7 +46,7 @@ func TestSub(t *testing.T) {
 			err: false,
 		},
 		{
-			ap:  "python312Packages.bar",
+			ap:  "python312Packages.foo",
 			lv:  "1980-01-01",
 			err: true,
 		},
@@ -77,8 +77,10 @@ func TestSub(t *testing.T) {
 			panic(err)
 		}
 
-		if count != 1 {
+		if count == 0 {
 			t.Error("Subscription not found")
+		} else if count > 1 {
+			t.Error("Too many matches")
 		}
 
 		var lv string
@@ -157,6 +159,69 @@ func TestUnsub(t *testing.T) {
 			t.Error("Subscription not removed")
 		}
 	}
+}
+
+func TestGlobSubUnsub(t *testing.T) {
+	if err := setupDB(ctx, ":memory:"); err != nil {
+		panic(err)
+	}
+
+	h = handlers{
+		logFetcher: func(string) (string, bool) {
+			return "1999", false
+		},
+		sender: testSender,
+	}
+
+	aps := []string{
+		"bar",
+		"python31Packages.bar",
+		"python32Packages.bar",
+		"haskellPackages.bar",
+	}
+
+	for _, ap := range aps {
+		if _, err := db.Exec("INSERT INTO packages(attr_path) VALUES (?)", ap); err != nil {
+			panic(err)
+		}
+	}
+
+	pattern := "python3?Packages.bar"
+	var count int
+
+	t.Run("subscribe", func(t *testing.T) {
+		fillEventContent(evt, fmt.Sprintf("sub %s", pattern))
+		handleMessage(ctx, evt)
+
+		if err := db.QueryRow(`
+      SELECT COUNT(*)
+      FROM subscriptions
+      WHERE attr_path GLOB ?`, pattern).
+			Scan(&count); err != nil {
+			panic(err)
+		}
+
+		if count != 2 {
+			t.Errorf("Not enough matches: %v", count)
+		}
+	})
+
+	t.Run("unsubscribe", func(t *testing.T) {
+		fillEventContent(evt, fmt.Sprintf("unsub %s", pattern))
+		handleMessage(ctx, evt)
+
+		if err := db.QueryRow(`
+      SELECT COUNT(*)
+      FROM subscriptions
+      WHERE attr_path GLOB ?`, pattern).
+			Scan(&count); err != nil {
+			panic(err)
+		}
+
+		if count != 0 {
+			t.Errorf("Too many matches: %v", count)
+		}
+	})
 }
 
 func fillEventContent(evt *event.Event, body string) {

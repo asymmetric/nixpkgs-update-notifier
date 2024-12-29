@@ -49,6 +49,9 @@ var ignoRE = regexp.MustCompile(`^~.*|^\.\.`)
 
 var subUnsubRE = regexp.MustCompile(`^(un)?sub ([a-zA-Z\d][\w._-]*)$`)
 
+// this one matches globs
+var globsRE = regexp.MustCompile(`^(un)?sub ([a-zA-Z][\w*?-]*(?:\.[a-zA-Z\d][\w._-]*)?)$`)
+
 var hc = &http.Client{}
 
 // These are abstracted so that we can pass a different function in tests.
@@ -315,6 +318,8 @@ func handleMessage(ctx context.Context, evt *event.Event) {
 	switch {
 	case subUnsubRE.MatchString(msg):
 		handleSubUnsub(msg, evt)
+	case globsRE.MatchString(msg):
+		handleGlobSubUnsub(msg, evt)
 	case msg == "subs":
 		handleSubs(evt)
 	default:

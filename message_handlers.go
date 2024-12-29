@@ -12,7 +12,8 @@ import (
 func handleSubUnsub(msg string, evt *event.Event) {
 	matches := subUnsubRE.FindStringSubmatch(msg)
 	if matches == nil {
-		slog.Error("We should not be here")
+		slog.Error("handleSubUnsub: We should not be here")
+
 		return
 	}
 
@@ -41,6 +42,7 @@ func handleSubUnsub(msg string, evt *event.Event) {
 
 	slog.Info("received sub", "pkg", pkgName, "sender", evt.Sender)
 
+	// Check if the user is already subscribed to the package
 	if err := db.QueryRow("SELECT COUNT(*) FROM subscriptions WHERE roomid = ? AND attr_path = ?", evt.RoomID, pkgName).Scan(&c); err != nil {
 		panic(err)
 	}
@@ -98,6 +100,52 @@ func handleUnsub(attr_path string, evt *event.Event) {
 	if _, err := h.sender(msg, evt.RoomID); err != nil {
 		slog.Error(err.Error())
 	}
+}
+
+func handleGlobSubUnsub(msg string, evt *event.Event) {
+	// TODO move this to caller
+	matches := globsRE.FindStringSubmatch(msg)
+	if matches == nil {
+		slog.Error("handleGlobs: We should not be here")
+
+		return
+	}
+
+	pattern := matches[2]
+
+	rows, err := db.Query("SELECT attr_path FROM packages WHERE attr_path GLOB ?", pattern)
+	if err != nil {
+		panic(err)
+	}
+	defer rows.Close()
+
+	aps := make([]string, 0)
+	for rows.Next() {
+		var ap string
+		if err := rows.Scan(&ap); err != nil {
+			panic(err)
+		}
+		aps = append(aps, ap)
+	}
+	if err := rows.Err(); err != nil {
+		panic(err)
+	}
+
+	if len(aps) == 0 {
+		if _, err = client.SendText(context.TODO(), evt.RoomID, "no matches"); err != nil {
+			slog.Error(err.Error())
+		}
+
+		return
+	}
+
+	for _, ap := range aps {
+		foo := fmt.Sprintf("%ssub %s", matches[1], ap)
+		handleSubUnsub(foo, evt)
+	}
+}
+
+func handleGlobUnsub(attr_path string, evt *event.Event) {
 }
 
 // TODO find ways to test this
