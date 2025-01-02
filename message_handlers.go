@@ -132,7 +132,7 @@ func handleGlobSubUnsub(msg string, evt *event.Event) {
 	}
 
 	if len(aps) == 0 {
-		if _, err = client.SendText(context.TODO(), evt.RoomID, "no matches"); err != nil {
+		if _, err = client.SendText(context.TODO(), evt.RoomID, fmt.Sprintf("no matches for %s. The list of packages is [here](https://nixpkgs-update-logs.nix-community.org/)", pattern)); err != nil {
 			slog.Error(err.Error())
 		}
 
