@@ -161,6 +161,8 @@ func TestUnsub(t *testing.T) {
 	}
 }
 
+// TODO: Test when user has subbed to p312Pkgs.foo, and does `unsub *.foo`
+// currently, it prints out an error about not being subbed to e.g. p313Pkgs.foo
 func TestGlobSubUnsub(t *testing.T) {
 	if err := setupDB(ctx, ":memory:"); err != nil {
 		panic(err)
@@ -217,7 +219,7 @@ func TestGlobSubUnsub(t *testing.T) {
 				}
 
 				if count != p.matches {
-					t.Errorf("Not enough matches: %v", count)
+					t.Errorf("Not enough matches for %s: %v", p.pattern, count)
 				}
 			})
 
@@ -234,7 +236,7 @@ func TestGlobSubUnsub(t *testing.T) {
 				}
 
 				if count != 0 {
-					t.Errorf("Too many matches: %v", count)
+					t.Errorf("Leftover subscriptions for %s: %v", p.pattern, count)
 				}
 			})
 

@@ -47,10 +47,8 @@ var erroRE = regexp.MustCompile(`^error:|ExitFailure|failed with`)
 
 var ignoRE = regexp.MustCompile(`^~.*|^\.\.`)
 
-var subUnsubRE = regexp.MustCompile(`^(un)?sub ([a-zA-Z\d][\w._-]*)$`)
-
 // this one matches globs
-var globsRE = regexp.MustCompile(`^(un)?sub ([a-zA-Z*][\w*?-]*(?:\.[a-zA-Z\d][\w._-]*)?)$`)
+var subUnsubRE = regexp.MustCompile(`^(un)?sub ([a-zA-Z*][\w*?-]*(?:\.[a-zA-Z\d][\w._-]*)?)$`)
 
 var hc = &http.Client{}
 
@@ -315,14 +313,11 @@ func handleMessage(ctx context.Context, evt *event.Event) {
 		return
 	}
 
-	switch {
-	case subUnsubRE.MatchString(msg):
+	if subUnsubRE.MatchString(msg) {
 		handleSubUnsub(msg, evt)
-	case globsRE.MatchString(msg):
-		handleGlobSubUnsub(msg, evt)
-	case msg == "subs":
+	} else if msg == "subs" {
 		handleSubs(evt)
-	default:
+	} else {
 		// anything else, so print help
 		if _, err := h.sender(helpText, evt.RoomID); err != nil {
 			slog.Error(err.Error())
