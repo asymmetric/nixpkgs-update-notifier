@@ -145,9 +145,6 @@ func handleGlobSubUnsub(msg string, evt *event.Event) {
 	}
 }
 
-func handleGlobUnsub(attr_path string, evt *event.Event) {
-}
-
 // TODO find ways to test this
 func handleSubs(evt *event.Event) {
 	rows, err := db.Query("SELECT attr_path FROM subscriptions WHERE roomid = ?", evt.RoomID)

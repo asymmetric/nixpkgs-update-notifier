@@ -186,42 +186,60 @@ func TestGlobSubUnsub(t *testing.T) {
 		}
 	}
 
-	pattern := "python3?Packages.bar"
-	var count int
+	patterns := []struct {
+		pattern string
+		matches int
+	}{
+		{
+			pattern: "python3?Packages.bar",
+			matches: 2,
+		},
+		{
+			pattern: "*.bar",
+			matches: 3,
+		},
+	}
 
-	t.Run("subscribe", func(t *testing.T) {
-		fillEventContent(evt, fmt.Sprintf("sub %s", pattern))
-		handleMessage(ctx, evt)
+	for _, p := range patterns {
+		t.Run(p.pattern, func(t *testing.T) {
+			var count int
 
-		if err := db.QueryRow(`
-      SELECT COUNT(*)
-      FROM subscriptions
-      WHERE attr_path GLOB ?`, pattern).
-			Scan(&count); err != nil {
-			panic(err)
-		}
+			t.Run("subscribe", func(t *testing.T) {
+				fillEventContent(evt, fmt.Sprintf("sub %s", p.pattern))
+				handleMessage(ctx, evt)
 
-		if count != 2 {
-			t.Errorf("Not enough matches: %v", count)
-		}
-	})
+				if err := db.QueryRow(`
+        SELECT COUNT(*)
+        FROM subscriptions
+        WHERE attr_path GLOB ?`, p.pattern).
+					Scan(&count); err != nil {
+					panic(err)
+				}
 
-	t.Run("unsubscribe", func(t *testing.T) {
-		fillEventContent(evt, fmt.Sprintf("unsub %s", pattern))
-		handleMessage(ctx, evt)
+				if count != p.matches {
+					t.Errorf("Not enough matches: %v", count)
+				}
+			})
 
-		if err := db.QueryRow(`
-      SELECT COUNT(*)
-      FROM subscriptions
-      WHERE attr_path GLOB ?`, pattern).
-			Scan(&count); err != nil {
-			panic(err)
-		}
+			t.Run("unsubscribe", func(t *testing.T) {
+				fillEventContent(evt, fmt.Sprintf("unsub %s", p.pattern))
+				handleMessage(ctx, evt)
 
-		if count != 0 {
-			t.Errorf("Too many matches: %v", count)
-		}
-	})
+				if err := db.QueryRow(`
+        SELECT COUNT(*)
+        FROM subscriptions
+        WHERE attr_path GLOB ?`, p.pattern).
+					Scan(&count); err != nil {
+					panic(err)
+				}
+
+				if count != 0 {
+					t.Errorf("Too many matches: %v", count)
+				}
+			})
+
+		})
+	}
 }
 
 func fillEventContent(evt *event.Event, body string) {
