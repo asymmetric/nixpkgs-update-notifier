@@ -202,9 +202,9 @@ func TestGlobSubUnsub(t *testing.T) {
 		},
 	}
 
+	var count int
 	for _, p := range patterns {
 		t.Run(p.pattern, func(t *testing.T) {
-			var count int
 
 			t.Run("subscribe", func(t *testing.T) {
 				fillEventContent(evt, fmt.Sprintf("sub %s", p.pattern))
@@ -240,6 +240,25 @@ func TestGlobSubUnsub(t *testing.T) {
 				}
 			})
 
+		})
+	}
+
+	for _, pattern := range []string{"*", "python3Packages.*"} {
+		t.Run("spammy queries", func(t *testing.T) {
+			fillEventContent(evt, fmt.Sprintf("sub %s", pattern))
+			handleMessage(ctx, evt)
+
+			if err := db.QueryRow(`
+        SELECT COUNT(*)
+        FROM subscriptions
+        WHERE attr_path GLOB ?`, pattern).
+				Scan(&count); err != nil {
+				panic(err)
+			}
+
+			if count != 0 {
+				t.Errorf("Should not have subscribed for query %s: %v", pattern, count)
+			}
 		})
 	}
 }

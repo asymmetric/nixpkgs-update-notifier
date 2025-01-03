@@ -47,8 +47,14 @@ var erroRE = regexp.MustCompile(`^error:|ExitFailure|failed with`)
 
 var ignoRE = regexp.MustCompile(`^~.*|^\.\.`)
 
-// this one matches globs
-var subUnsubRE = regexp.MustCompile(`^(un)?sub ([a-zA-Z*][\w*?-]*(?:\.[a-zA-Z\d][\w._-]*)?)$`)
+// We want to avoid stuff like the following, because it leads us to spam the nix-community.org server.
+// - sub *
+// - sub pythonPackages.*
+//
+// Unsubbing with the same queries is OK, because it it has different semantics and doesn't spam upstream.
+var dangerousRE = regexp.MustCompile(`^sub (?:\*|\w+\.\*)$`)
+
+var subUnsubRE = regexp.MustCompile(`^(un)?sub ([\w_?*.-]+)$`)
 
 var hc = &http.Client{}
 
@@ -313,7 +319,12 @@ func handleMessage(ctx context.Context, evt *event.Event) {
 		return
 	}
 
-	if subUnsubRE.MatchString(msg) {
+	if dangerousRE.MatchString(msg) {
+		s := "query returns too many results, please use a more specific selector"
+		if _, err := h.sender(s, id.RoomID(evt.RoomID)); err != nil {
+			slog.Error(err.Error())
+		}
+	} else if subUnsubRE.MatchString(msg) {
 		handleSubUnsub(msg, evt)
 	} else if msg == "subs" {
 		handleSubs(evt)

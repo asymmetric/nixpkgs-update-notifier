@@ -38,7 +38,7 @@ func TestErrRegexp(t *testing.T) {
 }
 
 func TestGlobSubUnsubRegexp(t *testing.T) {
-	positives := []string{
+	ss := []string{
 		"sub foo",
 		"sub foo.bar",
 		"sub fooPackages.bar_baz",
@@ -48,25 +48,26 @@ func TestGlobSubUnsubRegexp(t *testing.T) {
 		"sub *.foo",
 		"unsub fo?",
 		"unsub foo*.foo",
+		"unsub *",
+		"unsub fooPackages.*",
 	}
 
-	for _, s := range positives {
+	for _, s := range ss {
 		if subUnsubRE.FindString(s) == "" {
 			t.Errorf("should have matched: %s", s)
 		}
 	}
+}
 
-	negatives := []string{
-		`sub -foo`,
-		`unsub -foo`,
-		`sub foo.*`,
-		`unsub foo.*`,
-		`sub ?.foo`,
+func TestDangerousRegexp(t *testing.T) {
+	ss := []string{
+		"sub *",
+		"sub pythonPackages.*",
 	}
 
-	for _, s := range negatives {
-		if subUnsubRE.FindString(s) != "" {
-			t.Errorf("should not have matched: %s", s)
+	for _, s := range ss {
+		if dangerousRE.FindString(s) == "" {
+			t.Errorf("should have matched: %s", s)
 		}
 	}
 }
