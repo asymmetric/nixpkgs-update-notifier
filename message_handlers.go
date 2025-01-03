@@ -27,7 +27,7 @@ func handleSubUnsub(msg string, evt *event.Event) {
 		return
 	}
 
-	rows, err := db.Query("SELECT attr_path FROM packages WHERE attr_path GLOB ?", pattern)
+	rows, err := db.Query("SELECT attr_path FROM packages WHERE attr_path GLOB ? ORDER BY attr_path", pattern)
 	if err != nil {
 		panic(err)
 	}
