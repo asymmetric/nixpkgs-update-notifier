@@ -52,7 +52,7 @@ var ignoRE = regexp.MustCompile(`^~.*|^\.\.`)
 // - sub pythonPackages.*
 //
 // Unsubbing with the same queries is OK, because it it has different semantics and doesn't spam upstream.
-var dangerousRE = regexp.MustCompile(`^sub (?:\*|\w+\.\*)$`)
+var dangerousRE = regexp.MustCompile(`^sub (?:[*?]|\w+\.\*)$`)
 
 var subUnsubRE = regexp.MustCompile(`^(un)?sub ([\w_?*.-]+)$`)
 
@@ -74,7 +74,7 @@ These are the available commands:
 - **unsub foo**: unsubscribe from package <code>foo</code>
 - **subs**: list subscriptions
 
-You can use the * and ? globs in queries (with some limitations).
+You can use the * and ? globs in queries, with some limitations).
 
 The code for the bot is [here](https://github.com/asymmetric/nixpkgs-update-notifier).
 `

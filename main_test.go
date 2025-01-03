@@ -62,6 +62,7 @@ func TestGlobSubUnsubRegexp(t *testing.T) {
 func TestDangerousRegexp(t *testing.T) {
 	ss := []string{
 		"sub *",
+		"sub ?",
 		"sub pythonPackages.*",
 	}
 

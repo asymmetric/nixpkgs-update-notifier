@@ -243,7 +243,11 @@ func TestGlobSubUnsub(t *testing.T) {
 		})
 	}
 
-	for _, pattern := range []string{"*", "python3Packages.*"} {
+	for _, pattern := range []string{
+		"*",
+		"?",
+		"python3Packages.*",
+	} {
 		t.Run("spammy queries", func(t *testing.T) {
 			var before, after int
 
