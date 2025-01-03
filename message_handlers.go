@@ -55,17 +55,14 @@ func handleSubUnsub(msg string, evt *event.Event) {
 		return
 	}
 
-	var c int
 	for _, ap := range aps {
-		// Check if the user is already subscribed to the package
-		if err := db.QueryRow("SELECT COUNT(*) FROM subscriptions WHERE roomid = ? AND attr_path = ?", evt.RoomID, ap).Scan(&c); err != nil {
+		if exists, err := checkIfSubExists(ap, evt.RoomID.String()); err != nil {
 			panic(err)
-		}
-
-		if c != 0 {
+		} else if exists {
 			if _, err := client.SendText(context.TODO(), evt.RoomID, fmt.Sprintf("Already subscribed to package %s", ap)); err != nil {
 				slog.Error(err.Error())
 			}
+
 			return
 		}
 
@@ -173,4 +170,11 @@ func handleSubs(evt *event.Event) {
 	if _, err = client.SendText(context.TODO(), evt.RoomID, msg); err != nil {
 		slog.Error(err.Error())
 	}
+}
+
+// Checks if the user is already subscribed to the package
+func checkIfSubExists(attr_path, roomid string) (exists bool, err error) {
+	err = db.QueryRow("SELECT EXISTS (SELECT 1 FROM subscriptions WHERE roomid = ? AND attr_path = ? LIMIT 1)", roomid, attr_path).Scan(&exists)
+
+	return exists, err
 }

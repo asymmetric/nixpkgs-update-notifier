@@ -270,6 +270,40 @@ func TestGlobSubUnsub(t *testing.T) {
 	}
 }
 
+func TestCheckIfSubExists(t *testing.T) {
+	if err := setupDB(ctx, ":memory:"); err != nil {
+		panic(err)
+	}
+
+	h = handlers{
+		logFetcher: func(string) (string, bool) {
+			return "1999", false
+		},
+		sender: testSender,
+	}
+
+	if _, err := db.Exec("INSERT INTO packages(attr_path) VALUES (?)", "foo"); err != nil {
+		panic(err)
+	}
+
+	exists, err := checkIfSubExists("foo", evt.RoomID.String())
+	if err != nil {
+		panic(err)
+	} else if exists {
+		t.Errorf("should not exist")
+	}
+
+	fillEventContent(evt, "sub foo")
+	handleMessage(ctx, evt)
+
+	exists, err = checkIfSubExists("foo", evt.RoomID.String())
+	if err != nil {
+		panic(err)
+	} else if !exists {
+		t.Errorf("should exist")
+	}
+}
+
 func fillEventContent(evt *event.Event, body string) {
 	evt.Content = event.Content{
 		Parsed: &event.MessageEventContent{
