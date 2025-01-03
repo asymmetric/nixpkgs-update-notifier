@@ -320,6 +320,7 @@ func handleMessage(ctx context.Context, evt *event.Event) {
 	}
 
 	if dangerousRE.MatchString(msg) {
+		slog.Info("received spammy query", "msg", msg, "sender", sender)
 		s := "query returns too many results, please use a more specific selector"
 		if _, err := h.sender(s, id.RoomID(evt.RoomID)); err != nil {
 			slog.Error(err.Error())
