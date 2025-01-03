@@ -69,12 +69,22 @@ var h handlers
 var helpText = `Welcome to the nixpkgs-update-notifier bot!
 
 These are the available commands:
-- **help**: show this help message
+
 - **sub foo**: subscribe to package <code>foo</code>
 - **unsub foo**: unsubscribe from package <code>foo</code>
 - **subs**: list subscriptions
+- **help**: show this help message
 
-You can use the <code>*</code> and <code>?</code> globs in queries (with some limitations).
+You can use the <code>*</code> and <code>?</code> globs in queries (with some limitations, shown below):
+
+- <code>sub python31?Packages.acme</code>
+- <code>sub *.acme</code>
+
+Things you cannot do:
+
+- <code>sub *</code>
+- <code>sub ?</code>
+- <code>sub foo.*</code>
 
 The code for the bot is [here](https://github.com/asymmetric/nixpkgs-update-notifier).
 `
@@ -323,12 +333,9 @@ func handleMessage(ctx context.Context, evt *event.Event) {
 
 	if dangerousRE.MatchString(msg) {
 		slog.Info("received spammy query", "msg", msg, "sender", sender)
-		s := `query returns too many results, please use a more specific selector.
-The following queries are forbidden:
+		s := `Pattern returns too many results, please use a more specific selector.
 
-- <code>sub *</code>
-- <code>sub ?</code>
-- <code>sub foo.*</code>`
+Type **help** for a list of allowed/forbidden patterns.`
 
 		if _, err := h.sender(s, id.RoomID(evt.RoomID)); err != nil {
 			slog.Error(err.Error())

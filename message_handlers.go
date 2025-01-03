@@ -120,7 +120,7 @@ func handleUnsub(pattern string, evt *event.Event) {
 
 	var msg string
 	if len(aps) == 0 {
-		msg = fmt.Sprintf("could not find subscriptions for query `%s`", pattern)
+		msg = fmt.Sprintf("Could not find subscriptions for pattern `%s`", pattern)
 	} else {
 		var l []string
 		for _, ap := range aps {
@@ -162,7 +162,7 @@ func handleSubs(evt *event.Event) {
 	if len(names) == 0 {
 		msg = "no subs"
 	} else {
-		sts := []string{"Your subscriptions:"}
+		sts := []string{"Your subscriptions:\n"}
 
 		for _, n := range names {
 			sts = append(sts, fmt.Sprintf("- %s", n))
