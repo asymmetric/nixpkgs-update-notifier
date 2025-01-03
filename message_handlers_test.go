@@ -245,6 +245,7 @@ func TestGlobSubUnsub(t *testing.T) {
 
 	for _, pattern := range []string{
 		"*",
+		"**",
 		"?",
 		"python3Packages.*",
 	} {
