@@ -63,7 +63,7 @@ func handleSubUnsub(msg string, evt *event.Event) {
 		}
 
 		if c != 0 {
-			if _, err := client.SendText(context.TODO(), evt.RoomID, "already subscribed"); err != nil {
+			if _, err := client.SendText(context.TODO(), evt.RoomID, fmt.Sprintf("Already subscribed to package %s", ap)); err != nil {
 				slog.Error(err.Error())
 			}
 			return
