@@ -245,19 +245,21 @@ func TestGlobSubUnsub(t *testing.T) {
 
 	for _, pattern := range []string{"*", "python3Packages.*"} {
 		t.Run("spammy queries", func(t *testing.T) {
-			fillEventContent(evt, fmt.Sprintf("sub %s", pattern))
-			handleMessage(ctx, evt)
+			var before, after int
 
-			if err := db.QueryRow(`
-        SELECT COUNT(*)
-        FROM subscriptions
-        WHERE attr_path GLOB ?`, pattern).
-				Scan(&count); err != nil {
+			if err := db.QueryRow(`SELECT COUNT(*) FROM subscriptions`, pattern).Scan(&before); err != nil {
 				panic(err)
 			}
 
-			if count != 0 {
-				t.Errorf("Should not have subscribed for query %s: %v", pattern, count)
+			fillEventContent(evt, fmt.Sprintf("sub %s", pattern))
+			handleMessage(ctx, evt)
+
+			if err := db.QueryRow(`SELECT COUNT(*) FROM subscriptions`, pattern).Scan(&after); err != nil {
+				panic(err)
+			}
+
+			if before != after {
+				t.Errorf("Should not have subscribed for query %s: %v, %v", pattern, before, after)
 			}
 		})
 	}
