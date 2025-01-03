@@ -136,14 +136,14 @@ func main() {
 	slog.Info("initialized", "delay", tickerOpt)
 
 	storeAttrPaths(*mainURL)
-	scrapeSubs()
+	updateSubs()
 
 	for {
 		select {
 		case <-ticker.C:
 			slog.Info("new ticker run")
 			storeAttrPaths(*mainURL)
-			scrapeSubs()
+			updateSubs()
 		case <-optimizeTicker.C:
 			slog.Info("optimizing DB")
 			if _, err := db.Exec("PRAGMA optimize;"); err != nil {
@@ -184,8 +184,9 @@ func storeAttrPaths(url string) {
 	}
 }
 
-// iterates over subscrubed packages, and fetches their latest logs
-func scrapeSubs() {
+// Iterates over subscribed-to packages, and fetches their latest log, printing out whether it contained an error.
+// It also updates the packages.last_visited column.
+func updateSubs() {
 	rows, err := db.Query("SELECT attr_path FROM subscriptions")
 	if err != nil {
 		fatal(err)
