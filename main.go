@@ -74,7 +74,7 @@ These are the available commands:
 - **unsub foo**: unsubscribe from package <code>foo</code>
 - **subs**: list subscriptions
 
-You can use the * and ? globs in queries (with some limitations).
+You can use the <code>*</code> and <code>?</code> globs in queries (with some limitations).
 
 The code for the bot is [here](https://github.com/asymmetric/nixpkgs-update-notifier).
 `
@@ -324,11 +324,11 @@ func handleMessage(ctx context.Context, evt *event.Event) {
 	if dangerousRE.MatchString(msg) {
 		slog.Info("received spammy query", "msg", msg, "sender", sender)
 		s := `query returns too many results, please use a more specific selector.
-    The following queries are forbidden:
+The following queries are forbidden:
 
-    - <code>sub *</code>
-    - <code>sub ?</code>
-    - <code>sub foo.*</code>`
+- <code>sub *</code>
+- <code>sub ?</code>
+- <code>sub foo.*</code>`
 
 		if _, err := h.sender(s, id.RoomID(evt.RoomID)); err != nil {
 			slog.Error(err.Error())
