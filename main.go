@@ -74,6 +74,8 @@ These are the available commands:
 - **unsub foo**: unsubscribe from package <code>foo</code>
 - **subs**: list subscriptions
 
+You can use the * and ? globs in queries (with some limitations).
+
 The code for the bot is [here](https://github.com/asymmetric/nixpkgs-update-notifier).
 `
 
