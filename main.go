@@ -75,7 +75,7 @@ These are the available commands:
 - **subs**: list subscriptions
 - **help**: show this help message
 
-You can use the <code>*</code> and <code>?</code> globs in queries (with some limitations, shown below):
+You can use the <code>*</code> and <code>?</code> globs in queries. Things you can do:
 
 - <code>sub python31?Packages.acme</code>
 - <code>sub *.acme</code>
