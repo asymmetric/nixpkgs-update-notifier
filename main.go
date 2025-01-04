@@ -34,26 +34,27 @@ var client *mautrix.Client
 
 var db *sql.DB
 
+// TODO: revisit this, in light of default constraint in schema (which must be applied to existing DB somehow)
 // Ensure invariant: a subscription can't be added before the corresponding package has had its last_visited column set.
 // Otherwise we have cases where Scan fails (because it can't cast NULL to a string), and also we can end up sending notifications for old errors.
 //
 //go:embed db/schema.sql
 var ddl string
 
+// These two regexps are for parsing logs.
 // - "error: " is a nix build error
 // - "ExitFailure" is a nixpkgs-update error
 // - "failed with" is a nixpkgs/maintainers/scripts/update.py error
 var erroRE = regexp.MustCompile(`^error:|ExitFailure|failed with`)
-
 var ignoRE = regexp.MustCompile(`^~.*|^\.\.`)
 
+// These two regexps are for matching against user input.
 // We want to avoid stuff like the following, because it leads us to spam the nix-community.org server.
 // - sub *
 // - sub pythonPackages.*
 //
 // Unsubbing with the same queries is OK, because it it has different semantics and doesn't spam upstream.
 var dangerousRE = regexp.MustCompile(`^sub (?:[*?]+|\w+\.\*)$`)
-
 var subUnsubRE = regexp.MustCompile(`^(un)?sub ([\w_?*.-]+)$`)
 
 var hc = &http.Client{}
@@ -98,10 +99,7 @@ func main() {
 
 	h = handlers{
 		logFetcher: fetchLastLog,
-		// FIXME: this only works because I'm only hitting sendMarkdown in tests.
-		// When in the future I'll test code that hits client.SendText (or client.Login), I'll need another solution,
-		// perhaps a full-blown mock of the client struct.
-		sender: sendMarkdown,
+		sender:     sendMarkdown,
 	}
 
 	var err error

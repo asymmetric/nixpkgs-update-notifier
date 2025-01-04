@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -48,7 +47,7 @@ func handleSubUnsub(msg string, evt *event.Event) {
 	slog.Info("received sub", "pattern", pattern, "sender", evt.Sender, "matches", len(aps))
 
 	if len(aps) == 0 {
-		if _, err = client.SendText(context.TODO(), evt.RoomID, fmt.Sprintf("no matches for %s. The list of packages is [here](https://nixpkgs-update-logs.nix-community.org/)", pattern)); err != nil {
+		if _, err = h.sender(fmt.Sprintf("no matches for %s. The list of packages is [here](https://nixpkgs-update-logs.nix-community.org/)", pattern), evt.RoomID); err != nil {
 			slog.Error(err.Error())
 		}
 
@@ -59,7 +58,7 @@ func handleSubUnsub(msg string, evt *event.Event) {
 		if exists, err := checkIfSubExists(ap, evt.RoomID.String()); err != nil {
 			panic(err)
 		} else if exists {
-			if _, err := client.SendText(context.TODO(), evt.RoomID, fmt.Sprintf("Already subscribed to package %s", ap)); err != nil {
+			if _, err := h.sender(fmt.Sprintf("Already subscribed to package %s", ap), evt.RoomID); err != nil {
 				slog.Error(err.Error())
 			}
 
@@ -166,7 +165,7 @@ func handleSubs(evt *event.Event) {
 
 		msg = strings.Join(sts, "\n")
 	}
-	if _, err = client.SendText(context.TODO(), evt.RoomID, msg); err != nil {
+	if _, err = h.sender(msg, evt.RoomID); err != nil {
 		slog.Error(err.Error())
 	}
 }
