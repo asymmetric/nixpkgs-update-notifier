@@ -259,6 +259,44 @@ func TestSubUnsub(t *testing.T) {
 	}
 }
 
+func TestOverlapping(t *testing.T) {
+	if err := setupDB(ctx, ":memory:"); err != nil {
+		panic(err)
+	}
+
+	h = handlers{
+		logFetcher: func(string) (string, bool) {
+			return "1999", false
+		},
+		sender: testSender,
+	}
+
+	aps := []string{
+		"python31Packages.foo",
+		"python32Packages.foo",
+		"python33Packages.foo",
+	}
+
+	addPackages(aps...)
+	subscribe(aps[0])
+
+	pattern := "python*.foo"
+	subscribe(pattern)
+
+	var count int
+	if err := db.QueryRow(`
+        SELECT COUNT(*)
+        FROM subscriptions
+        WHERE attr_path GLOB ?`, pattern).
+		Scan(&count); err != nil {
+		panic(err)
+	}
+
+	if count != len(aps) {
+		t.Errorf("Not enough matches for %s: %v", pattern, count)
+	}
+}
+
 func TestCheckIfSubExists(t *testing.T) {
 	if err := setupDB(ctx, ":memory:"); err != nil {
 		panic(err)
