@@ -58,7 +58,7 @@ func handleSubUnsub(msg string, evt *event.Event) {
 		if exists, err := checkIfSubExists(ap, evt.RoomID.String()); err != nil {
 			panic(err)
 		} else if exists {
-			if _, err := h.sender(fmt.Sprintf("Already subscribed to package %s", ap), evt.RoomID); err != nil {
+			if _, err := h.sender(fmt.Sprintf("Already subscribed to package `%s`", ap), evt.RoomID); err != nil {
 				slog.Error(err.Error())
 			}
 		} else {
