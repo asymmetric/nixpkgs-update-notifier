@@ -64,8 +64,7 @@ func TestSub(t *testing.T) {
 			panic(err)
 		}
 
-		fillEventContent(evt, fmt.Sprintf("sub %s", v.ap))
-		handleMessage(ctx, evt)
+		subscribe(v.ap)
 
 		if err := db.QueryRow(`
       SELECT COUNT(*)
@@ -142,8 +141,7 @@ func TestUnsub(t *testing.T) {
 			panic(err)
 		}
 
-		fillEventContent(evt, fmt.Sprintf("unsub %s", v.ap))
-		handleMessage(ctx, evt)
+		unsubscribe(v.ap)
 
 		if err := db.QueryRow(`
       SELECT COUNT(*)
@@ -207,8 +205,7 @@ func TestSubUnsub(t *testing.T) {
 		t.Run(p.pattern, func(t *testing.T) {
 
 			t.Run("subscribe", func(t *testing.T) {
-				fillEventContent(evt, fmt.Sprintf("sub %s", p.pattern))
-				handleMessage(ctx, evt)
+				subscribe(p.pattern)
 
 				if err := db.QueryRow(`
         SELECT COUNT(*)
@@ -224,8 +221,7 @@ func TestSubUnsub(t *testing.T) {
 			})
 
 			t.Run("unsubscribe", func(t *testing.T) {
-				fillEventContent(evt, fmt.Sprintf("unsub %s", p.pattern))
-				handleMessage(ctx, evt)
+				unsubscribe(p.pattern)
 
 				if err := db.QueryRow(`
         SELECT COUNT(*)
@@ -256,8 +252,7 @@ func TestSubUnsub(t *testing.T) {
 				panic(err)
 			}
 
-			fillEventContent(evt, fmt.Sprintf("sub %s", pattern))
-			handleMessage(ctx, evt)
+			subscribe(pattern)
 
 			if err := db.QueryRow(`SELECT COUNT(*) FROM subscriptions`, pattern).Scan(&after); err != nil {
 				panic(err)
@@ -311,4 +306,14 @@ func fillEventContent(evt *event.Event, body string) {
 			Body:    body,
 		},
 	}
+}
+
+func subscribe(ap string) {
+	fillEventContent(evt, fmt.Sprintf("sub %s", ap))
+	handleMessage(ctx, evt)
+}
+
+func unsubscribe(ap string) {
+	fillEventContent(evt, fmt.Sprintf("unsub %s", ap))
+	handleMessage(ctx, evt)
 }
