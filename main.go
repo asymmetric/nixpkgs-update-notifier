@@ -34,7 +34,6 @@ var client *mautrix.Client
 
 var db *sql.DB
 
-// TODO: revisit this, in light of default constraint in schema (which must be applied to existing DB somehow)
 // Ensure invariant: a subscription can't be added before the corresponding package has had its last_visited column set.
 // Otherwise we have cases where Scan fails (because it can't cast NULL to a string), and also we can end up sending notifications for old errors.
 //
@@ -207,26 +206,26 @@ func updateSubs() {
 		url := packageURL(ap)
 		// TODO: make async
 		// TODO: we could sometimes avoid fetching altogether if we passed last_visited
-		date, hasError := h.logFetcher(url)
+		logDate, hasError := h.logFetcher(url)
 
 		// avoid duplicate notifications by ensuring we haven't already notified for this log
-		var last string
-		if err := db.QueryRow("SELECT last_visited FROM packages WHERE attr_path = ?", ap).Scan(&last); err != nil {
+		var lv string
+		if err := db.QueryRow("SELECT last_visited FROM packages WHERE attr_path = ?", ap).Scan(&lv); err != nil {
 			fatal(err)
 		}
-		if date > last {
+		if logDate > lv {
 			if hasError {
-				slog.Info("new log", "err", true, "url", logURL(ap, date))
-				notifySubscribers(ap, date)
+				slog.Info("new log", "err", true, "url", logURL(ap, logDate))
+				notifySubscribers(ap, logDate)
 			} else {
-				slog.Info("new log", "err", false, "url", logURL(ap, date))
+				slog.Info("new log", "err", false, "url", logURL(ap, logDate))
 			}
 
-			if _, err := db.Exec("UPDATE packages SET last_visited = ?, error = ? WHERE attr_path = ?", date, hasError, ap); err != nil {
+			if _, err := db.Exec("UPDATE packages SET last_visited = ? WHERE attr_path = ?", logDate, ap); err != nil {
 				fatal(err)
 			}
 		} else {
-			slog.Info("no new log", "url", url, "date", date)
+			slog.Info("no new log", "url", url, "date", logDate)
 		}
 	}
 }

@@ -63,7 +63,7 @@ func handleSubUnsub(msg string, evt *event.Event) {
 			}
 		} else {
 			// before adding subscription, add the date of the last available log for the package, so that if the program stops for any reason, we don't notify the user of a stale error log.
-			// e.g.:
+			// we want to avoid e.g.:
 			// - we add a subscription for package foo at time t
 			// - package foo has a failure that predates the subscription, t - 1
 			// - program stops before the next tick
@@ -71,9 +71,11 @@ func handleSubUnsub(msg string, evt *event.Event) {
 			// - when program starts again, we'll iterate over subs and find foo
 			// - we will fetch the latest log and because it's a failure, notify
 			// - but the log predates the subscription, so we notified on a stale log
+			// NOTE: this invariant is also enforced via an SQL trigger.
 			purl := packageURL(ap)
-			date, hasError := h.logFetcher(purl)
-			if _, err := db.Exec("UPDATE packages SET last_visited = ?, error = ? WHERE attr_path = ?", date, hasError, ap); err != nil {
+			date, _ := h.logFetcher(purl)
+			// TODO: should we notify here already if the log has an error?
+			if _, err := db.Exec("UPDATE packages SET last_visited = ? WHERE attr_path = ?", date, ap); err != nil {
 				panic(err)
 			}
 

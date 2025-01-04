@@ -8,8 +8,7 @@ CREATE TABLE IF NOT EXISTS subscriptions (
 
 CREATE TABLE IF NOT EXISTS packages (
   attr_path TEXT PRIMARY KEY,
-  last_visited TEXT,
-  error INTEGER NOT NULL DEFAULT 0
+  last_visited TEXT
 ) STRICT;
 
 CREATE TRIGGER IF NOT EXISTS ensure_packages_last_visited_set BEFORE INSERT ON subscriptions
