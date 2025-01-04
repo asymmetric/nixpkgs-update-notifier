@@ -37,7 +37,7 @@ func TestErrRegexp(t *testing.T) {
 	}
 }
 
-func TestGlobSubUnsubRegexp(t *testing.T) {
+func TestSubUnsubRegexp(t *testing.T) {
 	ss := []string{
 		"sub foo",
 		"sub foo.bar",

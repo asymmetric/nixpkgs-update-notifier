@@ -163,7 +163,7 @@ func TestUnsub(t *testing.T) {
 
 // TODO: Test when user has subbed to p312Pkgs.foo, and does `unsub *.foo`
 // currently, it prints out an error about not being subbed to e.g. p313Pkgs.foo
-func TestGlobSubUnsub(t *testing.T) {
+func TestSubUnsub(t *testing.T) {
 	if err := setupDB(ctx, ":memory:"); err != nil {
 		panic(err)
 	}

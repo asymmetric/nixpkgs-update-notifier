@@ -13,7 +13,7 @@ func handleSubUnsub(msg string, evt *event.Event) {
 	// TODO move this to caller
 	matches := subUnsubRE.FindStringSubmatch(msg)
 	if matches == nil {
-		slog.Error("handleGlobs: We should not be here")
+		slog.Error("handleSubUnsub: We should not be here")
 
 		return
 	}
@@ -95,7 +95,6 @@ func handleSubUnsub(msg string, evt *event.Event) {
 }
 
 func handleUnsub(pattern string, evt *event.Event) {
-	// TODO: add returning, so we can print aps back to user
 	rows, err := db.Query("DELETE FROM subscriptions WHERE roomid = ? AND attr_path GLOB ? RETURNING attr_path", evt.RoomID, pattern)
 	if err != nil {
 		panic(err)
