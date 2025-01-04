@@ -47,7 +47,7 @@ func handleSubUnsub(msg string, evt *event.Event) {
 	slog.Info("received sub", "pattern", pattern, "sender", evt.Sender, "matches", len(aps))
 
 	if len(aps) == 0 {
-		if _, err = h.sender(fmt.Sprintf("no matches for %s. The list of packages is [here](https://nixpkgs-update-logs.nix-community.org/)", pattern), evt.RoomID); err != nil {
+		if _, err = h.sender(fmt.Sprintf("No matches for `%s`. The list of packages is [here](https://nixpkgs-update-logs.nix-community.org/)", pattern), evt.RoomID); err != nil {
 			slog.Error(err.Error())
 		}
 
@@ -82,7 +82,7 @@ func handleSubUnsub(msg string, evt *event.Event) {
 			}
 
 			// send confirmation message
-			if _, err := h.sender(fmt.Sprintf("subscribed to package `%s`", ap), evt.RoomID); err != nil {
+			if _, err := h.sender(fmt.Sprintf("Subscribed to package `%s`", ap), evt.RoomID); err != nil {
 				slog.Error(err.Error())
 			}
 
@@ -120,7 +120,7 @@ func handleUnsub(pattern string, evt *event.Event) {
 			l = append(l, fmt.Sprintf("- %s", ap))
 		}
 
-		msg = fmt.Sprintf("unsubscribed from packages:\n %s", strings.Join(l, "\n"))
+		msg = fmt.Sprintf("Unsubscribed from packages:\n %s", strings.Join(l, "\n"))
 	}
 
 	// send confirmation message

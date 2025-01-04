@@ -310,7 +310,7 @@ func notifySubscribers(attr_path, date string) {
 
 	for _, roomID := range roomIDs {
 		slog.Info("notifying subscriber", "roomid", roomID)
-		s := fmt.Sprintf("potential new build error for package `%s`: %s", attr_path, logPath)
+		s := fmt.Sprintf("New build error for package `%s`: %s", attr_path, logPath)
 		if _, err := h.sender(s, id.RoomID(roomID)); err != nil {
 			// TODO check if we're not in room, in that case remove sub
 			slog.Error(err.Error())
