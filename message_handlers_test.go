@@ -53,6 +53,8 @@ func TestSub(t *testing.T) {
 	}
 
 	var count int
+	var lv string
+	var hasErr bool
 	for _, v := range tt {
 		h = handlers{
 			logFetcher: func(string) (string, bool) {
@@ -82,8 +84,6 @@ func TestSub(t *testing.T) {
 			t.Error("Too many matches")
 		}
 
-		var lv string
-		var hasErr bool
 		if err := db.QueryRow(`SELECT last_visited, error FROM packages WHERE attr_path = ?`, v.ap).Scan(&lv, &hasErr); err != nil {
 			panic(err)
 		}
@@ -173,18 +173,12 @@ func TestSubUnsub(t *testing.T) {
 		sender: testSender,
 	}
 
-	aps := []string{
+	addPackages(
 		"bar",
 		"python31Packages.bar",
 		"python32Packages.bar",
 		"haskellPackages.bar",
-	}
-
-	for _, ap := range aps {
-		if _, err := db.Exec("INSERT INTO packages(attr_path) VALUES (?)", ap); err != nil {
-			panic(err)
-		}
-	}
+	)
 
 	patterns := []struct {
 		pattern string
@@ -270,16 +264,7 @@ func TestCheckIfSubExists(t *testing.T) {
 		panic(err)
 	}
 
-	h = handlers{
-		logFetcher: func(string) (string, bool) {
-			return "1999", false
-		},
-		sender: testSender,
-	}
-
-	if _, err := db.Exec("INSERT INTO packages(attr_path) VALUES (?)", "foo"); err != nil {
-		panic(err)
-	}
+	addPackages("foo")
 
 	exists, err := checkIfSubExists("foo", evt.RoomID.String())
 	if err != nil {
@@ -288,8 +273,7 @@ func TestCheckIfSubExists(t *testing.T) {
 		t.Errorf("should not exist")
 	}
 
-	fillEventContent(evt, "sub foo")
-	handleMessage(ctx, evt)
+	subscribe("foo")
 
 	exists, err = checkIfSubExists("foo", evt.RoomID.String())
 	if err != nil {
@@ -305,6 +289,14 @@ func fillEventContent(evt *event.Event, body string) {
 			MsgType: event.MsgText,
 			Body:    body,
 		},
+	}
+}
+
+func addPackages(aps ...string) {
+	for _, ap := range aps {
+		if _, err := db.Exec("INSERT INTO packages(attr_path) VALUES (?)", ap); err != nil {
+			panic(err)
+		}
 	}
 }
 
