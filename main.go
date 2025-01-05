@@ -34,6 +34,7 @@ var client *mautrix.Client
 
 var db *sql.DB
 
+// TODO: rename last_visited to last_log_date?
 // Ensure invariant: a subscription can't be added before the corresponding package has had its last_visited column set.
 // Otherwise we have cases where Scan fails (because it can't cast NULL to a string), and also we can end up sending notifications for old errors.
 //
