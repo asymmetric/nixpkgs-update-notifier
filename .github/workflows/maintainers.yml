@@ -1,0 +1,31 @@
+name: Update Maintainers List
+
+on:
+  schedule:
+    - cron: '21 3 * * *'  # Runs every day at 3:21 AM
+  workflow_dispatch:    # Allows manual triggering
+
+jobs:
+  update-maintainers:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: cachix/install-nix-action@v30
+
+    - name: Fetch maintainers list
+      run: |
+        curl -L https://raw.githubusercontent.com/NixOS/nixpkgs/master/maintainers/maintainer-list.nix -o maintainers-list.nix
+
+    - name: Convert Nix to JSON
+      run: nix-instantiate --eval --strict --json -E 'import ./maintainers-list.nix' > maintainers.json
+
+    - name: Parse JSON to map Matrix handles to Nix handles
+      run: |
+        jq -S 'to_entries | map(select(.value.matrix != null)) | map({ (.value.matrix): .key }) | add' <maintainers.json >matrix_to_nix.json
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: matrix_to_nix.json
+        path: matrix_to_nix.json
+        if-no-files-found: error
