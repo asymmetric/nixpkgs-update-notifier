@@ -58,6 +58,15 @@ var ignoRE = regexp.MustCompile(`^~.*|^\.\.`)
 // Unsubbing with the same queries is OK, because it it has different semantics and doesn't spam upstream.
 var dangerousRE = regexp.MustCompile(`^sub (?:[*?]+|\w+\.\*)$`)
 var subUnsubRE = regexp.MustCompile(`^(un)?sub ([\w_?*.-]+)$`)
+var ownDisownRE = regexp.MustCompile(`^(dis)?own$`)
+
+// TODO: make configurable
+var (
+	repoOwner    = "asymmetric"
+	repoName     = "nixpkgs-update-notifier"
+	githubToken  = "your-github-token"
+	artifactsURL = fmt.Sprintf("https://api.github.com/repos/%s/%s/actions/artifacts", repoOwner, repoName)
+)
 
 // These are abstracted so that we can pass a different function in tests.
 type handlers struct {
@@ -67,12 +76,14 @@ type handlers struct {
 
 var h handlers
 
-var helpText = `Welcome to the nixpkgs-update-notifier bot!
+const helpText = `Welcome to the nixpkgs-update-notifier bot!
 
 These are the available commands:
 
 - **sub foo**: subscribe to package <code>foo</code>
 - **unsub foo**: unsubscribe from package <code>foo</code>
+- **own*: subscribe to all packages you maintain
+- **disown**: unsubscribe to all packages you maintain
 - **subs**: list subscriptions
 - **help**: show this help message
 
@@ -322,6 +333,7 @@ func notifySubscribers(attr_path, date string) {
 	}
 }
 
+// Decides what to do, based on the message content.
 func handleMessage(ctx context.Context, evt *event.Event) {
 	msg := evt.Content.AsMessage().Body
 	sender := evt.Sender.String()
@@ -345,6 +357,20 @@ Type **help** for a list of allowed/forbidden patterns.`
 		}
 	} else if subUnsubRE.MatchString(msg) {
 		handleSubUnsub(msg, evt)
+	} else if ownDisownRE.MatchString(msg) {
+		// check matrix_to_nix.json, find github user that matches matrix user
+		s := evt.Sender.String()
+		handle, ok := handleMap[s]
+		if !ok {
+			// TODO tell user they can't do this
+		} else {
+			aps := packagesByMaintainer(handle)
+
+			for _, ap := range aps {
+				// TODO (un)subscribe from each ap
+				fmt.Printf("got %s\n", ap)
+			}
+		}
 	} else if msg == "subs" {
 		handleSubs(evt)
 	} else {

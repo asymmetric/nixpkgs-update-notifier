@@ -316,6 +316,52 @@ func TestCheckIfSubExists(t *testing.T) {
 	}
 }
 
+func TestOwnDisown(t *testing.T) {
+	if err := setupDB(ctx, ":memory:"); err != nil {
+		panic(err)
+	}
+
+	addPackages("foo", "bar", "baz")
+}
+
+func TestPackagesByMaintainer(t *testing.T) {
+	if err := setupDB(ctx, ":memory:"); err != nil {
+		panic(err)
+	}
+
+	h.packagesJSONFetcher = func() (jsobj map[string]any) {
+		data, err := os.ReadFile("testdata/packages.json")
+		if err != nil {
+			panic(err)
+		}
+
+		if err := json.Unmarshal(data, &jsobj); err != nil {
+			panic(err)
+		}
+
+		return
+	}
+
+	got := packagesByMaintainer("asymmetric")
+
+	expected := []string{
+		"asc-key-to-qr-code-gif",
+		"btrbk",
+		"btrfs-list",
+		"diceware",
+		"evmdis",
+		"ledger-udev-rules",
+		"python312Packages.diceware",
+		"python313Packages.diceware",
+		"siji",
+		"ssb-patchwork",
+	}
+
+	if !slices.Equal(expected, got) {
+		t.Errorf("expected: %v\ngot: %v", expected, got)
+	}
+}
+
 func fillEventContent(evt *event.Event, body string) {
 	evt.Content = event.Content{
 		Parsed: &event.MessageEventContent{
