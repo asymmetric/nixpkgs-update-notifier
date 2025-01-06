@@ -30,9 +30,11 @@ var dbPath = flag.String("db", "data.db", "Path to the DB file")
 var tickerOpt = flag.Duration("ticker", 24*time.Hour, "How often to check url")
 var debug = flag.Bool("debug", false, "Enable debug logging")
 
-var client *mautrix.Client
-
-var db *sql.DB
+var clients struct {
+	db     *sql.DB
+	http   *http.Client
+	matrix *mautrix.Client
+}
 
 // TODO: rename last_visited to last_log_date?
 // Ensure invariant: a subscription can't be added before the corresponding package has had its last_visited column set.
@@ -56,8 +58,6 @@ var ignoRE = regexp.MustCompile(`^~.*|^\.\.`)
 // Unsubbing with the same queries is OK, because it it has different semantics and doesn't spam upstream.
 var dangerousRE = regexp.MustCompile(`^sub (?:[*?]+|\w+\.\*)$`)
 var subUnsubRE = regexp.MustCompile(`^(un)?sub ([\w_?*.-]+)$`)
-
-var hc = &http.Client{}
 
 // These are abstracted so that we can pass a different function in tests.
 type handlers struct {
@@ -90,6 +90,10 @@ Things you cannot do:
 The code for the bot is [here](https://github.com/asymmetric/nixpkgs-update-notifier).
 `
 
+func init() {
+	clients.http = &http.Client{}
+}
+
 func main() {
 	ctx := context.Background()
 
@@ -106,11 +110,11 @@ func main() {
 	if err = setupDB(ctx, fmt.Sprintf("file:%s", *dbPath)); err != nil {
 		panic(err)
 	}
-	defer db.Close()
+	defer clients.db.Close()
 
-	client = setupMatrix()
+	clients.matrix = setupMatrix()
 	go func() {
-		if err := client.Sync(); err != nil {
+		if err := clients.matrix.Sync(); err != nil {
 			panic(err)
 		}
 	}()
@@ -144,7 +148,7 @@ func main() {
 			updateSubs()
 		case <-optimizeTicker.C:
 			slog.Info("optimizing DB")
-			if _, err := db.Exec("PRAGMA optimize;"); err != nil {
+			if _, err := clients.db.Exec("PRAGMA optimize;"); err != nil {
 				panic(err)
 			}
 		}
@@ -158,7 +162,7 @@ func storeAttrPaths(url string) {
 		panic(err)
 	}
 
-	resp, err := hc.Do(req)
+	resp, err := clients.http.Do(req)
 	if err != nil {
 		panic(err)
 	}
@@ -176,7 +180,7 @@ func storeAttrPaths(url string) {
 		if ignoRE.MatchString(attr_path) {
 			continue
 		}
-		if _, err := db.Exec("INSERT OR IGNORE INTO packages(attr_path) VALUES (?)", attr_path); err != nil {
+		if _, err := clients.db.Exec("INSERT OR IGNORE INTO packages(attr_path) VALUES (?)", attr_path); err != nil {
 			fatal(err)
 		}
 	}
@@ -185,7 +189,7 @@ func storeAttrPaths(url string) {
 // Iterates over subscribed-to packages, and fetches their latest log, printing out whether it contained an error.
 // It also updates the packages.last_visited column.
 func updateSubs() {
-	rows, err := db.Query("SELECT attr_path FROM subscriptions")
+	rows, err := clients.db.Query("SELECT attr_path FROM subscriptions")
 	if err != nil {
 		fatal(err)
 	}
@@ -211,7 +215,7 @@ func updateSubs() {
 
 		// avoid duplicate notifications by ensuring we haven't already notified for this log
 		var lv string
-		if err := db.QueryRow("SELECT last_visited FROM packages WHERE attr_path = ?", ap).Scan(&lv); err != nil {
+		if err := clients.db.QueryRow("SELECT last_visited FROM packages WHERE attr_path = ?", ap).Scan(&lv); err != nil {
 			fatal(err)
 		}
 		if logDate > lv {
@@ -222,7 +226,7 @@ func updateSubs() {
 				slog.Info("new log", "err", false, "url", logURL(ap, logDate))
 			}
 
-			if _, err := db.Exec("UPDATE packages SET last_visited = ? WHERE attr_path = ?", logDate, ap); err != nil {
+			if _, err := clients.db.Exec("UPDATE packages SET last_visited = ? WHERE attr_path = ?", logDate, ap); err != nil {
 				fatal(err)
 			}
 		} else {
@@ -240,7 +244,7 @@ func fetchLastLog(url string) (date string, hasError bool) {
 		panic(err)
 	}
 
-	resp, err := hc.Do(req)
+	resp, err := clients.http.Do(req)
 	if err != nil {
 		panic(err)
 	}
@@ -268,7 +272,7 @@ func fetchLastLog(url string) (date string, hasError bool) {
 		panic(err)
 	}
 
-	resp, err = hc.Do(req)
+	resp, err = clients.http.Do(req)
 	if err != nil {
 		panic(err)
 	}
@@ -290,7 +294,7 @@ func notifySubscribers(attr_path, date string) {
 	// - if we're not in that room, drop from db of subs?
 	logPath := fmt.Sprintf("%s/%s/%s.log", *mainURL, attr_path, date)
 	slog.Debug("lp", "lp", logPath)
-	rows, err := db.Query("SELECT roomid FROM subscriptions WHERE attr_path = ?", attr_path)
+	rows, err := clients.db.Query("SELECT roomid FROM subscriptions WHERE attr_path = ?", attr_path)
 	if err != nil {
 		panic(err)
 	}

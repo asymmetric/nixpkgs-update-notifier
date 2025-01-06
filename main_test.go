@@ -88,10 +88,10 @@ func TestSubscribeSetsLastVisited(t *testing.T) {
 		sender: testSender,
 	}
 
-	if _, err := db.Exec("INSERT INTO packages(attr_path) VALUES (?)", "foo"); err != nil {
+	if _, err := clients.db.Exec("INSERT INTO packages(attr_path) VALUES (?)", "foo"); err != nil {
 		panic(err)
 	}
-	if _, err := db.Exec("INSERT INTO packages(attr_path, last_visited) VALUES (?, ?)", "bar", "1970-01-01"); err != nil {
+	if _, err := clients.db.Exec("INSERT INTO packages(attr_path, last_visited) VALUES (?, ?)", "bar", "1970-01-01"); err != nil {
 		panic(err)
 	}
 
@@ -100,7 +100,7 @@ func TestSubscribeSetsLastVisited(t *testing.T) {
 	subscribe("foo")
 	subscribe("bar")
 
-	if err := db.QueryRow("SELECT EXISTS (SELECT 1 FROM packages WHERE last_visited <> ?)", today).Scan(&exists); err != nil {
+	if err := clients.db.QueryRow("SELECT EXISTS (SELECT 1 FROM packages WHERE last_visited <> ?)", today).Scan(&exists); err != nil {
 		panic(err)
 	}
 

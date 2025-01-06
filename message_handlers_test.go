@@ -26,7 +26,7 @@ func init() {
 		Sender: id.UserID("test-sender"),
 	}
 
-	client, _ = mautrix.NewClient("http://localhost", "", "")
+	clients.matrix, _ = mautrix.NewClient("http://localhost", "", "")
 }
 
 // TODO: test non-existent package
@@ -61,13 +61,13 @@ func TestSub(t *testing.T) {
 			},
 			sender: testSender,
 		}
-		if _, err := db.Exec("INSERT INTO packages(attr_path) VALUES (?)", v.ap); err != nil {
+		if _, err := clients.db.Exec("INSERT INTO packages(attr_path) VALUES (?)", v.ap); err != nil {
 			panic(err)
 		}
 
 		subscribe(v.ap)
 
-		if err := db.QueryRow(`
+		if err := clients.db.QueryRow(`
       SELECT COUNT(*)
       FROM subscriptions
       WHERE roomid = ?
@@ -83,7 +83,7 @@ func TestSub(t *testing.T) {
 			t.Error("Too many matches")
 		}
 
-		if err := db.QueryRow(`SELECT last_visited FROM packages WHERE attr_path = ?`, v.ap).Scan(&lv); err != nil {
+		if err := clients.db.QueryRow(`SELECT last_visited FROM packages WHERE attr_path = ?`, v.ap).Scan(&lv); err != nil {
 			panic(err)
 		}
 
@@ -125,20 +125,20 @@ func TestUnsub(t *testing.T) {
 			},
 			sender: testSender,
 		}
-		if _, err := db.Exec("INSERT INTO packages(attr_path, last_visited) VALUES (?, ?)", v.ap, v.lv); err != nil {
+		if _, err := clients.db.Exec("INSERT INTO packages(attr_path, last_visited) VALUES (?, ?)", v.ap, v.lv); err != nil {
 			panic(err)
 		}
 
 		// NOTE: in this test, we insert last_visited ourselves instead of relying
 		// on the Go logic, since we've tested that logic in the TestSub test
-		if _, err := db.Exec("INSERT INTO subscriptions (roomid, mxid, attr_path) VALUES (?, ?, ?)",
+		if _, err := clients.db.Exec("INSERT INTO subscriptions (roomid, mxid, attr_path) VALUES (?, ?, ?)",
 			evt.RoomID, evt.Sender, v.ap); err != nil {
 			panic(err)
 		}
 
 		unsubscribe(v.ap)
 
-		if err := db.QueryRow(`
+		if err := clients.db.QueryRow(`
       SELECT COUNT(*)
       FROM subscriptions
       WHERE roomid = ?
@@ -196,7 +196,7 @@ func TestSubUnsub(t *testing.T) {
 			t.Run("subscribe", func(t *testing.T) {
 				subscribe(p.pattern)
 
-				if err := db.QueryRow(`
+				if err := clients.db.QueryRow(`
         SELECT COUNT(*)
         FROM subscriptions
         WHERE attr_path GLOB ?`, p.pattern).
@@ -212,7 +212,7 @@ func TestSubUnsub(t *testing.T) {
 			t.Run("unsubscribe", func(t *testing.T) {
 				unsubscribe(p.pattern)
 
-				if err := db.QueryRow(`
+				if err := clients.db.QueryRow(`
         SELECT COUNT(*)
         FROM subscriptions
         WHERE attr_path GLOB ?`, p.pattern).
@@ -237,13 +237,13 @@ func TestSubUnsub(t *testing.T) {
 		t.Run("spammy queries", func(t *testing.T) {
 			var before, after int
 
-			if err := db.QueryRow(`SELECT COUNT(*) FROM subscriptions`, pattern).Scan(&before); err != nil {
+			if err := clients.db.QueryRow(`SELECT COUNT(*) FROM subscriptions`, pattern).Scan(&before); err != nil {
 				panic(err)
 			}
 
 			subscribe(pattern)
 
-			if err := db.QueryRow(`SELECT COUNT(*) FROM subscriptions`, pattern).Scan(&after); err != nil {
+			if err := clients.db.QueryRow(`SELECT COUNT(*) FROM subscriptions`, pattern).Scan(&after); err != nil {
 				panic(err)
 			}
 
@@ -279,7 +279,7 @@ func TestOverlapping(t *testing.T) {
 	subscribe(pattern)
 
 	var count int
-	if err := db.QueryRow(`
+	if err := clients.db.QueryRow(`
         SELECT COUNT(*)
         FROM subscriptions
         WHERE attr_path GLOB ?`, pattern).
@@ -327,7 +327,7 @@ func fillEventContent(evt *event.Event, body string) {
 
 func addPackages(aps ...string) {
 	for _, ap := range aps {
-		if _, err := db.Exec("INSERT INTO packages(attr_path) VALUES (?)", ap); err != nil {
+		if _, err := clients.db.Exec("INSERT INTO packages(attr_path) VALUES (?)", ap); err != nil {
 			panic(err)
 		}
 	}

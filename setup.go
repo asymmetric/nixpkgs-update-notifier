@@ -49,7 +49,7 @@ func setupMatrix() *mautrix.Client {
 			slog.Debug("joining room", "id", evt.RoomID)
 		case event.MembershipLeave:
 			// remove subscription, then leave room
-			if _, err := db.Exec("DELETE FROM subscriptions WHERE roomid = ?", evt.RoomID); err != nil {
+			if _, err := clients.db.Exec("DELETE FROM subscriptions WHERE roomid = ?", evt.RoomID); err != nil {
 				panic(err)
 			}
 
@@ -85,16 +85,16 @@ func setupMatrix() *mautrix.Client {
 }
 
 func setupDB(ctx context.Context, path string) (err error) {
-	db, err = sql.Open("sqlite3", fmt.Sprintf("%s?_journal_mode=WAL&_synchronous=NORMAL&_foreign_keys=true", path))
+	clients.db, err = sql.Open("sqlite3", fmt.Sprintf("%s?_journal_mode=WAL&_synchronous=NORMAL&_foreign_keys=true", path))
 	if err != nil {
 		return
 	}
 
-	if err = db.PingContext(ctx); err != nil {
+	if err = clients.db.PingContext(ctx); err != nil {
 		return
 	}
 
-	if _, err = db.ExecContext(ctx, ddl); err != nil {
+	if _, err = clients.db.ExecContext(ctx, ddl); err != nil {
 		return
 	}
 

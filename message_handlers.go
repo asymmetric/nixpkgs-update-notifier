@@ -26,7 +26,7 @@ func handleSubUnsub(msg string, evt *event.Event) {
 		return
 	}
 
-	rows, err := db.Query("SELECT attr_path FROM packages WHERE attr_path GLOB ? ORDER BY attr_path", pattern)
+	rows, err := clients.db.Query("SELECT attr_path FROM packages WHERE attr_path GLOB ? ORDER BY attr_path", pattern)
 	if err != nil {
 		panic(err)
 	}
@@ -75,11 +75,11 @@ func handleSubUnsub(msg string, evt *event.Event) {
 			purl := packageURL(ap)
 			date, _ := h.logFetcher(purl)
 			// TODO: should we notify here already if the log has an error?
-			if _, err := db.Exec("UPDATE packages SET last_visited = ? WHERE attr_path = ?", date, ap); err != nil {
+			if _, err := clients.db.Exec("UPDATE packages SET last_visited = ? WHERE attr_path = ?", date, ap); err != nil {
 				panic(err)
 			}
 
-			if _, err := db.Exec("INSERT INTO subscriptions(roomid,attr_path,mxid) VALUES (?, ?, ?)", evt.RoomID, ap, evt.Sender); err != nil {
+			if _, err := clients.db.Exec("INSERT INTO subscriptions(roomid,attr_path,mxid) VALUES (?, ?, ?)", evt.RoomID, ap, evt.Sender); err != nil {
 				panic(err)
 			}
 
@@ -94,7 +94,7 @@ func handleSubUnsub(msg string, evt *event.Event) {
 }
 
 func handleUnsub(pattern string, evt *event.Event) {
-	rows, err := db.Query("DELETE FROM subscriptions WHERE roomid = ? AND attr_path GLOB ? RETURNING attr_path", evt.RoomID, pattern)
+	rows, err := clients.db.Query("DELETE FROM subscriptions WHERE roomid = ? AND attr_path GLOB ? RETURNING attr_path", evt.RoomID, pattern)
 	if err != nil {
 		panic(err)
 	}
@@ -135,7 +135,7 @@ func handleUnsub(pattern string, evt *event.Event) {
 
 // TODO find ways to test this
 func handleSubs(evt *event.Event) {
-	rows, err := db.Query("SELECT attr_path FROM subscriptions WHERE roomid = ?", evt.RoomID)
+	rows, err := clients.db.Query("SELECT attr_path FROM subscriptions WHERE roomid = ?", evt.RoomID)
 	if err != nil {
 		panic(err)
 	}
@@ -172,7 +172,7 @@ func handleSubs(evt *event.Event) {
 
 // Checks if the user is already subscribed to the package
 func checkIfSubExists(attr_path, roomid string) (exists bool, err error) {
-	err = db.QueryRow("SELECT EXISTS (SELECT 1 FROM subscriptions WHERE roomid = ? AND attr_path = ? LIMIT 1)", roomid, attr_path).Scan(&exists)
+	err = clients.db.QueryRow("SELECT EXISTS (SELECT 1 FROM subscriptions WHERE roomid = ? AND attr_path = ? LIMIT 1)", roomid, attr_path).Scan(&exists)
 
 	return exists, err
 }

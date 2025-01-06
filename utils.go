@@ -29,7 +29,7 @@ func newReqWithUA(url string) (*http.Request, error) {
 
 func sendMarkdown(text string, rid id.RoomID) (*mautrix.RespSendEvent, error) {
 	md := format.RenderMarkdown(text, true, true)
-	return client.SendMessageEvent(context.TODO(), rid, event.EventMessage, md)
+	return clients.matrix.SendMessageEvent(context.TODO(), rid, event.EventMessage, md)
 }
 
 // date looks like 2024-12-10
