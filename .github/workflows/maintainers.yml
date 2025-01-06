@@ -1,6 +1,7 @@
 name: Update Maintainers List
 
 on:
+  push:
   schedule:
     - cron: '21 3 * * *'  # Runs every day at 3:21 AM
   workflow_dispatch:    # Allows manual triggering
