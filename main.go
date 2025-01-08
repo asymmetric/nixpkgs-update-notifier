@@ -103,6 +103,14 @@ The code for the bot is [here](https://github.com/asymmetric/nixpkgs-update-noti
 
 func init() {
 	clients.http = &http.Client{}
+
+	// default handlers
+	h = handlers{
+		logFetcher:          fetchLastLog,
+		sender:              sendMarkdown,
+		packagesJSONFetcher: fetchPackagesJSON,
+	}
+
 }
 
 func main() {
@@ -111,11 +119,6 @@ func main() {
 	flag.Parse()
 
 	setupLogger()
-
-	h = handlers{
-		logFetcher: fetchLastLog,
-		sender:     sendMarkdown,
-	}
 
 	var err error
 	if err = setupDB(ctx, fmt.Sprintf("file:%s", *dbPath)); err != nil {
