@@ -30,10 +30,12 @@ var dbPath = flag.String("db", "data.db", "Path to the DB file")
 var tickerOpt = flag.Duration("ticker", 24*time.Hour, "How often to check url")
 var debug = flag.Bool("debug", false, "Enable debug logging")
 
-var clients struct {
+var clients = struct {
 	db     *sql.DB
 	http   *http.Client
 	matrix *mautrix.Client
+}{
+	http: &http.Client{},
 }
 
 // TODO: rename last_visited to last_log_date?
@@ -102,8 +104,6 @@ The code for the bot is [here](https://github.com/asymmetric/nixpkgs-update-noti
 `
 
 func init() {
-	clients.http = &http.Client{}
-
 	// default handlers
 	h = handlers{
 		logFetcher:          fetchLastLog,
