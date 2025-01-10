@@ -52,15 +52,20 @@ var ddl string
 var erroRE = regexp.MustCompile(`^error:|ExitFailure|failed with`)
 var ignoRE = regexp.MustCompile(`^~.*|^\.\.`)
 
-// These two regexps are for matching against user input.
+var regexes = struct {
+	dangerous, subscribe, follow *regexp.Regexp
+}{
+	dangerous: regexp.MustCompile(`^sub (?:[*?]+|\w+\.\*)$`),
+	subscribe: regexp.MustCompile(`^(un)?sub ([\w_?*.-]+)$`),
+	follow:    regexp.MustCompile(`^(un)?follow (\w+)$`),
+}
+
+// These regexps are for matching against user input.
 // We want to avoid stuff like the following, because it leads us to spam the nix-community.org server.
 // - sub *
 // - sub pythonPackages.*
 //
 // Unsubbing with the same queries is OK, because it it has different semantics and doesn't spam upstream.
-var dangerousRE = regexp.MustCompile(`^sub (?:[*?]+|\w+\.\*)$`)
-var subUnsubRE = regexp.MustCompile(`^(un)?sub ([\w_?*.-]+)$`)
-var ownDisownRE = regexp.MustCompile(`^(dis)?own$`)
 
 // TODO: make configurable
 var (
@@ -349,7 +354,7 @@ func handleMessage(ctx context.Context, evt *event.Event) {
 		return
 	}
 
-	if dangerousRE.MatchString(msg) {
+	if regexes.dangerous.MatchString(msg) {
 		slog.Info("received spammy query", "msg", msg, "sender", sender)
 		s := `Pattern returns too many results, please use a more specific selector.
 
@@ -358,7 +363,7 @@ Type **help** for a list of allowed/forbidden patterns.`
 		if _, err := h.sender(s, id.RoomID(evt.RoomID)); err != nil {
 			slog.Error(err.Error())
 		}
-	} else if subUnsubRE.MatchString(msg) {
+	} else if regexes.subscribe.MatchString(msg) {
 		handleSubUnsub(msg, evt)
 	} else if ownDisownRE.MatchString(msg) {
 		// check matrix_to_nix.json, find github user that matches matrix user

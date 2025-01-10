@@ -53,7 +53,7 @@ func TestSubUnsubRegexp(t *testing.T) {
 	}
 
 	for _, s := range ss {
-		if subUnsubRE.FindString(s) == "" {
+		if regexes.subscribe.FindString(s) == "" {
 			t.Errorf("should have matched: %s", s)
 		}
 	}
@@ -70,7 +70,7 @@ func TestDangerousRegexp(t *testing.T) {
 	}
 
 	for _, s := range ss {
-		if dangerousRE.FindString(s) == "" {
+		if regexes.dangerous.FindString(s) == "" {
 			t.Errorf("should have matched: %s", s)
 		}
 	}

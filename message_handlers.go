@@ -10,7 +10,7 @@ import (
 
 func handleSubUnsub(msg string, evt *event.Event) {
 	// TODO move this to caller
-	matches := subUnsubRE.FindStringSubmatch(msg)
+	matches := regexes.subscribe.FindStringSubmatch(msg)
 	if matches == nil {
 		slog.Error("handleSubUnsub: We should not be here")
 
