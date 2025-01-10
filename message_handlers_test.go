@@ -2,8 +2,11 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
+	"os"
+	"slices"
 	"testing"
 
 	"maunium.net/go/mautrix"
@@ -61,9 +64,7 @@ func TestSub(t *testing.T) {
 			},
 			sender: testSender,
 		}
-		if _, err := clients.db.Exec("INSERT INTO packages(attr_path) VALUES (?)", v.ap); err != nil {
-			panic(err)
-		}
+		addPackages(v.ap)
 
 		subscribe(v.ap)
 
@@ -312,16 +313,39 @@ func TestCheckIfSubExists(t *testing.T) {
 	if err != nil {
 		panic(err)
 	} else if !exists {
-		t.Errorf("should exist")
+		t.Error("should exist")
 	}
 }
 
-func TestOwnDisown(t *testing.T) {
+func TestFollowUnfollow(t *testing.T) {
 	if err := setupDB(ctx, ":memory:"); err != nil {
 		panic(err)
 	}
 
-	addPackages("foo", "bar", "baz")
+	h.packagesJSONFetcher = stubJSONFetcher
+	ps := findPackagesForHandle(h.packagesJSONFetcher(), "asymmetric")
+
+	for _, p := range ps {
+		if _, err := clients.db.Exec("INSERT INTO packages(attr_path, last_visited) VALUES (?, ?)", p, "1999"); err != nil {
+			panic(err)
+		}
+	}
+
+	fillEventContent(evt, fmt.Sprintf("follow %s", "asymmetric"))
+	handleMessage(ctx, evt)
+
+	var exists bool
+	var err error
+	for _, p := range ps {
+		exists, err = checkIfSubExists(p, evt.RoomID.String())
+		if err != nil {
+			panic(err)
+		}
+
+		if !exists {
+			t.Errorf("should be subscribed to %s", p)
+		}
+	}
 }
 
 func TestPackagesByMaintainer(t *testing.T) {
@@ -329,20 +353,8 @@ func TestPackagesByMaintainer(t *testing.T) {
 		panic(err)
 	}
 
-	h.packagesJSONFetcher = func() (jsobj map[string]any) {
-		data, err := os.ReadFile("testdata/packages.json")
-		if err != nil {
-			panic(err)
-		}
-
-		if err := json.Unmarshal(data, &jsobj); err != nil {
-			panic(err)
-		}
-
-		return
-	}
-
-	got := packagesByMaintainer("asymmetric")
+	h.packagesJSONFetcher = stubJSONFetcher
+	got := findPackagesForHandle(h.packagesJSONFetcher(), "asymmetric")
 
 	expected := []string{
 		"asc-key-to-qr-code-gif",
@@ -371,6 +383,7 @@ func fillEventContent(evt *event.Event, body string) {
 	}
 }
 
+// TODO add a last_visited argument? what to do when it's irrelevant?
 func addPackages(aps ...string) {
 	for _, ap := range aps {
 		if _, err := clients.db.Exec("INSERT INTO packages(attr_path) VALUES (?)", ap); err != nil {
@@ -387,4 +400,17 @@ func subscribe(ap string) {
 func unsubscribe(ap string) {
 	fillEventContent(evt, fmt.Sprintf("unsub %s", ap))
 	handleMessage(ctx, evt)
+}
+
+func stubJSONFetcher() (jsobj map[string]any) {
+	data, err := os.ReadFile("testdata/packages.json")
+	if err != nil {
+		panic(err)
+	}
+
+	if err := json.Unmarshal(data, &jsobj); err != nil {
+		panic(err)
+	}
+
+	return
 }

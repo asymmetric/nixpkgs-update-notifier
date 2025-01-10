@@ -75,10 +75,16 @@ var (
 	artifactsURL = fmt.Sprintf("https://api.github.com/repos/%s/%s/actions/artifacts", repoOwner, repoName)
 )
 
+const packagesURL = "https://channels.nixos.org/nixos-unstable/packages.json.br"
+
 // These are abstracted so that we can pass a different function in tests.
 type handlers struct {
+	// Fetches logs for a URL.
 	logFetcher func(string) (string, bool)
-	sender     func(string, id.RoomID) (*mautrix.RespSendEvent, error)
+	// Sends messages to  a user via Matrix.
+	sender func(string, id.RoomID) (*mautrix.RespSendEvent, error)
+	// Fetches packages.json from nixos.org.
+	packagesJSONFetcher func() map[string]any
 }
 
 var h handlers
@@ -89,8 +95,8 @@ These are the available commands:
 
 - **sub foo**: subscribe to package <code>foo</code>
 - **unsub foo**: unsubscribe from package <code>foo</code>
-- **own*: subscribe to all packages you maintain
-- **disown**: unsubscribe to all packages you maintain
+- **follow foo*: subscribe to all packages maintained by Nixpkgs maintainer <code>foo</code>
+- **unfollow foo**: unsubscribe to all packages maintained by Nixpkgs maintainer <code>foo</code>
 - **subs**: list subscriptions
 - **help**: show this help message
 
@@ -104,6 +110,7 @@ Things you cannot do:
 - <code>sub *</code>
 - <code>sub ?</code>
 - <code>sub foo.*</code>
+- <code>follow *</code>
 
 The code for the bot is [here](https://github.com/asymmetric/nixpkgs-update-notifier).
 `
@@ -115,7 +122,6 @@ func init() {
 		sender:              sendMarkdown,
 		packagesJSONFetcher: fetchPackagesJSON,
 	}
-
 }
 
 func main() {
@@ -365,20 +371,8 @@ Type **help** for a list of allowed/forbidden patterns.`
 		}
 	} else if regexes.subscribe.MatchString(msg) {
 		handleSubUnsub(msg, evt)
-	} else if ownDisownRE.MatchString(msg) {
-		// check matrix_to_nix.json, find github user that matches matrix user
-		s := evt.Sender.String()
-		handle, ok := handleMap[s]
-		if !ok {
-			// TODO tell user they can't do this
-		} else {
-			aps := packagesByMaintainer(handle)
-
-			for _, ap := range aps {
-				// TODO (un)subscribe from each ap
-				fmt.Printf("got %s\n", ap)
-			}
-		}
+	} else if regexes.follow.MatchString(msg) {
+		handleFollowUnfollow(msg, evt)
 	} else if msg == "subs" {
 		handleSubs(evt)
 	} else {

@@ -76,6 +76,19 @@ func TestDangerousRegexp(t *testing.T) {
 	}
 }
 
+func TestFollowRegexp(t *testing.T) {
+	ss := []string{
+		"follow *",
+		"unfollow *",
+	}
+
+	for _, s := range ss {
+		if regexes.dangerous.FindString(s) != "" {
+			t.Errorf("should not have matched: %s", s)
+		}
+	}
+}
+
 func TestSubscribeSetsLastVisited(t *testing.T) {
 	if err := setupDB(ctx, ":memory:"); err != nil {
 		panic(err)

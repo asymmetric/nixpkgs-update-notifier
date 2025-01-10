@@ -1,10 +1,15 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
+	"net/http"
 	"strings"
 
+	"github.com/andybalholm/brotli"
+	"github.com/itchyny/gojq"
 	"maunium.net/go/mautrix/event"
 )
 
@@ -170,9 +175,77 @@ func handleSubs(evt *event.Event) {
 	}
 }
 
+func handleFollowUnfollow(msg string, evt *event.Event) {
+	matches := regexes.follow.FindStringSubmatch(msg)
+	un := matches[1]
+	handle := matches[2]
+	pjson := h.packagesJSONFetcher()
+
+	aps := findPackagesForHandle(pjson, handle)
+
+	if un != "" {
+		if _, err := clients.db.Exec("DELETE FROM subscriptions WHERE mxid = ? AND attr_path IN ?", evt.Sender, aps); err != nil {
+			panic(err)
+		}
+	} else {
+		for _, ap := range aps {
+			if _, err := clients.db.Exec("INSERT INTO subscriptions(roomid,attr_path,mxid) VALUES (?, ?, ?)", evt.RoomID, ap, evt.Sender); err != nil {
+				panic(err)
+			}
+		}
+	}
+
+}
+
 // Checks if the user is already subscribed to the package
 func checkIfSubExists(attr_path, roomid string) (exists bool, err error) {
 	err = clients.db.QueryRow("SELECT EXISTS (SELECT 1 FROM subscriptions WHERE roomid = ? AND attr_path = ? LIMIT 1)", roomid, attr_path).Scan(&exists)
 
 	return exists, err
+}
+
+func findPackagesForHandle(jsobj map[string]any, handle string) []string {
+	query, err := gojq.Parse(fmt.Sprintf(`.packages|to_entries[]|select(.value.meta.maintainers[]?|.github|index("%s"))|.key`, handle))
+	if err != nil {
+		panic(err)
+	}
+
+	// list of maintained packages
+	var mps []string
+	iter := query.Run(jsobj)
+	for {
+		v, ok := iter.Next()
+		if !ok {
+			break
+		}
+		if err, ok := v.(error); ok {
+			if err, ok := err.(*gojq.HaltError); ok && err.Value() == nil {
+				break
+			}
+			panic(err)
+		}
+		mps = append(mps, v.(string))
+	}
+
+	return mps
+}
+
+// Fetches the packages.json.br, unpacks it and returns it as serialized JSON.
+func fetchPackagesJSON() (jsobj map[string]any) {
+	resp, err := http.Get(packagesURL)
+	if err != nil {
+		panic(err)
+	}
+	defer resp.Body.Close()
+
+	data, err := io.ReadAll(brotli.NewReader(resp.Body))
+	if err != nil {
+		panic(err)
+	}
+
+	if err := json.Unmarshal(data, &jsobj); err != nil {
+		panic(err)
+	}
+
+	return
 }

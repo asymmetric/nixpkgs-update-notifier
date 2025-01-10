@@ -1,0 +1,1887 @@
+{
+  "packages": {
+    "asc-key-to-qr-code-gif": {
+      "meta": {
+        "available": false,
+        "broken": false,
+        "description": "Convert ASCII-armored PGP keys to animated QR code",
+        "homepage": "https://github.com/yishilin14/asc-key-to-qr-code-gif",
+        "insecure": false,
+        "license": {
+          "deprecated": false,
+          "free": false,
+          "fullName": "Unfree",
+          "redistributable": false,
+          "shortName": "unfree"
+        },
+        "mainProgram": "asc-to-gif",
+        "maintainers": [
+          {
+            "email": "lorenzo@mailbox.org",
+            "github": "asymmetric",
+            "githubId": 101816,
+            "name": "Lorenzo Manacorda"
+          },
+          {
+            "email": "raf@notashelf.dev",
+            "github": "NotAShelf",
+            "githubId": 62766066,
+            "matrix": "@raf:notashelf.dev",
+            "name": "NotAShelf"
+          }
+        ],
+        "name": "asc-key-to-qr-code-gif-0-unstable-2019-01-27",
+        "outputsToInstall": [
+          "out"
+        ],
+        "platforms": [
+          "i686-cygwin",
+          "x86_64-cygwin",
+          "x86_64-darwin",
+          "i686-darwin",
+          "aarch64-darwin",
+          "armv7a-darwin",
+          "i686-freebsd",
+          "x86_64-freebsd",
+          "aarch64-freebsd",
+          "x86_64-solaris",
+          "aarch64-linux",
+          "armv5tel-linux",
+          "armv6l-linux",
+          "armv7a-linux",
+          "armv7l-linux",
+          "i686-linux",
+          "loongarch64-linux",
+          "m68k-linux",
+          "microblaze-linux",
+          "microblazeel-linux",
+          "mips-linux",
+          "mips64-linux",
+          "mips64el-linux",
+          "mipsel-linux",
+          "powerpc64-linux",
+          "powerpc64le-linux",
+          "riscv32-linux",
+          "riscv64-linux",
+          "s390-linux",
+          "s390x-linux",
+          "x86_64-linux",
+          "aarch64-netbsd",
+          "armv6l-netbsd",
+          "armv7a-netbsd",
+          "armv7l-netbsd",
+          "i686-netbsd",
+          "m68k-netbsd",
+          "mipsel-netbsd",
+          "powerpc-netbsd",
+          "riscv32-netbsd",
+          "riscv64-netbsd",
+          "x86_64-netbsd",
+          "i686-openbsd",
+          "x86_64-openbsd",
+          "x86_64-redox"
+        ],
+        "position": "pkgs/by-name/as/asc-key-to-qr-code-gif/package.nix:49",
+        "unfree": true,
+        "unsupported": false
+      },
+      "name": "asc-key-to-qr-code-gif-0-unstable-2019-01-27",
+      "outputName": "out",
+      "outputs": {
+        "out": null
+      },
+      "pname": "asc-key-to-qr-code-gif",
+      "system": "x86_64-linux",
+      "version": "0-unstable-2019-01-27"
+    },
+    "btrbk": {
+      "meta": {
+        "available": true,
+        "broken": false,
+        "description": "Backup tool for btrfs subvolumes",
+        "homepage": "https://digint.ch/btrbk",
+        "insecure": false,
+        "license": {
+          "deprecated": false,
+          "free": true,
+          "fullName": "GNU General Public License v3.0 only",
+          "redistributable": true,
+          "shortName": "gpl3Only",
+          "spdxId": "GPL-3.0-only",
+          "url": "https://spdx.org/licenses/GPL-3.0-only.html"
+        },
+        "mainProgram": "btrbk",
+        "maintainers": [
+          {
+            "email": "lorenzo@mailbox.org",
+            "github": "asymmetric",
+            "githubId": 101816,
+            "name": "Lorenzo Manacorda"
+          }
+        ],
+        "name": "btrbk-0.32.6",
+        "outputsToInstall": [
+          "out"
+        ],
+        "platforms": [
+          "i686-cygwin",
+          "x86_64-cygwin",
+          "x86_64-darwin",
+          "i686-darwin",
+          "aarch64-darwin",
+          "armv7a-darwin",
+          "i686-freebsd",
+          "x86_64-freebsd",
+          "aarch64-freebsd",
+          "x86_64-solaris",
+          "aarch64-linux",
+          "armv5tel-linux",
+          "armv6l-linux",
+          "armv7a-linux",
+          "armv7l-linux",
+          "i686-linux",
+          "loongarch64-linux",
+          "m68k-linux",
+          "microblaze-linux",
+          "microblazeel-linux",
+          "mips-linux",
+          "mips64-linux",
+          "mips64el-linux",
+          "mipsel-linux",
+          "powerpc64-linux",
+          "powerpc64le-linux",
+          "riscv32-linux",
+          "riscv64-linux",
+          "s390-linux",
+          "s390x-linux",
+          "x86_64-linux",
+          "aarch64-netbsd",
+          "armv6l-netbsd",
+          "armv7a-netbsd",
+          "armv7l-netbsd",
+          "i686-netbsd",
+          "m68k-netbsd",
+          "mipsel-netbsd",
+          "powerpc-netbsd",
+          "riscv32-netbsd",
+          "riscv64-netbsd",
+          "x86_64-netbsd",
+          "i686-openbsd",
+          "x86_64-openbsd",
+          "x86_64-redox"
+        ],
+        "position": "pkgs/by-name/bt/btrbk/package.nix:86",
+        "unfree": false,
+        "unsupported": false
+      },
+      "name": "btrbk-0.32.6",
+      "outputName": "out",
+      "outputs": {
+        "out": null
+      },
+      "pname": "btrbk",
+      "system": "x86_64-linux",
+      "version": "0.32.6"
+    },
+    "btrfs-list": {
+      "meta": {
+        "available": true,
+        "broken": false,
+        "description": "Get a nice tree-style view of your btrfs subvolumes/snapshots, including their size, à la 'zfs list'",
+        "homepage": "https://github.com/speed47/btrfs-list",
+        "insecure": false,
+        "license": {
+          "deprecated": false,
+          "free": true,
+          "fullName": "GNU General Public License v2.0 only",
+          "redistributable": true,
+          "shortName": "gpl2Only",
+          "spdxId": "GPL-2.0-only",
+          "url": "https://spdx.org/licenses/GPL-2.0-only.html"
+        },
+        "mainProgram": "btrfs-list",
+        "maintainers": [
+          {
+            "email": "lorenzo@mailbox.org",
+            "github": "asymmetric",
+            "githubId": 101816,
+            "name": "Lorenzo Manacorda"
+          }
+        ],
+        "name": "btrfs-list-2.4",
+        "outputsToInstall": [
+          "out"
+        ],
+        "platforms": [
+          "aarch64-linux",
+          "armv5tel-linux",
+          "armv6l-linux",
+          "armv7a-linux",
+          "armv7l-linux",
+          "i686-linux",
+          "loongarch64-linux",
+          "m68k-linux",
+          "microblaze-linux",
+          "microblazeel-linux",
+          "mips-linux",
+          "mips64-linux",
+          "mips64el-linux",
+          "mipsel-linux",
+          "powerpc64-linux",
+          "powerpc64le-linux",
+          "riscv32-linux",
+          "riscv64-linux",
+          "s390-linux",
+          "s390x-linux",
+          "x86_64-linux"
+        ],
+        "position": "pkgs/by-name/bt/btrfs-list/package.nix:40",
+        "unfree": false,
+        "unsupported": false
+      },
+      "name": "btrfs-list-2.4",
+      "outputName": "out",
+      "outputs": {
+        "out": null
+      },
+      "pname": "btrfs-list",
+      "system": "x86_64-linux",
+      "version": "2.4"
+    },
+    "diceware": {
+      "meta": {
+        "available": true,
+        "broken": false,
+        "changelog": "https://github.com/ulif/diceware/blob/v0.10/CHANGES.rst",
+        "description": "Generates passphrases by concatenating words randomly picked from wordlists",
+        "homepage": "https://github.com/ulif/diceware",
+        "insecure": false,
+        "isBuildPythonPackage": [
+          "aarch64-linux",
+          "armv5tel-linux",
+          "armv6l-linux",
+          "armv7a-linux",
+          "armv7l-linux",
+          "i686-linux",
+          "loongarch64-linux",
+          "m68k-linux",
+          "microblaze-linux",
+          "microblazeel-linux",
+          "mips-linux",
+          "mips64-linux",
+          "mips64el-linux",
+          "mipsel-linux",
+          "powerpc64-linux",
+          "powerpc64le-linux",
+          "riscv32-linux",
+          "riscv64-linux",
+          "s390-linux",
+          "s390x-linux",
+          "x86_64-linux",
+          "x86_64-darwin",
+          "i686-darwin",
+          "aarch64-darwin",
+          "armv7a-darwin",
+          "i686-cygwin",
+          "x86_64-cygwin",
+          "aarch64-windows",
+          "x86_64-windows",
+          "i686-windows",
+          "i686-freebsd",
+          "x86_64-freebsd",
+          "aarch64-freebsd"
+        ],
+        "license": {
+          "deprecated": true,
+          "free": true,
+          "fullName": "GNU General Public License v3.0",
+          "redistributable": true,
+          "shortName": "gpl3",
+          "spdxId": "GPL-3.0",
+          "url": "https://spdx.org/licenses/GPL-3.0.html"
+        },
+        "mainProgram": "diceware",
+        "maintainers": [
+          {
+            "email": "lorenzo@mailbox.org",
+            "github": "asymmetric",
+            "githubId": 101816,
+            "name": "Lorenzo Manacorda"
+          }
+        ],
+        "name": "python3.12-diceware-0.10",
+        "outputsToInstall": [
+          "out"
+        ],
+        "platforms": [
+          "aarch64-linux",
+          "armv5tel-linux",
+          "armv6l-linux",
+          "armv7a-linux",
+          "armv7l-linux",
+          "i686-linux",
+          "loongarch64-linux",
+          "m68k-linux",
+          "microblaze-linux",
+          "microblazeel-linux",
+          "mips-linux",
+          "mips64-linux",
+          "mips64el-linux",
+          "mipsel-linux",
+          "powerpc64-linux",
+          "powerpc64le-linux",
+          "riscv32-linux",
+          "riscv64-linux",
+          "s390-linux",
+          "s390x-linux",
+          "x86_64-linux",
+          "x86_64-darwin",
+          "i686-darwin",
+          "aarch64-darwin",
+          "armv7a-darwin",
+          "i686-cygwin",
+          "x86_64-cygwin",
+          "aarch64-windows",
+          "x86_64-windows",
+          "i686-windows",
+          "i686-freebsd",
+          "x86_64-freebsd",
+          "aarch64-freebsd"
+        ],
+        "position": "pkgs/development/python-modules/diceware/default.nix:39",
+        "unfree": false,
+        "unsupported": false
+      },
+      "name": "diceware-0.10",
+      "outputName": "out",
+      "outputs": {
+        "dist": null,
+        "out": null
+      },
+      "pname": "diceware",
+      "system": "x86_64-linux",
+      "version": "0.10"
+    },
+    "evmdis": {
+      "meta": {
+        "available": true,
+        "broken": false,
+        "description": "Ethereum EVM disassembler",
+        "homepage": "https://github.com/Arachnid/evmdis",
+        "insecure": false,
+        "license": [
+          {
+            "deprecated": false,
+            "free": true,
+            "fullName": "Apache License 2.0",
+            "redistributable": true,
+            "shortName": "asl20",
+            "spdxId": "Apache-2.0",
+            "url": "https://spdx.org/licenses/Apache-2.0.html"
+          }
+        ],
+        "mainProgram": "evmdis",
+        "maintainers": [
+          {
+            "email": "lorenzo@mailbox.org",
+            "github": "asymmetric",
+            "githubId": 101816,
+            "name": "Lorenzo Manacorda"
+          }
+        ],
+        "name": "evmdis-unstable-2022-05-09",
+        "outputsToInstall": [
+          "out"
+        ],
+        "platforms": [
+          "x86_64-darwin",
+          "i686-darwin",
+          "aarch64-darwin",
+          "armv7a-darwin",
+          "aarch64-linux",
+          "armv5tel-linux",
+          "armv6l-linux",
+          "armv7a-linux",
+          "armv7l-linux",
+          "i686-linux",
+          "loongarch64-linux",
+          "m68k-linux",
+          "microblaze-linux",
+          "microblazeel-linux",
+          "mips-linux",
+          "mips64-linux",
+          "mips64el-linux",
+          "mipsel-linux",
+          "powerpc64-linux",
+          "powerpc64le-linux",
+          "riscv32-linux",
+          "riscv64-linux",
+          "s390-linux",
+          "s390x-linux",
+          "x86_64-linux",
+          "wasm64-wasi",
+          "wasm32-wasi",
+          "i686-freebsd",
+          "x86_64-freebsd",
+          "aarch64-freebsd"
+        ],
+        "position": "pkgs/by-name/ev/evmdis/package.nix:28",
+        "unfree": false,
+        "unsupported": false
+      },
+      "name": "evmdis-unstable-2022-05-09",
+      "outputName": "out",
+      "outputs": {
+        "out": null
+      },
+      "pname": "evmdis-unstable",
+      "system": "x86_64-linux",
+      "version": "2022-05-09"
+    },
+    "ledger-udev-rules": {
+      "meta": {
+        "available": true,
+        "broken": false,
+        "description": "udev rules for Ledger devices",
+        "homepage": "https://github.com/LedgerHQ/udev-rules",
+        "insecure": false,
+        "license": {
+          "deprecated": false,
+          "free": true,
+          "fullName": "Apache License 2.0",
+          "redistributable": true,
+          "shortName": "asl20",
+          "spdxId": "Apache-2.0",
+          "url": "https://spdx.org/licenses/Apache-2.0.html"
+        },
+        "maintainers": [
+          {
+            "email": "lorenzo@mailbox.org",
+            "github": "asymmetric",
+            "githubId": 101816,
+            "name": "Lorenzo Manacorda"
+          },
+          {
+            "email": "Aki@ToasterUwU.com",
+            "github": "ToasterUwU",
+            "githubId": 43654377,
+            "name": "Aki"
+          }
+        ],
+        "name": "ledger-udev-rules-0-unstable-2024-02-12",
+        "outputsToInstall": [
+          "out"
+        ],
+        "platforms": [
+          "aarch64-linux",
+          "armv5tel-linux",
+          "armv6l-linux",
+          "armv7a-linux",
+          "armv7l-linux",
+          "i686-linux",
+          "loongarch64-linux",
+          "m68k-linux",
+          "microblaze-linux",
+          "microblazeel-linux",
+          "mips-linux",
+          "mips64-linux",
+          "mips64el-linux",
+          "mipsel-linux",
+          "powerpc64-linux",
+          "powerpc64le-linux",
+          "riscv32-linux",
+          "riscv64-linux",
+          "s390-linux",
+          "s390x-linux",
+          "x86_64-linux"
+        ],
+        "position": "pkgs/by-name/le/ledger-udev-rules/package.nix:27",
+        "unfree": false,
+        "unsupported": false
+      },
+      "name": "ledger-udev-rules-0-unstable-2024-02-12",
+      "outputName": "out",
+      "outputs": {
+        "out": null
+      },
+      "pname": "ledger-udev-rules",
+      "system": "x86_64-linux",
+      "version": "0-unstable-2024-02-12"
+    },
+    "python312Packages.diceware": {
+      "meta": {
+        "available": true,
+        "broken": false,
+        "changelog": "https://github.com/ulif/diceware/blob/v0.10/CHANGES.rst",
+        "description": "Generates passphrases by concatenating words randomly picked from wordlists",
+        "homepage": "https://github.com/ulif/diceware",
+        "insecure": false,
+        "isBuildPythonPackage": [
+          "aarch64-linux",
+          "armv5tel-linux",
+          "armv6l-linux",
+          "armv7a-linux",
+          "armv7l-linux",
+          "i686-linux",
+          "loongarch64-linux",
+          "m68k-linux",
+          "microblaze-linux",
+          "microblazeel-linux",
+          "mips-linux",
+          "mips64-linux",
+          "mips64el-linux",
+          "mipsel-linux",
+          "powerpc64-linux",
+          "powerpc64le-linux",
+          "riscv32-linux",
+          "riscv64-linux",
+          "s390-linux",
+          "s390x-linux",
+          "x86_64-linux",
+          "x86_64-darwin",
+          "i686-darwin",
+          "aarch64-darwin",
+          "armv7a-darwin",
+          "i686-cygwin",
+          "x86_64-cygwin",
+          "aarch64-windows",
+          "x86_64-windows",
+          "i686-windows",
+          "i686-freebsd",
+          "x86_64-freebsd",
+          "aarch64-freebsd"
+        ],
+        "license": {
+          "deprecated": true,
+          "free": true,
+          "fullName": "GNU General Public License v3.0",
+          "redistributable": true,
+          "shortName": "gpl3",
+          "spdxId": "GPL-3.0",
+          "url": "https://spdx.org/licenses/GPL-3.0.html"
+        },
+        "mainProgram": "diceware",
+        "maintainers": [
+          {
+            "email": "lorenzo@mailbox.org",
+            "github": "asymmetric",
+            "githubId": 101816,
+            "name": "Lorenzo Manacorda"
+          }
+        ],
+        "name": "python3.12-diceware-0.10",
+        "outputsToInstall": [
+          "out"
+        ],
+        "platforms": [
+          "aarch64-linux",
+          "armv5tel-linux",
+          "armv6l-linux",
+          "armv7a-linux",
+          "armv7l-linux",
+          "i686-linux",
+          "loongarch64-linux",
+          "m68k-linux",
+          "microblaze-linux",
+          "microblazeel-linux",
+          "mips-linux",
+          "mips64-linux",
+          "mips64el-linux",
+          "mipsel-linux",
+          "powerpc64-linux",
+          "powerpc64le-linux",
+          "riscv32-linux",
+          "riscv64-linux",
+          "s390-linux",
+          "s390x-linux",
+          "x86_64-linux",
+          "x86_64-darwin",
+          "i686-darwin",
+          "aarch64-darwin",
+          "armv7a-darwin",
+          "i686-cygwin",
+          "x86_64-cygwin",
+          "aarch64-windows",
+          "x86_64-windows",
+          "i686-windows",
+          "i686-freebsd",
+          "x86_64-freebsd",
+          "aarch64-freebsd"
+        ],
+        "position": "pkgs/development/python-modules/diceware/default.nix:39",
+        "unfree": false,
+        "unsupported": false
+      },
+      "name": "python3.12-diceware-0.10",
+      "outputName": "out",
+      "outputs": {
+        "dist": null,
+        "out": null
+      },
+      "pname": "python3.12-diceware",
+      "system": "x86_64-linux",
+      "version": "0.10"
+    },
+    "python313Packages.diceware": {
+      "meta": {
+        "available": true,
+        "broken": false,
+        "changelog": "https://github.com/ulif/diceware/blob/v0.10/CHANGES.rst",
+        "description": "Generates passphrases by concatenating words randomly picked from wordlists",
+        "homepage": "https://github.com/ulif/diceware",
+        "insecure": false,
+        "isBuildPythonPackage": [
+          "aarch64-linux",
+          "armv5tel-linux",
+          "armv6l-linux",
+          "armv7a-linux",
+          "armv7l-linux",
+          "i686-linux",
+          "loongarch64-linux",
+          "m68k-linux",
+          "microblaze-linux",
+          "microblazeel-linux",
+          "mips-linux",
+          "mips64-linux",
+          "mips64el-linux",
+          "mipsel-linux",
+          "powerpc64-linux",
+          "powerpc64le-linux",
+          "riscv32-linux",
+          "riscv64-linux",
+          "s390-linux",
+          "s390x-linux",
+          "x86_64-linux",
+          "x86_64-darwin",
+          "i686-darwin",
+          "aarch64-darwin",
+          "armv7a-darwin",
+          "i686-cygwin",
+          "x86_64-cygwin",
+          "aarch64-windows",
+          "x86_64-windows",
+          "i686-windows",
+          "i686-freebsd",
+          "x86_64-freebsd",
+          "aarch64-freebsd"
+        ],
+        "license": {
+          "deprecated": true,
+          "free": true,
+          "fullName": "GNU General Public License v3.0",
+          "redistributable": true,
+          "shortName": "gpl3",
+          "spdxId": "GPL-3.0",
+          "url": "https://spdx.org/licenses/GPL-3.0.html"
+        },
+        "mainProgram": "diceware",
+        "maintainers": [
+          {
+            "email": "lorenzo@mailbox.org",
+            "github": "asymmetric",
+            "githubId": 101816,
+            "name": "Lorenzo Manacorda"
+          }
+        ],
+        "name": "python3.13-diceware-0.10",
+        "outputsToInstall": [
+          "out"
+        ],
+        "platforms": [
+          "aarch64-linux",
+          "armv5tel-linux",
+          "armv6l-linux",
+          "armv7a-linux",
+          "armv7l-linux",
+          "i686-linux",
+          "loongarch64-linux",
+          "m68k-linux",
+          "microblaze-linux",
+          "microblazeel-linux",
+          "mips-linux",
+          "mips64-linux",
+          "mips64el-linux",
+          "mipsel-linux",
+          "powerpc64-linux",
+          "powerpc64le-linux",
+          "riscv32-linux",
+          "riscv64-linux",
+          "s390-linux",
+          "s390x-linux",
+          "x86_64-linux",
+          "x86_64-darwin",
+          "i686-darwin",
+          "aarch64-darwin",
+          "armv7a-darwin",
+          "i686-cygwin",
+          "x86_64-cygwin",
+          "aarch64-windows",
+          "x86_64-windows",
+          "i686-windows",
+          "i686-freebsd",
+          "x86_64-freebsd",
+          "aarch64-freebsd"
+        ],
+        "position": "pkgs/development/python-modules/diceware/default.nix:39",
+        "unfree": false,
+        "unsupported": false
+      },
+      "name": "python3.13-diceware-0.10",
+      "outputName": "out",
+      "outputs": {
+        "dist": null,
+        "out": null
+      },
+      "pname": "python3.13-diceware",
+      "system": "x86_64-linux",
+      "version": "0.10"
+    },
+    "siji": {
+      "meta": {
+        "available": true,
+        "broken": false,
+        "description": "Iconic bitmap font based on Stlarch with additional glyphs",
+        "homepage": "https://github.com/stark/siji",
+        "insecure": false,
+        "license": {
+          "deprecated": true,
+          "free": true,
+          "fullName": "GNU General Public License v2.0",
+          "redistributable": true,
+          "shortName": "gpl2",
+          "spdxId": "GPL-2.0",
+          "url": "https://spdx.org/licenses/GPL-2.0.html"
+        },
+        "maintainers": [
+          {
+            "email": "lorenzo@mailbox.org",
+            "github": "asymmetric",
+            "githubId": 101816,
+            "name": "Lorenzo Manacorda"
+          }
+        ],
+        "name": "siji-2016-05-13",
+        "outputsToInstall": [
+          "out"
+        ],
+        "platforms": [
+          "i686-cygwin",
+          "x86_64-cygwin",
+          "x86_64-darwin",
+          "i686-darwin",
+          "aarch64-darwin",
+          "armv7a-darwin",
+          "i686-freebsd",
+          "x86_64-freebsd",
+          "aarch64-freebsd",
+          "aarch64-genode",
+          "i686-genode",
+          "x86_64-genode",
+          "x86_64-solaris",
+          "javascript-ghcjs",
+          "aarch64-linux",
+          "armv5tel-linux",
+          "armv6l-linux",
+          "armv7a-linux",
+          "armv7l-linux",
+          "i686-linux",
+          "loongarch64-linux",
+          "m68k-linux",
+          "microblaze-linux",
+          "microblazeel-linux",
+          "mips-linux",
+          "mips64-linux",
+          "mips64el-linux",
+          "mipsel-linux",
+          "powerpc64-linux",
+          "powerpc64le-linux",
+          "riscv32-linux",
+          "riscv64-linux",
+          "s390-linux",
+          "s390x-linux",
+          "x86_64-linux",
+          "mmix-mmixware",
+          "aarch64-netbsd",
+          "armv6l-netbsd",
+          "armv7a-netbsd",
+          "armv7l-netbsd",
+          "i686-netbsd",
+          "m68k-netbsd",
+          "mipsel-netbsd",
+          "powerpc-netbsd",
+          "riscv32-netbsd",
+          "riscv64-netbsd",
+          "x86_64-netbsd",
+          "aarch64_be-none",
+          "aarch64-none",
+          "arm-none",
+          "armv6l-none",
+          "avr-none",
+          "i686-none",
+          "microblaze-none",
+          "microblazeel-none",
+          "mips-none",
+          "mips64-none",
+          "msp430-none",
+          "or1k-none",
+          "m68k-none",
+          "powerpc-none",
+          "powerpcle-none",
+          "riscv32-none",
+          "riscv64-none",
+          "rx-none",
+          "s390-none",
+          "s390x-none",
+          "vc4-none",
+          "x86_64-none",
+          "i686-openbsd",
+          "x86_64-openbsd",
+          "x86_64-redox",
+          "wasm64-wasi",
+          "wasm32-wasi",
+          "aarch64-windows",
+          "x86_64-windows",
+          "i686-windows"
+        ],
+        "position": "pkgs/by-name/si/siji/package.nix:52",
+        "unfree": false,
+        "unsupported": false
+      },
+      "name": "siji-2016-05-13",
+      "outputName": "out",
+      "outputs": {
+        "bdf": null,
+        "out": null
+      },
+      "pname": "siji",
+      "system": "x86_64-linux",
+      "version": "2016-05-13"
+    },
+    "ssb-patchwork": {
+      "meta": {
+        "available": true,
+        "broken": false,
+        "description": "Decentralized messaging and sharing app built on top of Secure Scuttlebutt (SSB)",
+        "homepage": "https://www.scuttlebutt.nz/",
+        "insecure": false,
+        "license": {
+          "deprecated": false,
+          "free": true,
+          "fullName": "GNU Affero General Public License v3.0 only",
+          "redistributable": true,
+          "shortName": "agpl3Only",
+          "spdxId": "AGPL-3.0-only",
+          "url": "https://spdx.org/licenses/AGPL-3.0-only.html"
+        },
+        "longDescription": "sea-slang for gossip - a scuttlebutt is basically a watercooler on a ship.\n",
+        "mainProgram": "ssb-patchwork",
+        "maintainers": [
+          {
+            "email": "lorenzo@mailbox.org",
+            "github": "asymmetric",
+            "githubId": 101816,
+            "name": "Lorenzo Manacorda"
+          },
+          {
+            "email": "felix@alternativebit.fr",
+            "github": "picnoir",
+            "githubId": 1219785,
+            "matrix": "@picnoir:alternativebit.fr",
+            "name": "Félix Baylac-Jacqué"
+          },
+          {
+            "email": "nixos@cyplo.dev",
+            "github": "cyplo",
+            "githubId": 217899,
+            "matrix": "@cyplo:cyplo.dev",
+            "name": "Cyryl Płotnicki"
+          }
+        ],
+        "name": "Patchwork-3.18.1",
+        "outputsToInstall": [
+          "out"
+        ],
+        "platforms": [
+          "x86_64-linux"
+        ],
+        "position": "pkgs/by-name/ss/ssb-patchwork/package.nix:49",
+        "unfree": false,
+        "unsupported": false
+      },
+      "name": "Patchwork-3.18.1",
+      "outputName": "out",
+      "outputs": {
+        "out": null
+      },
+      "pname": "Patchwork",
+      "system": "x86_64-linux",
+      "version": "3.18.1"
+    },
+    "nix": {
+      "meta": {
+        "available": true,
+        "broken": false,
+        "description": "Powerful package manager that makes package management reliable and reproducible",
+        "homepage": "https://nixos.org/",
+        "insecure": false,
+        "license": {
+          "deprecated": false,
+          "free": true,
+          "fullName": "GNU Lesser General Public License v2.1 or later",
+          "redistributable": true,
+          "shortName": "lgpl21Plus",
+          "spdxId": "LGPL-2.1-or-later",
+          "url": "https://spdx.org/licenses/LGPL-2.1-or-later.html"
+        },
+        "longDescription": "Nix is a powerful package manager for Linux and other Unix systems that\nmakes package management reliable and reproducible. It provides atomic\nupgrades and rollbacks, side-by-side installation of multiple versions of\na package, multi-user package management and easy setup of build\nenvironments.\n",
+        "mainProgram": "nix",
+        "maintainers": [
+          {
+            "email": "edolstra+nixpkgs@gmail.com",
+            "github": "edolstra",
+            "githubId": 1148549,
+            "name": "Eelco Dolstra"
+          },
+          {
+            "email": "meurerbernardo@gmail.com",
+            "github": "lovesegfault",
+            "githubId": 7243783,
+            "keys": [
+              {
+                "fingerprint": "F193 7596 57D5 6DA4 CCD4  786B F4C0 D53B 8D14 C246"
+              }
+            ],
+            "matrix": "@lovesegfault:matrix.org",
+            "name": "Bernardo Meurer"
+          },
+          {
+            "email": "artturin@artturin.com",
+            "github": "Artturin",
+            "githubId": 56650223,
+            "matrix": "@artturin:matrix.org",
+            "name": "Artturi N"
+          }
+        ],
+        "name": "nix-2.24.11",
+        "outputsToInstall": [
+          "out",
+          "man"
+        ],
+        "platforms": [
+          "i686-cygwin",
+          "x86_64-cygwin",
+          "x86_64-darwin",
+          "i686-darwin",
+          "aarch64-darwin",
+          "armv7a-darwin",
+          "i686-freebsd",
+          "x86_64-freebsd",
+          "aarch64-freebsd",
+          "x86_64-solaris",
+          "aarch64-linux",
+          "armv5tel-linux",
+          "armv6l-linux",
+          "armv7a-linux",
+          "armv7l-linux",
+          "i686-linux",
+          "loongarch64-linux",
+          "m68k-linux",
+          "microblaze-linux",
+          "microblazeel-linux",
+          "mips-linux",
+          "mips64-linux",
+          "mips64el-linux",
+          "mipsel-linux",
+          "powerpc64-linux",
+          "powerpc64le-linux",
+          "riscv32-linux",
+          "riscv64-linux",
+          "s390-linux",
+          "s390x-linux",
+          "x86_64-linux",
+          "aarch64-netbsd",
+          "armv6l-netbsd",
+          "armv7a-netbsd",
+          "armv7l-netbsd",
+          "i686-netbsd",
+          "m68k-netbsd",
+          "mipsel-netbsd",
+          "powerpc-netbsd",
+          "riscv32-netbsd",
+          "riscv64-netbsd",
+          "x86_64-netbsd",
+          "i686-openbsd",
+          "x86_64-openbsd",
+          "x86_64-redox"
+        ],
+        "position": "pkgs/tools/package-management/nix/default.nix:176",
+        "unfree": false,
+        "unsupported": false
+      },
+      "name": "nix-2.24.11",
+      "outputName": "out",
+      "outputs": {
+        "debug": null,
+        "dev": null,
+        "doc": null,
+        "man": null,
+        "out": null
+      },
+      "pname": "nix",
+      "system": "x86_64-linux",
+      "version": "2.24.11"
+    },
+    "nix-generate-from-cpan": {
+      "meta": {
+        "available": true,
+        "broken": false,
+        "description": "Utility to generate a Nix expression for a Perl package from CPAN",
+        "insecure": false,
+        "mainProgram": "nix-generate-from-cpan",
+        "maintainers": [
+          {
+            "email": "edolstra+nixpkgs@gmail.com",
+            "github": "edolstra",
+            "githubId": 1148549,
+            "name": "Eelco Dolstra"
+          }
+        ],
+        "name": "nix-generate-from-cpan-3",
+        "outputsToInstall": [
+          "out"
+        ],
+        "platforms": [
+          "i686-cygwin",
+          "x86_64-cygwin",
+          "x86_64-darwin",
+          "i686-darwin",
+          "aarch64-darwin",
+          "armv7a-darwin",
+          "i686-freebsd",
+          "x86_64-freebsd",
+          "aarch64-freebsd",
+          "x86_64-solaris",
+          "aarch64-linux",
+          "armv5tel-linux",
+          "armv6l-linux",
+          "armv7a-linux",
+          "armv7l-linux",
+          "i686-linux",
+          "loongarch64-linux",
+          "m68k-linux",
+          "microblaze-linux",
+          "microblazeel-linux",
+          "mips-linux",
+          "mips64-linux",
+          "mips64el-linux",
+          "mipsel-linux",
+          "powerpc64-linux",
+          "powerpc64le-linux",
+          "riscv32-linux",
+          "riscv64-linux",
+          "s390-linux",
+          "s390x-linux",
+          "x86_64-linux",
+          "aarch64-netbsd",
+          "armv6l-netbsd",
+          "armv7a-netbsd",
+          "armv7l-netbsd",
+          "i686-netbsd",
+          "m68k-netbsd",
+          "mipsel-netbsd",
+          "powerpc-netbsd",
+          "riscv32-netbsd",
+          "riscv64-netbsd",
+          "x86_64-netbsd",
+          "i686-openbsd",
+          "x86_64-openbsd",
+          "x86_64-redox"
+        ],
+        "position": "maintainers/scripts/nix-generate-from-cpan.nix:33",
+        "unfree": false,
+        "unsupported": false
+      },
+      "name": "nix-generate-from-cpan-3",
+      "outputName": "out",
+      "outputs": {
+        "out": null
+      },
+      "pname": "nix-generate-from-cpan",
+      "system": "x86_64-linux",
+      "version": "3"
+    },
+    "nix-serve": {
+      "meta": {
+        "available": true,
+        "broken": false,
+        "description": "Utility for sharing a Nix store as a binary cache",
+        "homepage": "https://github.com/edolstra/nix-serve",
+        "insecure": false,
+        "license": {
+          "deprecated": true,
+          "free": true,
+          "fullName": "GNU Lesser General Public License v2.1",
+          "redistributable": true,
+          "shortName": "lgpl21",
+          "spdxId": "LGPL-2.1",
+          "url": "https://spdx.org/licenses/LGPL-2.1.html"
+        },
+        "mainProgram": "nix-serve",
+        "maintainers": [
+          {
+            "email": "edolstra+nixpkgs@gmail.com",
+            "github": "edolstra",
+            "githubId": 1148549,
+            "name": "Eelco Dolstra"
+          }
+        ],
+        "name": "nix-serve-0.2-77ffa33",
+        "outputsToInstall": [
+          "out"
+        ],
+        "platforms": [
+          "i686-cygwin",
+          "x86_64-cygwin",
+          "x86_64-darwin",
+          "i686-darwin",
+          "aarch64-darwin",
+          "armv7a-darwin",
+          "i686-freebsd",
+          "x86_64-freebsd",
+          "aarch64-freebsd",
+          "x86_64-solaris",
+          "aarch64-linux",
+          "armv5tel-linux",
+          "armv6l-linux",
+          "armv7a-linux",
+          "armv7l-linux",
+          "i686-linux",
+          "loongarch64-linux",
+          "m68k-linux",
+          "microblaze-linux",
+          "microblazeel-linux",
+          "mips-linux",
+          "mips64-linux",
+          "mips64el-linux",
+          "mipsel-linux",
+          "powerpc64-linux",
+          "powerpc64le-linux",
+          "riscv32-linux",
+          "riscv64-linux",
+          "s390-linux",
+          "s390x-linux",
+          "x86_64-linux",
+          "aarch64-netbsd",
+          "armv6l-netbsd",
+          "armv7a-netbsd",
+          "armv7l-netbsd",
+          "i686-netbsd",
+          "m68k-netbsd",
+          "mipsel-netbsd",
+          "powerpc-netbsd",
+          "riscv32-netbsd",
+          "riscv64-netbsd",
+          "x86_64-netbsd",
+          "i686-openbsd",
+          "x86_64-openbsd",
+          "x86_64-redox"
+        ],
+        "position": "pkgs/by-name/ni/nix-serve/package.nix:73",
+        "unfree": false,
+        "unsupported": false
+      },
+      "name": "nix-serve-0.2-77ffa33",
+      "outputName": "out",
+      "outputs": {
+        "out": null
+      },
+      "pname": "nix-serve",
+      "system": "x86_64-linux",
+      "version": "0.2-77ffa33"
+    },
+    "nixStatic": {
+      "meta": {
+        "available": true,
+        "broken": false,
+        "description": "Powerful package manager that makes package management reliable and reproducible",
+        "homepage": "https://nixos.org/",
+        "insecure": false,
+        "license": {
+          "deprecated": false,
+          "free": true,
+          "fullName": "GNU Lesser General Public License v2.1 or later",
+          "redistributable": true,
+          "shortName": "lgpl21Plus",
+          "spdxId": "LGPL-2.1-or-later",
+          "url": "https://spdx.org/licenses/LGPL-2.1-or-later.html"
+        },
+        "longDescription": "Nix is a powerful package manager for Linux and other Unix systems that\nmakes package management reliable and reproducible. It provides atomic\nupgrades and rollbacks, side-by-side installation of multiple versions of\na package, multi-user package management and easy setup of build\nenvironments.\n",
+        "mainProgram": "nix",
+        "maintainers": [
+          {
+            "email": "edolstra+nixpkgs@gmail.com",
+            "github": "edolstra",
+            "githubId": 1148549,
+            "name": "Eelco Dolstra"
+          },
+          {
+            "email": "meurerbernardo@gmail.com",
+            "github": "lovesegfault",
+            "githubId": 7243783,
+            "keys": [
+              {
+                "fingerprint": "F193 7596 57D5 6DA4 CCD4  786B F4C0 D53B 8D14 C246"
+              }
+            ],
+            "matrix": "@lovesegfault:matrix.org",
+            "name": "Bernardo Meurer"
+          },
+          {
+            "email": "artturin@artturin.com",
+            "github": "Artturin",
+            "githubId": 56650223,
+            "matrix": "@artturin:matrix.org",
+            "name": "Artturi N"
+          }
+        ],
+        "name": "nix-2.24.11",
+        "outputsToInstall": [
+          "out",
+          "man"
+        ],
+        "platforms": [
+          "i686-cygwin",
+          "x86_64-cygwin",
+          "x86_64-darwin",
+          "i686-darwin",
+          "aarch64-darwin",
+          "armv7a-darwin",
+          "i686-freebsd",
+          "x86_64-freebsd",
+          "aarch64-freebsd",
+          "x86_64-solaris",
+          "aarch64-linux",
+          "armv5tel-linux",
+          "armv6l-linux",
+          "armv7a-linux",
+          "armv7l-linux",
+          "i686-linux",
+          "loongarch64-linux",
+          "m68k-linux",
+          "microblaze-linux",
+          "microblazeel-linux",
+          "mips-linux",
+          "mips64-linux",
+          "mips64el-linux",
+          "mipsel-linux",
+          "powerpc64-linux",
+          "powerpc64le-linux",
+          "riscv32-linux",
+          "riscv64-linux",
+          "s390-linux",
+          "s390x-linux",
+          "x86_64-linux",
+          "aarch64-netbsd",
+          "armv6l-netbsd",
+          "armv7a-netbsd",
+          "armv7l-netbsd",
+          "i686-netbsd",
+          "m68k-netbsd",
+          "mipsel-netbsd",
+          "powerpc-netbsd",
+          "riscv32-netbsd",
+          "riscv64-netbsd",
+          "x86_64-netbsd",
+          "i686-openbsd",
+          "x86_64-openbsd",
+          "x86_64-redox"
+        ],
+        "position": "pkgs/tools/package-management/nix/default.nix:176",
+        "unfree": false,
+        "unsupported": false
+      },
+      "name": "nix-static-x86_64-unknown-linux-musl-2.24.11",
+      "outputName": "out",
+      "outputs": {
+        "dev": null,
+        "doc": null,
+        "man": null,
+        "out": null
+      },
+      "pname": "nix-static-x86_64-unknown-linux-musl",
+      "system": "x86_64-linux",
+      "version": "2.24.11"
+    },
+    "nixVersions.git": {
+      "meta": {
+        "available": true,
+        "broken": false,
+        "description": "Powerful package manager that makes package management reliable and reproducible",
+        "homepage": "https://nixos.org/",
+        "insecure": false,
+        "license": {
+          "deprecated": false,
+          "free": true,
+          "fullName": "GNU Lesser General Public License v2.1 or later",
+          "redistributable": true,
+          "shortName": "lgpl21Plus",
+          "spdxId": "LGPL-2.1-or-later",
+          "url": "https://spdx.org/licenses/LGPL-2.1-or-later.html"
+        },
+        "longDescription": "Nix is a powerful package manager for Linux and other Unix systems that\nmakes package management reliable and reproducible. It provides atomic\nupgrades and rollbacks, side-by-side installation of multiple versions of\na package, multi-user package management and easy setup of build\nenvironments.\n",
+        "mainProgram": "nix",
+        "maintainers": [
+          {
+            "email": "edolstra+nixpkgs@gmail.com",
+            "github": "edolstra",
+            "githubId": 1148549,
+            "name": "Eelco Dolstra"
+          },
+          {
+            "email": "meurerbernardo@gmail.com",
+            "github": "lovesegfault",
+            "githubId": 7243783,
+            "keys": [
+              {
+                "fingerprint": "F193 7596 57D5 6DA4 CCD4  786B F4C0 D53B 8D14 C246"
+              }
+            ],
+            "matrix": "@lovesegfault:matrix.org",
+            "name": "Bernardo Meurer"
+          },
+          {
+            "email": "artturin@artturin.com",
+            "github": "Artturin",
+            "githubId": 56650223,
+            "matrix": "@artturin:matrix.org",
+            "name": "Artturi N"
+          }
+        ],
+        "name": "nix-2.25.0pre20241101_2e5759e3",
+        "outputsToInstall": [
+          "out",
+          "man"
+        ],
+        "platforms": [
+          "i686-cygwin",
+          "x86_64-cygwin",
+          "x86_64-darwin",
+          "i686-darwin",
+          "aarch64-darwin",
+          "armv7a-darwin",
+          "i686-freebsd",
+          "x86_64-freebsd",
+          "aarch64-freebsd",
+          "x86_64-solaris",
+          "aarch64-linux",
+          "armv5tel-linux",
+          "armv6l-linux",
+          "armv7a-linux",
+          "armv7l-linux",
+          "i686-linux",
+          "loongarch64-linux",
+          "m68k-linux",
+          "microblaze-linux",
+          "microblazeel-linux",
+          "mips-linux",
+          "mips64-linux",
+          "mips64el-linux",
+          "mipsel-linux",
+          "powerpc64-linux",
+          "powerpc64le-linux",
+          "riscv32-linux",
+          "riscv64-linux",
+          "s390-linux",
+          "s390x-linux",
+          "x86_64-linux",
+          "aarch64-netbsd",
+          "armv6l-netbsd",
+          "armv7a-netbsd",
+          "armv7l-netbsd",
+          "i686-netbsd",
+          "m68k-netbsd",
+          "mipsel-netbsd",
+          "powerpc-netbsd",
+          "riscv32-netbsd",
+          "riscv64-netbsd",
+          "x86_64-netbsd",
+          "i686-openbsd",
+          "x86_64-openbsd",
+          "x86_64-redox"
+        ],
+        "position": "pkgs/tools/package-management/nix/default.nix:188",
+        "unfree": false,
+        "unsupported": false
+      },
+      "name": "nix-2.25.0pre20241101_2e5759e3",
+      "outputName": "out",
+      "outputs": {
+        "debug": null,
+        "dev": null,
+        "doc": null,
+        "man": null,
+        "out": null
+      },
+      "pname": "nix",
+      "system": "x86_64-linux",
+      "version": "2.25.0pre20241101_2e5759e3"
+    },
+    "nixVersions.latest": {
+      "meta": {
+        "available": true,
+        "broken": false,
+        "description": "Powerful package manager that makes package management reliable and reproducible",
+        "homepage": "https://nixos.org/",
+        "insecure": false,
+        "license": {
+          "deprecated": false,
+          "free": true,
+          "fullName": "GNU Lesser General Public License v2.1 or later",
+          "redistributable": true,
+          "shortName": "lgpl21Plus",
+          "spdxId": "LGPL-2.1-or-later",
+          "url": "https://spdx.org/licenses/LGPL-2.1-or-later.html"
+        },
+        "longDescription": "Nix is a powerful package manager for Linux and other Unix systems that\nmakes package management reliable and reproducible. It provides atomic\nupgrades and rollbacks, side-by-side installation of multiple versions of\na package, multi-user package management and easy setup of build\nenvironments.\n",
+        "mainProgram": "nix",
+        "maintainers": [
+          {
+            "email": "edolstra+nixpkgs@gmail.com",
+            "github": "edolstra",
+            "githubId": 1148549,
+            "name": "Eelco Dolstra"
+          },
+          {
+            "email": "meurerbernardo@gmail.com",
+            "github": "lovesegfault",
+            "githubId": 7243783,
+            "keys": [
+              {
+                "fingerprint": "F193 7596 57D5 6DA4 CCD4  786B F4C0 D53B 8D14 C246"
+              }
+            ],
+            "matrix": "@lovesegfault:matrix.org",
+            "name": "Bernardo Meurer"
+          },
+          {
+            "email": "artturin@artturin.com",
+            "github": "Artturin",
+            "githubId": 56650223,
+            "matrix": "@artturin:matrix.org",
+            "name": "Artturi N"
+          }
+        ],
+        "name": "nix-2.25.3",
+        "outputsToInstall": [
+          "out",
+          "man"
+        ],
+        "platforms": [
+          "i686-cygwin",
+          "x86_64-cygwin",
+          "x86_64-darwin",
+          "i686-darwin",
+          "aarch64-darwin",
+          "armv7a-darwin",
+          "i686-freebsd",
+          "x86_64-freebsd",
+          "aarch64-freebsd",
+          "x86_64-solaris",
+          "aarch64-linux",
+          "armv5tel-linux",
+          "armv6l-linux",
+          "armv7a-linux",
+          "armv7l-linux",
+          "i686-linux",
+          "loongarch64-linux",
+          "m68k-linux",
+          "microblaze-linux",
+          "microblazeel-linux",
+          "mips-linux",
+          "mips64-linux",
+          "mips64el-linux",
+          "mipsel-linux",
+          "powerpc64-linux",
+          "powerpc64le-linux",
+          "riscv32-linux",
+          "riscv64-linux",
+          "s390-linux",
+          "s390x-linux",
+          "x86_64-linux",
+          "aarch64-netbsd",
+          "armv6l-netbsd",
+          "armv7a-netbsd",
+          "armv7l-netbsd",
+          "i686-netbsd",
+          "m68k-netbsd",
+          "mipsel-netbsd",
+          "powerpc-netbsd",
+          "riscv32-netbsd",
+          "riscv64-netbsd",
+          "x86_64-netbsd",
+          "i686-openbsd",
+          "x86_64-openbsd",
+          "x86_64-redox"
+        ],
+        "position": "pkgs/tools/package-management/nix/default.nix:182",
+        "unfree": false,
+        "unsupported": false
+      },
+      "name": "nix-2.25.3",
+      "outputName": "out",
+      "outputs": {
+        "debug": null,
+        "dev": null,
+        "doc": null,
+        "man": null,
+        "out": null
+      },
+      "pname": "nix",
+      "system": "x86_64-linux",
+      "version": "2.25.3"
+    },
+    "nixVersions.nix_2_24": {
+      "meta": {
+        "available": true,
+        "broken": false,
+        "description": "Powerful package manager that makes package management reliable and reproducible",
+        "homepage": "https://nixos.org/",
+        "insecure": false,
+        "license": {
+          "deprecated": false,
+          "free": true,
+          "fullName": "GNU Lesser General Public License v2.1 or later",
+          "redistributable": true,
+          "shortName": "lgpl21Plus",
+          "spdxId": "LGPL-2.1-or-later",
+          "url": "https://spdx.org/licenses/LGPL-2.1-or-later.html"
+        },
+        "longDescription": "Nix is a powerful package manager for Linux and other Unix systems that\nmakes package management reliable and reproducible. It provides atomic\nupgrades and rollbacks, side-by-side installation of multiple versions of\na package, multi-user package management and easy setup of build\nenvironments.\n",
+        "mainProgram": "nix",
+        "maintainers": [
+          {
+            "email": "edolstra+nixpkgs@gmail.com",
+            "github": "edolstra",
+            "githubId": 1148549,
+            "name": "Eelco Dolstra"
+          },
+          {
+            "email": "meurerbernardo@gmail.com",
+            "github": "lovesegfault",
+            "githubId": 7243783,
+            "keys": [
+              {
+                "fingerprint": "F193 7596 57D5 6DA4 CCD4  786B F4C0 D53B 8D14 C246"
+              }
+            ],
+            "matrix": "@lovesegfault:matrix.org",
+            "name": "Bernardo Meurer"
+          },
+          {
+            "email": "artturin@artturin.com",
+            "github": "Artturin",
+            "githubId": 56650223,
+            "matrix": "@artturin:matrix.org",
+            "name": "Artturi N"
+          }
+        ],
+        "name": "nix-2.24.11",
+        "outputsToInstall": [
+          "out",
+          "man"
+        ],
+        "platforms": [
+          "i686-cygwin",
+          "x86_64-cygwin",
+          "x86_64-darwin",
+          "i686-darwin",
+          "aarch64-darwin",
+          "armv7a-darwin",
+          "i686-freebsd",
+          "x86_64-freebsd",
+          "aarch64-freebsd",
+          "x86_64-solaris",
+          "aarch64-linux",
+          "armv5tel-linux",
+          "armv6l-linux",
+          "armv7a-linux",
+          "armv7l-linux",
+          "i686-linux",
+          "loongarch64-linux",
+          "m68k-linux",
+          "microblaze-linux",
+          "microblazeel-linux",
+          "mips-linux",
+          "mips64-linux",
+          "mips64el-linux",
+          "mipsel-linux",
+          "powerpc64-linux",
+          "powerpc64le-linux",
+          "riscv32-linux",
+          "riscv64-linux",
+          "s390-linux",
+          "s390x-linux",
+          "x86_64-linux",
+          "aarch64-netbsd",
+          "armv6l-netbsd",
+          "armv7a-netbsd",
+          "armv7l-netbsd",
+          "i686-netbsd",
+          "m68k-netbsd",
+          "mipsel-netbsd",
+          "powerpc-netbsd",
+          "riscv32-netbsd",
+          "riscv64-netbsd",
+          "x86_64-netbsd",
+          "i686-openbsd",
+          "x86_64-openbsd",
+          "x86_64-redox"
+        ],
+        "position": "pkgs/tools/package-management/nix/default.nix:176",
+        "unfree": false,
+        "unsupported": false
+      },
+      "name": "nix-2.24.11",
+      "outputName": "out",
+      "outputs": {
+        "debug": null,
+        "dev": null,
+        "doc": null,
+        "man": null,
+        "out": null
+      },
+      "pname": "nix",
+      "system": "x86_64-linux",
+      "version": "2.24.11"
+    },
+    "nixpkgs-lint": {
+      "meta": {
+        "available": true,
+        "broken": false,
+        "description": "A utility for Nixpkgs contributors to check Nixpkgs for common errors",
+        "insecure": false,
+        "mainProgram": "nixpkgs-lint",
+        "maintainers": [
+          {
+            "email": "edolstra+nixpkgs@gmail.com",
+            "github": "edolstra",
+            "githubId": 1148549,
+            "name": "Eelco Dolstra"
+          }
+        ],
+        "name": "nixpkgs-lint-1",
+        "outputsToInstall": [
+          "out"
+        ],
+        "platforms": [
+          "i686-cygwin",
+          "x86_64-cygwin",
+          "x86_64-darwin",
+          "i686-darwin",
+          "aarch64-darwin",
+          "armv7a-darwin",
+          "i686-freebsd",
+          "x86_64-freebsd",
+          "aarch64-freebsd",
+          "x86_64-solaris",
+          "aarch64-linux",
+          "armv5tel-linux",
+          "armv6l-linux",
+          "armv7a-linux",
+          "armv7l-linux",
+          "i686-linux",
+          "loongarch64-linux",
+          "m68k-linux",
+          "microblaze-linux",
+          "microblazeel-linux",
+          "mips-linux",
+          "mips64-linux",
+          "mips64el-linux",
+          "mipsel-linux",
+          "powerpc64-linux",
+          "powerpc64le-linux",
+          "riscv32-linux",
+          "riscv64-linux",
+          "s390-linux",
+          "s390x-linux",
+          "x86_64-linux",
+          "aarch64-netbsd",
+          "armv6l-netbsd",
+          "armv7a-netbsd",
+          "armv7l-netbsd",
+          "i686-netbsd",
+          "m68k-netbsd",
+          "mipsel-netbsd",
+          "powerpc-netbsd",
+          "riscv32-netbsd",
+          "riscv64-netbsd",
+          "x86_64-netbsd",
+          "i686-openbsd",
+          "x86_64-openbsd",
+          "x86_64-redox"
+        ],
+        "position": "maintainers/scripts/nixpkgs-lint.nix:33",
+        "unfree": false,
+        "unsupported": false
+      },
+      "name": "nixpkgs-lint-1",
+      "outputName": "out",
+      "outputs": {
+        "out": null
+      },
+      "pname": "nixpkgs-lint",
+      "system": "x86_64-linux",
+      "version": "1"
+    },
+    "valgrind": {
+      "meta": {
+        "available": true,
+        "badPlatforms": [
+          {
+            "isStatic": true,
+            "parsed": {}
+          }
+        ],
+        "broken": false,
+        "description": "Debugging and profiling tool suite",
+        "homepage": "https://valgrind.org/",
+        "insecure": false,
+        "license": {
+          "deprecated": false,
+          "free": true,
+          "fullName": "GNU General Public License v2.0 or later",
+          "redistributable": true,
+          "shortName": "gpl2Plus",
+          "spdxId": "GPL-2.0-or-later",
+          "url": "https://spdx.org/licenses/GPL-2.0-or-later.html"
+        },
+        "longDescription": "Valgrind is an award-winning instrumentation framework for\nbuilding dynamic analysis tools.  There are Valgrind tools that\ncan automatically detect many memory management and threading\nbugs, and profile your programs in detail.  You can also use\nValgrind to build new tools.\n",
+        "maintainers": [
+          {
+            "email": "edolstra+nixpkgs@gmail.com",
+            "github": "edolstra",
+            "githubId": 1148549,
+            "name": "Eelco Dolstra"
+          }
+        ],
+        "name": "valgrind-3.23.0",
+        "outputsToInstall": [
+          "out",
+          "man"
+        ],
+        "platforms": [
+          "x86_64-darwin",
+          "i686-darwin",
+          "aarch64-darwin",
+          "armv7a-darwin",
+          "i686-freebsd",
+          "x86_64-freebsd",
+          "aarch64-freebsd",
+          "x86_64-solaris",
+          "aarch64-linux",
+          "armv7a-linux",
+          "armv7l-linux",
+          "i686-linux",
+          "mips-linux",
+          "mips64-linux",
+          "mips64el-linux",
+          "mipsel-linux",
+          "powerpc64-linux",
+          "powerpc64le-linux",
+          "s390x-linux",
+          "x86_64-linux"
+        ],
+        "position": "pkgs/development/tools/analysis/valgrind/default.nix:110",
+        "unfree": false,
+        "unsupported": false
+      },
+      "name": "valgrind-3.23.0",
+      "outputName": "out",
+      "outputs": {
+        "debug": null,
+        "dev": null,
+        "doc": null,
+        "man": null,
+        "out": null
+      },
+      "pname": "valgrind",
+      "system": "x86_64-linux",
+      "version": "3.23.0"
+    },
+    "valgrind-light": {
+      "meta": {
+        "available": true,
+        "badPlatforms": [
+          {
+            "isStatic": true,
+            "parsed": {}
+          }
+        ],
+        "broken": false,
+        "description": "Debugging and profiling tool suite (without GDB)",
+        "homepage": "https://valgrind.org/",
+        "insecure": false,
+        "license": {
+          "deprecated": false,
+          "free": true,
+          "fullName": "GNU General Public License v2.0 or later",
+          "redistributable": true,
+          "shortName": "gpl2Plus",
+          "spdxId": "GPL-2.0-or-later",
+          "url": "https://spdx.org/licenses/GPL-2.0-or-later.html"
+        },
+        "longDescription": "Valgrind is an award-winning instrumentation framework for\nbuilding dynamic analysis tools.  There are Valgrind tools that\ncan automatically detect many memory management and threading\nbugs, and profile your programs in detail.  You can also use\nValgrind to build new tools.\n",
+        "maintainers": [
+          {
+            "email": "edolstra+nixpkgs@gmail.com",
+            "github": "edolstra",
+            "githubId": 1148549,
+            "name": "Eelco Dolstra"
+          }
+        ],
+        "name": "valgrind-3.23.0",
+        "outputsToInstall": [
+          "out",
+          "man"
+        ],
+        "platforms": [
+          "x86_64-darwin",
+          "i686-darwin",
+          "aarch64-darwin",
+          "armv7a-darwin",
+          "i686-freebsd",
+          "x86_64-freebsd",
+          "aarch64-freebsd",
+          "x86_64-solaris",
+          "aarch64-linux",
+          "armv7a-linux",
+          "armv7l-linux",
+          "i686-linux",
+          "mips-linux",
+          "mips64-linux",
+          "mips64el-linux",
+          "mipsel-linux",
+          "powerpc64-linux",
+          "powerpc64le-linux",
+          "s390x-linux",
+          "x86_64-linux"
+        ],
+        "position": "pkgs/top-level/all-packages.nix:8496",
+        "unfree": false,
+        "unsupported": false
+      },
+      "name": "valgrind-3.23.0",
+      "outputName": "out",
+      "outputs": {
+        "debug": null,
+        "dev": null,
+        "doc": null,
+        "man": null,
+        "out": null
+      },
+      "pname": "valgrind",
+      "system": "x86_64-linux",
+      "version": "3.23.0"
+    }
+  }
+}

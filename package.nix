@@ -14,11 +14,12 @@ pkgs.buildGoModule rec {
         ./go.mod
         ./go.sum
         ./db
+        ./testdata
         (fs.fileFilter (file: file.hasExt "go") root)
       ];
     };
 
-  vendorHash = "sha256-0lCJgBpkoIUCsfPxPNkRIOgp6k3PyuJTZ5NIL+WEtvo=";
+  vendorHash = "sha256-5BMTo5/0gESGLWRDHdVGnPsQuTxH0RBFgs6TEg3rbbU=";
 
   meta.mainProgram = pname;
 }
