@@ -10,11 +10,11 @@ import (
 	"log/slog"
 	"net/http"
 	u "net/url"
-	"regexp"
 	"strings"
 	"time"
 
 	"github.com/antchfx/htmlquery"
+	"github.com/asymmetric/nixpkgs-update-notifier/regexes"
 	_ "github.com/mattn/go-sqlite3"
 	"golang.org/x/net/html"
 	"maunium.net/go/mautrix"
@@ -44,28 +44,6 @@ var clients = struct {
 //
 //go:embed db/schema.sql
 var ddl string
-
-// These two regexps are for parsing logs.
-// - "error: " is a nix build error
-// - "ExitFailure" is a nixpkgs-update error
-// - "failed with" is a nixpkgs/maintainers/scripts/update.py error
-var erroRE = regexp.MustCompile(`^error:|ExitFailure|failed with`)
-var ignoRE = regexp.MustCompile(`^~.*|^\.\.`)
-
-var regexes = struct {
-	dangerous, subscribe, follow *regexp.Regexp
-}{
-	dangerous: regexp.MustCompile(`^sub (?:[*?]+|\w+\.\*)$`),
-	subscribe: regexp.MustCompile(`^(un)?sub ([\w_?*.-]+)$`),
-	follow:    regexp.MustCompile(`^(un)?follow (\w+)$`),
-}
-
-// These regexps are for matching against user input.
-// We want to avoid stuff like the following, because it leads us to spam the nix-community.org server.
-// - sub *
-// - sub pythonPackages.*
-//
-// Unsubbing with the same queries is OK, because it it has different semantics and doesn't spam upstream.
 
 // TODO: make configurable
 var (
@@ -202,7 +180,7 @@ func storeAttrPaths(url string) {
 	slog.Info("storing attr paths", "count", len(hrefs))
 	for _, href := range hrefs {
 		attr_path := strings.TrimSuffix(htmlquery.InnerText(href), "/")
-		if ignoRE.MatchString(attr_path) {
+		if regexes.Ignore().MatchString(attr_path) {
 			continue
 		}
 		if _, err := clients.db.Exec("INSERT OR IGNORE INTO packages(attr_path) VALUES (?)", attr_path); err != nil {
@@ -308,7 +286,7 @@ func fetchLastLog(url string) (date string, hasError bool) {
 		panic(err)
 	}
 
-	hasError = erroRE.Find(body) != nil
+	hasError = regexes.Error().Find(body) != nil
 
 	return date, hasError
 }
@@ -360,7 +338,7 @@ func handleMessage(ctx context.Context, evt *event.Event) {
 		return
 	}
 
-	if regexes.dangerous.MatchString(msg) {
+	if regexes.Dangerous().MatchString(msg) {
 		slog.Info("received spammy query", "msg", msg, "sender", sender)
 		s := `Pattern returns too many results, please use a more specific selector.
 
@@ -369,9 +347,9 @@ Type **help** for a list of allowed/forbidden patterns.`
 		if _, err := h.sender(s, id.RoomID(evt.RoomID)); err != nil {
 			slog.Error(err.Error())
 		}
-	} else if regexes.subscribe.MatchString(msg) {
+	} else if regexes.Subscribe().MatchString(msg) {
 		handleSubUnsub(msg, evt)
-	} else if regexes.follow.MatchString(msg) {
+	} else if regexes.Follow().MatchString(msg) {
 		handleFollowUnfollow(msg, evt)
 	} else if msg == "subs" {
 		handleSubs(evt)

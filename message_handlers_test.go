@@ -293,6 +293,39 @@ func TestOverlapping(t *testing.T) {
 	}
 }
 
+func TestSubscribeSetsLastVisited(t *testing.T) {
+	if err := setupDB(ctx, ":memory:"); err != nil {
+		panic(err)
+	}
+	today := "2000-01-01"
+	h = handlers{
+		logFetcher: func(string) (string, bool) {
+			return today, false
+		},
+		sender: testSender,
+	}
+
+	if _, err := clients.db.Exec("INSERT INTO packages(attr_path) VALUES (?)", "foo"); err != nil {
+		panic(err)
+	}
+	if _, err := clients.db.Exec("INSERT INTO packages(attr_path, last_visited) VALUES (?, ?)", "bar", "1970-01-01"); err != nil {
+		panic(err)
+	}
+
+	var exists bool
+
+	subscribe("foo")
+	subscribe("bar")
+
+	if err := clients.db.QueryRow("SELECT EXISTS (SELECT 1 FROM packages WHERE last_visited <> ?)", today).Scan(&exists); err != nil {
+		panic(err)
+	}
+
+	if exists {
+		t.Error("last_visited should have been set")
+	}
+}
+
 func TestCheckIfSubExists(t *testing.T) {
 	if err := setupDB(ctx, ":memory:"); err != nil {
 		panic(err)

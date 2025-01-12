@@ -1,4 +1,4 @@
-package main
+package regexes
 
 import (
 	"testing"
@@ -16,7 +16,7 @@ func TestErrRegexp(t *testing.T) {
 		"error: builder for '/nix/store/gxvr06ifbpw342msbqbjd89fv8572kdr-kyverno-chainsaw-0.2.10-go-modules.drv' failed with exit code 1;",
 	}
 	for _, s := range positives {
-		if erroRE.FindString(s) == "" {
+		if Error().FindString(s) == "" {
 			t.Errorf("should have matched: %s", s)
 		}
 	}
@@ -31,7 +31,7 @@ func TestErrRegexp(t *testing.T) {
 	}
 
 	for _, s := range falsePositives {
-		if erroRE.FindString(s) != "" {
+		if Error().FindString(s) != "" {
 			t.Errorf("should not have matched: %s", s)
 		}
 	}
@@ -53,7 +53,7 @@ func TestSubUnsubRegexp(t *testing.T) {
 	}
 
 	for _, s := range ss {
-		if regexes.subscribe.FindString(s) == "" {
+		if Subscribe().FindString(s) == "" {
 			t.Errorf("should have matched: %s", s)
 		}
 	}
@@ -70,7 +70,7 @@ func TestDangerousRegexp(t *testing.T) {
 	}
 
 	for _, s := range ss {
-		if regexes.dangerous.FindString(s) == "" {
+		if Dangerous().FindString(s) == "" {
 			t.Errorf("should have matched: %s", s)
 		}
 	}
@@ -83,41 +83,8 @@ func TestFollowRegexp(t *testing.T) {
 	}
 
 	for _, s := range ss {
-		if regexes.dangerous.FindString(s) != "" {
+		if Dangerous().FindString(s) != "" {
 			t.Errorf("should not have matched: %s", s)
 		}
-	}
-}
-
-func TestSubscribeSetsLastVisited(t *testing.T) {
-	if err := setupDB(ctx, ":memory:"); err != nil {
-		panic(err)
-	}
-	today := "2000-01-01"
-	h = handlers{
-		logFetcher: func(string) (string, bool) {
-			return today, false
-		},
-		sender: testSender,
-	}
-
-	if _, err := clients.db.Exec("INSERT INTO packages(attr_path) VALUES (?)", "foo"); err != nil {
-		panic(err)
-	}
-	if _, err := clients.db.Exec("INSERT INTO packages(attr_path, last_visited) VALUES (?, ?)", "bar", "1970-01-01"); err != nil {
-		panic(err)
-	}
-
-	var exists bool
-
-	subscribe("foo")
-	subscribe("bar")
-
-	if err := clients.db.QueryRow("SELECT EXISTS (SELECT 1 FROM packages WHERE last_visited <> ?)", today).Scan(&exists); err != nil {
-		panic(err)
-	}
-
-	if exists {
-		t.Error("last_visited should have been set")
 	}
 }

@@ -9,13 +9,14 @@ import (
 	"strings"
 
 	"github.com/andybalholm/brotli"
+	"github.com/asymmetric/nixpkgs-update-notifier/regexes"
 	"github.com/itchyny/gojq"
 	"maunium.net/go/mautrix/event"
 )
 
 func handleSubUnsub(msg string, evt *event.Event) {
 	// TODO move this to caller
-	matches := regexes.subscribe.FindStringSubmatch(msg)
+	matches := regexes.Subscribe().FindStringSubmatch(msg)
 	if matches == nil {
 		slog.Error("handleSubUnsub: We should not be here")
 
@@ -176,7 +177,7 @@ func handleSubs(evt *event.Event) {
 }
 
 func handleFollowUnfollow(msg string, evt *event.Event) {
-	matches := regexes.follow.FindStringSubmatch(msg)
+	matches := regexes.Follow().FindStringSubmatch(msg)
 	un := matches[1]
 	handle := matches[2]
 	pjson := h.packagesJSONFetcher()
