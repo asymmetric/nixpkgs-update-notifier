@@ -1,3 +1,4 @@
+// Package regexes exists to encapsulate the regexes (i.e. make them read-only).
 package regexes
 
 import "regexp"

@@ -77,14 +77,32 @@ func TestDangerousRegexp(t *testing.T) {
 }
 
 func TestFollowRegexp(t *testing.T) {
-	ss := []string{
-		"follow *",
-		"unfollow *",
-	}
-
-	for _, s := range ss {
-		if Dangerous().FindString(s) != "" {
-			t.Errorf("should not have matched: %s", s)
+	t.Run("should match", func(t *testing.T) {
+		ss := []string{
+			"follow foo",
+			"unfollow bar",
 		}
-	}
+		for _, s := range ss {
+			if !Follow().MatchString(s) {
+				t.Errorf("should have matched: %s", s)
+			}
+		}
+	})
+
+	t.Run("should not match", func(t *testing.T) {
+		ss := []string{
+			"follow",
+			"unfollow",
+			"follow *",
+			"unfollow *",
+			"follow ?",
+			"unfollow ?",
+		}
+
+		for _, s := range ss {
+			if Follow().MatchString(s) {
+				t.Errorf("should not have matched: %s", s)
+			}
+		}
+	})
 }

@@ -184,14 +184,20 @@ func handleFollowUnfollow(msg string, evt *event.Event) {
 
 	aps := findPackagesForHandle(pjson, handle)
 
-	if un != "" {
-		if _, err := clients.db.Exec("DELETE FROM subscriptions WHERE mxid = ? AND attr_path IN ?", evt.Sender, aps); err != nil {
-			panic(err)
+	if len(aps) == 0 {
+		if _, err := h.sender(fmt.Sprintf("No packages found for maintainer %s", handle), evt.RoomID); err != nil {
+			slog.Error(err.Error())
 		}
 	} else {
-		for _, ap := range aps {
-			if _, err := clients.db.Exec("INSERT INTO subscriptions(roomid,attr_path,mxid) VALUES (?, ?, ?)", evt.RoomID, ap, evt.Sender); err != nil {
+		if un != "" {
+			if _, err := clients.db.Exec("DELETE FROM subscriptions WHERE mxid = ? AND attr_path IN ?", evt.Sender, aps); err != nil {
 				panic(err)
+			}
+		} else {
+			for _, ap := range aps {
+				if _, err := clients.db.Exec("INSERT INTO subscriptions(roomid,attr_path,mxid) VALUES (?, ?, ?)", evt.RoomID, ap, evt.Sender); err != nil {
+					panic(err)
+				}
 			}
 		}
 	}

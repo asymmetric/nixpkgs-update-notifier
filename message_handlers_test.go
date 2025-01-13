@@ -387,24 +387,36 @@ func TestPackagesByMaintainer(t *testing.T) {
 	}
 
 	h.packagesJSONFetcher = stubJSONFetcher
-	got := findPackagesForHandle(h.packagesJSONFetcher(), "asymmetric")
+	t.Run("existing handle", func(t *testing.T) {
+		got := findPackagesForHandle(h.packagesJSONFetcher(), "asymmetric")
 
-	expected := []string{
-		"asc-key-to-qr-code-gif",
-		"btrbk",
-		"btrfs-list",
-		"diceware",
-		"evmdis",
-		"ledger-udev-rules",
-		"python312Packages.diceware",
-		"python313Packages.diceware",
-		"siji",
-		"ssb-patchwork",
-	}
+		expected := []string{
+			"asc-key-to-qr-code-gif",
+			"btrbk",
+			"btrfs-list",
+			"diceware",
+			"evmdis",
+			"ledger-udev-rules",
+			"python312Packages.diceware",
+			"python313Packages.diceware",
+			"siji",
+			"ssb-patchwork",
+		}
 
-	if !slices.Equal(expected, got) {
-		t.Errorf("expected: %v\ngot: %v", expected, got)
-	}
+		if !slices.Equal(expected, got) {
+			t.Errorf("expected: %v\ngot: %v", expected, got)
+		}
+	})
+
+	t.Run("non-existing handle", func(t *testing.T) {
+		got := findPackagesForHandle(h.packagesJSONFetcher(), "foobar")
+
+		expected := []string{}
+
+		if !slices.Equal(expected, got) {
+			t.Errorf("expected: %v\ngot: %v", expected, got)
+		}
+	})
 }
 
 func fillEventContent(evt *event.Event, body string) {
