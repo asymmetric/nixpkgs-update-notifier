@@ -342,8 +342,20 @@ func TestCheckIfSubExists(t *testing.T) {
 }
 
 func TestFollowUnfollow(t *testing.T) {
-	h.packagesJSONFetcher = stubJSONFetcher
-	ps := findPackagesForHandle(h.packagesJSONFetcher(), "asymmetric")
+	h = handlers{
+		packagesJSONFetcher: stubJSONFetcher,
+		logFetcher: func(string) (string, bool) {
+			return "1999", false
+		},
+		sender: testSender,
+	}
+
+	ps := []string{
+		"btrbk",
+		"btrfs-list",
+		"diceware",
+		"python312Packages.diceware",
+	}
 
 	t.Run("last_visited set", func(t *testing.T) {
 		if err := setupDB(ctx, ":memory:"); err != nil {
@@ -377,8 +389,6 @@ func TestFollowUnfollow(t *testing.T) {
 			panic(err)
 		}
 
-		ps := findPackagesForHandle(h.packagesJSONFetcher(), "asymmetric")
-
 		// NOTE: no last_visited
 		addPackages(ps...)
 
@@ -387,7 +397,7 @@ func TestFollowUnfollow(t *testing.T) {
 
 		var exists bool
 		var err error
-		for _, p := range ps {
+		for _, p := range findPackagesForHandle(h.packagesJSONFetcher(), "asymmetric") {
 			exists, err = checkIfSubExists(p, evt.RoomID.String())
 			if err != nil {
 				panic(err)
@@ -398,17 +408,36 @@ func TestFollowUnfollow(t *testing.T) {
 			}
 		}
 	})
+
+	t.Run("some packages not tracked by nixpkgs-update", func(t *testing.T) {
+		if err := setupDB(ctx, ":memory:"); err != nil {
+			panic(err)
+		}
+
+		last := ps[len(ps)-1]
+
+		for _, p := range ps[:len(ps)-2] {
+			if _, err := clients.db.Exec("INSERT INTO packages(attr_path, last_visited) VALUES (?, ?)", p, "1999"); err != nil {
+				panic(err)
+			}
+		}
+
+		fillEventContent(evt, fmt.Sprintf("follow %s", "asymmetric"))
+		handleMessage(ctx, evt)
+
+		if exists, _ := checkIfSubExists(last, evt.RoomID.String()); exists {
+			t.Errorf("should not be subscribed to %s", last)
+		}
+	})
 }
 
-func TestPackagesByMaintainer(t *testing.T) {
+func TestFindPackagesForHandle(t *testing.T) {
 	if err := setupDB(ctx, ":memory:"); err != nil {
 		panic(err)
 	}
 
 	h.packagesJSONFetcher = stubJSONFetcher
 	t.Run("existing handle", func(t *testing.T) {
-		got := findPackagesForHandle(h.packagesJSONFetcher(), "asymmetric")
-
 		expected := []string{
 			"asc-key-to-qr-code-gif",
 			"btrbk",
@@ -421,6 +450,11 @@ func TestPackagesByMaintainer(t *testing.T) {
 			"siji",
 			"ssb-patchwork",
 		}
+		all := append([]string{"foo", "bar"}, expected...)
+
+		addPackages(all...)
+
+		got := findPackagesForHandle(h.packagesJSONFetcher(), "asymmetric")
 
 		if !slices.Equal(expected, got) {
 			t.Errorf("expected: %v\ngot: %v", expected, got)

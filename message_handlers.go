@@ -171,21 +171,33 @@ func handleFollowUnfollow(msg string, evt *event.Event) {
 	aps := findPackagesForHandle(pjson, handle)
 
 	if len(aps) == 0 {
-		if _, err := h.sender(fmt.Sprintf("No packages found for maintainer %s", handle), evt.RoomID); err != nil {
+		if _, err := h.sender(fmt.Sprintf("No packages found for maintainer `>%s`", handle), evt.RoomID); err != nil {
 			slog.Error(err.Error())
+
+			return
+		}
+	}
+
+	if un != "" {
+		if _, err := clients.db.Exec("DELETE FROM subscriptions WHERE mxid = ? AND attr_path IN ?", evt.Sender, aps); err != nil {
+			panic(err)
 		}
 	} else {
-		if un != "" {
-			if _, err := clients.db.Exec("DELETE FROM subscriptions WHERE mxid = ? AND attr_path IN ?", evt.Sender, aps); err != nil {
+		for _, ap := range aps {
+			if err := subscribe(ap, evt); err != nil {
 				panic(err)
 			}
-		} else {
-			for _, ap := range aps {
-				if err := subscribe(ap, evt); err != nil {
-					panic(err)
-				}
-			}
 		}
+	}
+
+	var l []string
+	for _, ap := range aps {
+		l = append(l, fmt.Sprintf("- %s", ap))
+	}
+
+	msg = fmt.Sprintf("Subscribed to packages:\n %s", strings.Join(l, "\n"))
+	if _, err := h.sender(msg, evt.RoomID); err != nil {
+		slog.Error(err.Error())
 	}
 
 }
@@ -197,6 +209,9 @@ func checkIfSubExists(attr_path, roomid string) (exists bool, err error) {
 	return exists, err
 }
 
+// 1. uses jquery to parse the JSON blob
+// 2. finds list of packages maintained by handle
+// 3. uses SQL to intersect with list of tracked packages
 func findPackagesForHandle(jsobj map[string]any, handle string) []string {
 	query, err := gojq.Parse(fmt.Sprintf(`.packages|to_entries[]|select(.value.meta.maintainers[]?|.github|index("%s"))|.key`, handle))
 	if err != nil {
@@ -220,7 +235,34 @@ func findPackagesForHandle(jsobj map[string]any, handle string) []string {
 		mps = append(mps, v.(string))
 	}
 
-	return mps
+	// Create the right number of placeholders: "(?,?,?)"
+	qmarks := make([]string, len(mps))
+	args := make([]any, len(mps))
+	for i, v := range mps {
+		qmarks[i] = "?"
+		args[i] = v
+	}
+	placeholders := strings.Join(qmarks, ",")
+
+	rows, err := clients.db.Query(fmt.Sprintf("SELECT attr_path FROM packages WHERE attr_path IN (%s)", placeholders), args...)
+	if err != nil {
+		panic(err)
+	}
+	defer rows.Close()
+
+	aps := make([]string, 0)
+	for rows.Next() {
+		var ap string
+		if err = rows.Scan(&ap); err != nil {
+			panic(err)
+		}
+		aps = append(aps, ap)
+	}
+	if err = rows.Err(); err != nil {
+		panic(err)
+	}
+
+	return aps
 }
 
 // Fetches the packages.json.br, unpacks it and returns it as serialized JSON.
@@ -258,6 +300,7 @@ func fetchPackagesJSON() (jsobj map[string]any) {
 // NOTE: this invariant is also enforced via an SQL trigger.
 func subscribe(ap string, evt *event.Event) error {
 	slog.Debug("Subscribing", "attr_path", ap)
+
 	purl := packageURL(ap)
 	date, _ := h.logFetcher(purl)
 	if _, err := clients.db.Exec("UPDATE packages SET last_visited = ? WHERE attr_path = ?", date, ap); err != nil {
