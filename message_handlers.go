@@ -68,24 +68,8 @@ func handleSubUnsub(msg string, evt *event.Event) {
 				slog.Error(err.Error())
 			}
 		} else {
-			// before adding subscription, add the date of the last available log for the package, so that if the program stops for any reason, we don't notify the user of a stale error log.
-			// we want to avoid e.g.:
-			// - we add a subscription for package foo at time t
-			// - package foo has a failure that predates the subscription, t - 1
-			// - program stops before the next tick
-			// - therefore, foo.last_visited is nil
-			// - when program starts again, we'll iterate over subs and find foo
-			// - we will fetch the latest log and because it's a failure, notify
-			// - but the log predates the subscription, so we notified on a stale log
-			// NOTE: this invariant is also enforced via an SQL trigger.
-			purl := packageURL(ap)
-			date, _ := h.logFetcher(purl)
 			// TODO: should we notify here already if the log has an error?
-			if _, err := clients.db.Exec("UPDATE packages SET last_visited = ? WHERE attr_path = ?", date, ap); err != nil {
-				panic(err)
-			}
-
-			if _, err := clients.db.Exec("INSERT INTO subscriptions(roomid,attr_path,mxid) VALUES (?, ?, ?)", evt.RoomID, ap, evt.Sender); err != nil {
+			if err := subscribe(ap, evt); err != nil {
 				panic(err)
 			}
 
@@ -195,7 +179,7 @@ func handleFollowUnfollow(msg string, evt *event.Event) {
 			}
 		} else {
 			for _, ap := range aps {
-				if _, err := clients.db.Exec("INSERT INTO subscriptions(roomid,attr_path,mxid) VALUES (?, ?, ?)", evt.RoomID, ap, evt.Sender); err != nil {
+				if err := subscribe(ap, evt); err != nil {
 					panic(err)
 				}
 			}
@@ -255,4 +239,30 @@ func fetchPackagesJSON() (jsobj map[string]any) {
 	}
 
 	return
+}
+
+// subscribe fetches a last_visited date, adds it to the packages table, and adds an entry into the subscriptions table.
+//
+// before adding subscription, add the date of the last available log for the package, so that if the program stops for any reason, we don't notify the user of a stale error log.
+// we want to avoid e.g.:
+// - we add a subscription for package foo at time t
+// - package foo has a failure that predates the subscription, t - 1
+// - program stops before the next tick
+// - therefore, foo.last_visited is nil
+// - when program starts again, we'll iterate over subs and find foo
+// - we will fetch the latest log and because it's a failure, notify
+// - but the log predates the subscription, so we notified on a stale log
+// NOTE: this invariant is also enforced via an SQL trigger.
+func subscribe(ap string, evt *event.Event) error {
+	purl := packageURL(ap)
+	date, _ := h.logFetcher(purl)
+	if _, err := clients.db.Exec("UPDATE packages SET last_visited = ? WHERE attr_path = ?", date, ap); err != nil {
+		return err
+	}
+
+	if _, err := clients.db.Exec("INSERT INTO subscriptions(roomid,attr_path,mxid) VALUES (?, ?, ?)", evt.RoomID, ap, evt.Sender); err != nil {
+		return err
+	}
+
+	return nil
 }

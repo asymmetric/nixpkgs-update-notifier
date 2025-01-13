@@ -66,7 +66,7 @@ func TestSub(t *testing.T) {
 		}
 		addPackages(v.ap)
 
-		subscribe(v.ap)
+		subscribe(v.ap, evt)
 
 		if err := clients.db.QueryRow(`
       SELECT COUNT(*)
@@ -137,7 +137,7 @@ func TestUnsub(t *testing.T) {
 			panic(err)
 		}
 
-		unsubscribe(v.ap)
+		unsub(v.ap)
 
 		if err := clients.db.QueryRow(`
       SELECT COUNT(*)
@@ -195,7 +195,7 @@ func TestSubUnsub(t *testing.T) {
 		t.Run(p.pattern, func(t *testing.T) {
 
 			t.Run("subscribe", func(t *testing.T) {
-				subscribe(p.pattern)
+				sub(p.pattern)
 
 				if err := clients.db.QueryRow(`
         SELECT COUNT(*)
@@ -211,7 +211,7 @@ func TestSubUnsub(t *testing.T) {
 			})
 
 			t.Run("unsubscribe", func(t *testing.T) {
-				unsubscribe(p.pattern)
+				unsub(p.pattern)
 
 				if err := clients.db.QueryRow(`
         SELECT COUNT(*)
@@ -242,7 +242,7 @@ func TestSubUnsub(t *testing.T) {
 				panic(err)
 			}
 
-			subscribe(pattern)
+			sub(pattern)
 
 			if err := clients.db.QueryRow(`SELECT COUNT(*) FROM subscriptions`, pattern).Scan(&after); err != nil {
 				panic(err)
@@ -274,10 +274,10 @@ func TestOverlapping(t *testing.T) {
 	}
 
 	addPackages(aps...)
-	subscribe(aps[0])
+	sub(aps[0])
 
 	pattern := "python*.foo"
-	subscribe(pattern)
+	sub(pattern)
 
 	var count int
 	if err := clients.db.QueryRow(`
@@ -314,8 +314,8 @@ func TestSubscribeSetsLastVisited(t *testing.T) {
 
 	var exists bool
 
-	subscribe("foo")
-	subscribe("bar")
+	sub("foo")
+	sub("bar")
 
 	if err := clients.db.QueryRow("SELECT EXISTS (SELECT 1 FROM packages WHERE last_visited <> ?)", today).Scan(&exists); err != nil {
 		panic(err)
@@ -340,7 +340,7 @@ func TestCheckIfSubExists(t *testing.T) {
 		t.Errorf("should not exist")
 	}
 
-	subscribe("foo")
+	sub("foo")
 
 	exists, err = checkIfSubExists("foo", evt.RoomID.String())
 	if err != nil {
@@ -351,34 +351,62 @@ func TestCheckIfSubExists(t *testing.T) {
 }
 
 func TestFollowUnfollow(t *testing.T) {
-	if err := setupDB(ctx, ":memory:"); err != nil {
-		panic(err)
-	}
-
 	h.packagesJSONFetcher = stubJSONFetcher
 	ps := findPackagesForHandle(h.packagesJSONFetcher(), "asymmetric")
 
-	for _, p := range ps {
-		if _, err := clients.db.Exec("INSERT INTO packages(attr_path, last_visited) VALUES (?, ?)", p, "1999"); err != nil {
-			panic(err)
-		}
-	}
-
-	fillEventContent(evt, fmt.Sprintf("follow %s", "asymmetric"))
-	handleMessage(ctx, evt)
-
-	var exists bool
-	var err error
-	for _, p := range ps {
-		exists, err = checkIfSubExists(p, evt.RoomID.String())
-		if err != nil {
+	t.Run("last_visited set", func(t *testing.T) {
+		if err := setupDB(ctx, ":memory:"); err != nil {
 			panic(err)
 		}
 
-		if !exists {
-			t.Errorf("should be subscribed to %s", p)
+		for _, p := range ps {
+			if _, err := clients.db.Exec("INSERT INTO packages(attr_path, last_visited) VALUES (?, ?)", p, "1999"); err != nil {
+				panic(err)
+			}
 		}
-	}
+
+		fillEventContent(evt, fmt.Sprintf("follow %s", "asymmetric"))
+		handleMessage(ctx, evt)
+
+		var exists bool
+		var err error
+		for _, p := range ps {
+			exists, err = checkIfSubExists(p, evt.RoomID.String())
+			if err != nil {
+				panic(err)
+			}
+
+			if !exists {
+				t.Errorf("should be subscribed to %s", p)
+			}
+		}
+	})
+	t.Run("last_visited not set", func(t *testing.T) {
+		if err := setupDB(ctx, ":memory:"); err != nil {
+			panic(err)
+		}
+
+		ps := findPackagesForHandle(h.packagesJSONFetcher(), "asymmetric")
+
+		// NOTE: no last_visited
+		addPackages(ps...)
+
+		fillEventContent(evt, fmt.Sprintf("follow %s", "asymmetric"))
+		handleMessage(ctx, evt)
+
+		var exists bool
+		var err error
+		for _, p := range ps {
+			exists, err = checkIfSubExists(p, evt.RoomID.String())
+			if err != nil {
+				panic(err)
+			}
+
+			if !exists {
+				t.Errorf("should be subscribed to %s", p)
+			}
+		}
+	})
 }
 
 func TestPackagesByMaintainer(t *testing.T) {
@@ -437,12 +465,12 @@ func addPackages(aps ...string) {
 	}
 }
 
-func subscribe(ap string) {
+func sub(ap string) {
 	fillEventContent(evt, fmt.Sprintf("sub %s", ap))
 	handleMessage(ctx, evt)
 }
 
-func unsubscribe(ap string) {
+func unsub(ap string) {
 	fillEventContent(evt, fmt.Sprintf("unsub %s", ap))
 	handleMessage(ctx, evt)
 }
