@@ -166,6 +166,8 @@ func handleFollowUnfollow(msg string, evt *event.Event) {
 	handle := matches[2]
 	pjson := h.packagesJSONFetcher()
 
+	slog.Info("received follow", "handle", handle, "sender", evt.Sender)
+
 	aps := findPackagesForHandle(pjson, handle)
 
 	if len(aps) == 0 {
@@ -252,15 +254,17 @@ func fetchPackagesJSON() (jsobj map[string]any) {
 // - when program starts again, we'll iterate over subs and find foo
 // - we will fetch the latest log and because it's a failure, notify
 // - but the log predates the subscription, so we notified on a stale log
+//
 // NOTE: this invariant is also enforced via an SQL trigger.
 func subscribe(ap string, evt *event.Event) error {
+	slog.Debug("Subscribing", "attr_path", ap)
 	purl := packageURL(ap)
 	date, _ := h.logFetcher(purl)
 	if _, err := clients.db.Exec("UPDATE packages SET last_visited = ? WHERE attr_path = ?", date, ap); err != nil {
 		return err
 	}
 
-	if _, err := clients.db.Exec("INSERT INTO subscriptions(roomid,attr_path,mxid) VALUES (?, ?, ?)", evt.RoomID, ap, evt.Sender); err != nil {
+	if _, err := clients.db.Exec("INSERT INTO subscriptions(attr_path, roomid, mxid) VALUES (?, ?, ?)", ap, evt.RoomID, evt.Sender); err != nil {
 		return err
 	}
 

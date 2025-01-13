@@ -73,7 +73,7 @@ These are the available commands:
 
 - **sub foo**: subscribe to package <code>foo</code>
 - **unsub foo**: unsubscribe from package <code>foo</code>
-- **follow foo*: subscribe to all packages maintained by Nixpkgs maintainer <code>foo</code>
+- **follow foo**: subscribe to all packages maintained by Nixpkgs maintainer <code>foo</code>
 - **unfollow foo**: unsubscribe to all packages maintained by Nixpkgs maintainer <code>foo</code>
 - **subs**: list subscriptions
 - **help**: show this help message
@@ -286,9 +286,7 @@ func fetchLastLog(url string) (date string, hasError bool) {
 		panic(err)
 	}
 
-	hasError = regexes.Error().Find(body) != nil
-
-	return date, hasError
+	return date, regexes.Error().Match(body)
 }
 
 func notifySubscribers(attr_path, date string) {
