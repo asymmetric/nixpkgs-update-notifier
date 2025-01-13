@@ -65,8 +65,7 @@ func TestSub(t *testing.T) {
 			sender: testSender,
 		}
 		addPackages(v.ap)
-
-		subscribe(v.ap, evt)
+		sub(v.ap)
 
 		if err := clients.db.QueryRow(`
       SELECT COUNT(*)
@@ -126,16 +125,8 @@ func TestUnsub(t *testing.T) {
 			},
 			sender: testSender,
 		}
-		if _, err := clients.db.Exec("INSERT INTO packages(attr_path, last_visited) VALUES (?, ?)", v.ap, v.lv); err != nil {
-			panic(err)
-		}
-
-		// NOTE: in this test, we insert last_visited ourselves instead of relying
-		// on the Go logic, since we've tested that logic in the TestSub test
-		if _, err := clients.db.Exec("INSERT INTO subscriptions (roomid, mxid, attr_path) VALUES (?, ?, ?)",
-			evt.RoomID, evt.Sender, v.ap); err != nil {
-			panic(err)
-		}
+		addPackages(v.ap)
+		sub(v.ap)
 
 		unsub(v.ap)
 
