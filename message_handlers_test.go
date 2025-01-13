@@ -341,7 +341,7 @@ func TestCheckIfSubExists(t *testing.T) {
 	}
 }
 
-func TestFollowUnfollow(t *testing.T) {
+func TestFollow(t *testing.T) {
 	h = handlers{
 		packagesJSONFetcher: stubJSONFetcher,
 		logFetcher: func(string) (string, bool) {
@@ -429,6 +429,51 @@ func TestFollowUnfollow(t *testing.T) {
 			t.Errorf("should not be subscribed to %s", last)
 		}
 	})
+}
+
+func TestUnfollow(t *testing.T) {
+	h = handlers{
+		packagesJSONFetcher: stubJSONFetcher,
+		logFetcher: func(string) (string, bool) {
+			return "1999", false
+		},
+		sender: testSender,
+	}
+
+	if err := setupDB(ctx, ":memory:"); err != nil {
+		panic(err)
+	}
+
+	mps := []string{
+		"btrbk",
+		"btrfs-list",
+		"diceware",
+		"python312Packages.diceware",
+	}
+
+	all := append(mps, "foo")
+
+	addPackages(all...)
+
+	sub("foo")
+
+	// First follow...
+	fillEventContent(evt, fmt.Sprintf("follow %s", "asymmetric"))
+	handleMessage(ctx, evt)
+
+	// Then unfollow
+	fillEventContent(evt, fmt.Sprintf("unfollow %s", "asymmetric"))
+	handleMessage(ctx, evt)
+
+	for _, p := range mps {
+		if exists, _ := checkIfSubExists(p, evt.RoomID.String()); exists {
+			t.Errorf("should not be subscribed to %s", p)
+		}
+	}
+
+	if exists, _ := checkIfSubExists("foo", evt.RoomID.String()); !exists {
+		t.Errorf("should be subscribed to %s", "foo")
+	}
 }
 
 func TestFindPackagesForHandle(t *testing.T) {

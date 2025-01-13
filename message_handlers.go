@@ -179,7 +179,43 @@ func handleFollowUnfollow(msg string, evt *event.Event) {
 	}
 
 	if un != "" {
-		if _, err := clients.db.Exec("DELETE FROM subscriptions WHERE mxid = ? AND attr_path IN ?", evt.Sender, aps); err != nil {
+		// Create the right number of placeholders: "(?,?,?)"
+		qmarks := make([]string, len(aps))
+		args := make([]any, len(aps))
+		for i, v := range aps {
+			qmarks[i] = "?"
+			args[i] = v
+		}
+		placeholders := strings.Join(qmarks, ",")
+
+		query := fmt.Sprintf("DELETE FROM subscriptions WHERE mxid = ? AND attr_path IN (%s) RETURNING attr_path", placeholders)
+		// We need to stash evt.Sender in args, because we can onlu pass two arguments to db.Exec
+		args = append([]any{evt.Sender}, args...)
+		rows, err := clients.db.Query(query, args...)
+		if err != nil {
+			panic(err)
+		}
+		defer rows.Close()
+
+		aps := make([]string, 0)
+		for rows.Next() {
+			var ap string
+			if err = rows.Scan(&ap); err != nil {
+				panic(err)
+			}
+			aps = append(aps, ap)
+		}
+		if err = rows.Err(); err != nil {
+			panic(err)
+		}
+
+		var l []string
+		for _, ap := range aps {
+			l = append(l, fmt.Sprintf("- %s", ap))
+		}
+
+		msg := fmt.Sprintf("Succesfully unsubscribed from the following packages:\n %s", strings.Join(l, "\n"))
+		if _, err := h.sender(msg, evt.RoomID); err != nil {
 			panic(err)
 		}
 	} else {
@@ -188,18 +224,17 @@ func handleFollowUnfollow(msg string, evt *event.Event) {
 				panic(err)
 			}
 		}
-	}
 
-	var l []string
-	for _, ap := range aps {
-		l = append(l, fmt.Sprintf("- %s", ap))
-	}
+		var l []string
+		for _, ap := range aps {
+			l = append(l, fmt.Sprintf("- %s", ap))
+		}
 
-	msg = fmt.Sprintf("Subscribed to packages:\n %s", strings.Join(l, "\n"))
-	if _, err := h.sender(msg, evt.RoomID); err != nil {
-		slog.Error(err.Error())
+		msg = fmt.Sprintf("Subscribed to packages:\n %s", strings.Join(l, "\n"))
+		if _, err := h.sender(msg, evt.RoomID); err != nil {
+			slog.Error(err.Error())
+		}
 	}
-
 }
 
 // Checks if the user is already subscribed to the package
