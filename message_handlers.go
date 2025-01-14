@@ -176,18 +176,17 @@ func handleFollowUnfollow(msg string, evt *event.Event) {
 	if err != nil {
 		if _, err = h.sender("There was a problem processing your request, sorry.", evt.RoomID); err != nil {
 			slog.Error(err.Error())
-
-			return
 		}
 
+		return
 	}
 
 	if len(mps) == 0 {
-		if _, err := h.sender(fmt.Sprintf("No packages found for maintainer `>%s`", handle), evt.RoomID); err != nil {
+		if _, err := h.sender(fmt.Sprintf("No packages found for maintainer `%s`", handle), evt.RoomID); err != nil {
 			slog.Error(err.Error())
-
-			return
 		}
+
+		return
 	}
 
 	if un != "" {
