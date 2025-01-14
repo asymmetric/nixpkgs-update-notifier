@@ -164,7 +164,6 @@ func handleFollowUnfollow(msg string, evt *event.Event) {
 	matches := regexes.Follow().FindStringSubmatch(msg)
 	un := matches[1]
 	handle := matches[2]
-	pjson := h.packagesJSONFetcher()
 
 	// Log early, before slow network calls.
 	if un == "" {
@@ -173,9 +172,17 @@ func handleFollowUnfollow(msg string, evt *event.Event) {
 		slog.Info("received unfollow", "handle", handle, "sender", evt.Sender)
 	}
 
-	aps := findPackagesForHandle(pjson, handle)
+	mps, err := findPackagesForHandle(h.packagesJSONFetcher(), "asymmetric")
+	if err != nil {
+		if _, err = h.sender("There was a problem processing your request, sorry.", evt.RoomID); err != nil {
+			slog.Error(err.Error())
 
-	if len(aps) == 0 {
+			return
+		}
+
+	}
+
+	if len(mps) == 0 {
 		if _, err := h.sender(fmt.Sprintf("No packages found for maintainer `>%s`", handle), evt.RoomID); err != nil {
 			slog.Error(err.Error())
 
@@ -185,9 +192,9 @@ func handleFollowUnfollow(msg string, evt *event.Event) {
 
 	if un != "" {
 		// Create the right number of placeholders: "(?,?,?)"
-		qmarks := make([]string, len(aps))
-		args := make([]any, len(aps))
-		for i, v := range aps {
+		qmarks := make([]string, len(mps))
+		args := make([]any, len(mps))
+		for i, v := range mps {
 			qmarks[i] = "?"
 			args[i] = v
 		}
@@ -224,14 +231,13 @@ func handleFollowUnfollow(msg string, evt *event.Event) {
 			panic(err)
 		}
 	} else {
-		for _, ap := range aps {
+		// used for output message
+		var l []string
+
+		for _, ap := range mps {
 			if err := subscribe(ap, evt); err != nil {
 				panic(err)
 			}
-		}
-
-		var l []string
-		for _, ap := range aps {
 			l = append(l, fmt.Sprintf("- %s", ap))
 		}
 
@@ -252,11 +258,15 @@ func checkIfSubExists(attr_path, roomid string) (exists bool, err error) {
 // 1. uses jquery to parse the JSON blob
 // 2. finds list of packages maintained by handle
 // 3. uses SQL to intersect with list of tracked packages
-func findPackagesForHandle(jsobj map[string]any, handle string) []string {
+func findPackagesForHandle(jsobj map[string]any, handle string) ([]string, error) {
 	query, err := gojq.Parse(fmt.Sprintf(`.packages|to_entries[]|select(.value.meta.maintainers[]?|.github|match("^%s$"))|.key`, handle))
 	if err != nil {
-		panic(err)
+		slog.Error("gojq parse", "error", err)
+
+		return nil, err
 	}
+
+	slog.Debug("gojq query", "query", query)
 
 	// list of maintained packages
 	var mps []string
@@ -270,7 +280,9 @@ func findPackagesForHandle(jsobj map[string]any, handle string) []string {
 			if err, ok := err.(*gojq.HaltError); ok && err.Value() == nil {
 				break
 			}
-			panic(err)
+			slog.Error("gojq run", "error", err)
+
+			return nil, err
 		}
 		mps = append(mps, v.(string))
 	}
@@ -302,7 +314,7 @@ func findPackagesForHandle(jsobj map[string]any, handle string) []string {
 		panic(err)
 	}
 
-	return aps
+	return aps, nil
 }
 
 // Fetches the packages.json.br, unpacks it and returns it as serialized JSON.
