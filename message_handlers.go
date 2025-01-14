@@ -166,7 +166,12 @@ func handleFollowUnfollow(msg string, evt *event.Event) {
 	handle := matches[2]
 	pjson := h.packagesJSONFetcher()
 
-	slog.Info("received follow", "handle", handle, "sender", evt.Sender)
+	// Log early, before slow network calls.
+	if un == "" {
+		slog.Info("received follow", "handle", handle, "sender", evt.Sender)
+	} else {
+		slog.Info("received unfollow", "handle", handle, "sender", evt.Sender)
+	}
 
 	aps := findPackagesForHandle(pjson, handle)
 
