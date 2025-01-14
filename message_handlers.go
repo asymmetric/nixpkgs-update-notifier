@@ -265,7 +265,7 @@ func findPackagesForHandle(jsobj map[string]any, handle string) ([]string, error
 		return nil, err
 	}
 
-	slog.Debug("gojq query", "query", query)
+	slog.Debug("gojq query", "query", query, "jsobj len", len(jsobj))
 
 	// list of maintained packages
 	var mps []string
