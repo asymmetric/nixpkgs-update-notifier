@@ -32,11 +32,12 @@ func sendMarkdown(text string, rid id.RoomID) (*mautrix.RespSendEvent, error) {
 	return clients.matrix.SendMessageEvent(context.TODO(), rid, event.EventMessage, md)
 }
 
+// Given a log url, returns its date.
+//
 // date looks like 2024-12-10
-func getComponents(url string) (attr_path, date string) {
+func getDate(url string) (date string) {
 	components := strings.Split(url, "/")
 
-	attr_path = components[len(components)-2]
 	date = strings.Trim(components[len(components)-1], ".log")
 
 	return

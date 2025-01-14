@@ -366,7 +366,7 @@ func fetchPackagesJSON() (jsobj map[string]any) {
 func subscribe(ap string, evt *event.Event) error {
 	slog.Debug("Subscribing", "attr_path", ap)
 
-	date, _ := h.logFetcher(packageURL(ap))
+	date := h.dateFetcher(packageURL(ap))
 	if _, err := clients.db.Exec("UPDATE packages SET last_visited = ? WHERE attr_path = ?", date, ap); err != nil {
 		return err
 	}

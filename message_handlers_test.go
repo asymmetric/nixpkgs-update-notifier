@@ -59,8 +59,8 @@ func TestSub(t *testing.T) {
 	var lv string
 	for _, v := range tt {
 		h = handlers{
-			logFetcher: func(string) (string, bool) {
-				return v.lv, v.err
+			dateFetcher: func(string) string {
+				return v.lv
 			},
 			sender: testSender,
 		}
@@ -120,8 +120,8 @@ func TestUnsub(t *testing.T) {
 	var count int
 	for _, v := range tt {
 		h = handlers{
-			logFetcher: func(string) (string, bool) {
-				return v.lv, v.err
+			dateFetcher: func(string) string {
+				return v.lv
 			},
 			sender: testSender,
 		}
@@ -154,8 +154,8 @@ func TestSubUnsub(t *testing.T) {
 	}
 
 	h = handlers{
-		logFetcher: func(string) (string, bool) {
-			return "1999", false
+		dateFetcher: func(string) string {
+			return "1999"
 		},
 		sender: testSender,
 	}
@@ -252,8 +252,8 @@ func TestOverlapping(t *testing.T) {
 	}
 
 	h = handlers{
-		logFetcher: func(string) (string, bool) {
-			return "1999", false
+		dateFetcher: func(string) string {
+			return "1999"
 		},
 		sender: testSender,
 	}
@@ -290,8 +290,8 @@ func TestSubscribeSetsLastVisited(t *testing.T) {
 	}
 	today := "2000-01-01"
 	h = handlers{
-		logFetcher: func(string) (string, bool) {
-			return today, false
+		dateFetcher: func(string) string {
+			return today
 		},
 		sender: testSender,
 	}
@@ -344,8 +344,8 @@ func TestCheckIfSubExists(t *testing.T) {
 func TestFollow(t *testing.T) {
 	h = handlers{
 		packagesJSONFetcher: stubJSONFetcher,
-		logFetcher: func(string) (string, bool) {
-			return "1999", false
+		dateFetcher: func(string) string {
+			return "1999"
 		},
 		sender: testSender,
 	}
@@ -435,8 +435,8 @@ func TestFollow(t *testing.T) {
 func TestUnfollow(t *testing.T) {
 	h = handlers{
 		packagesJSONFetcher: stubJSONFetcher,
-		logFetcher: func(string) (string, bool) {
-			return "1999", false
+		dateFetcher: func(string) string {
+			return "1999"
 		},
 		sender: testSender,
 	}

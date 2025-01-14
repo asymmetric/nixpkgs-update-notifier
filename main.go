@@ -9,6 +9,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	u "net/url"
 	"strings"
 	"time"
@@ -59,6 +60,8 @@ const packagesURL = "https://channels.nixos.org/nixos-unstable/packages.json.br"
 type handlers struct {
 	// Fetches logs for a URL.
 	logFetcher func(string) (string, bool)
+	// Fetches last log date for a URL.
+	dateFetcher func(string) string
 	// Sends messages to  a user via Matrix.
 	sender func(string, id.RoomID) (*mautrix.RespSendEvent, error)
 	// Fetches packages.json from nixos.org.
@@ -96,7 +99,8 @@ The code for the bot is [here](https://github.com/asymmetric/nixpkgs-update-noti
 func init() {
 	// default handlers
 	h = handlers{
-		logFetcher:          fetchLastLog,
+		logFetcher:          fetchLatestLogState,
+		dateFetcher:         fetchLatestLogDate,
 		sender:              sendMarkdown,
 		packagesJSONFetcher: fetchPackagesJSON,
 	}
@@ -238,10 +242,48 @@ func updateSubs() {
 	}
 }
 
-// fetch package page
-// find last log
-// fetch last log
-func fetchLastLog(url string) (date string, hasError bool) {
+// Given a package URL, it returns the latest log's date, and whether it contained an error.
+//
+// It works by:
+// - fetching package page
+// - finding latest log
+// - fetching latest log
+//
+// Therefore, it makes 2 HTTP requests.
+func fetchLatestLogState(url string) (string, bool) {
+	// First HTTP request, returns URL of latest log
+	purl := fetchLatestLogURL(url)
+
+	slog.Debug("fetching log", "url", purl)
+
+	req, err := newReqWithUA(purl.String())
+	if err != nil {
+		panic(err)
+	}
+
+	// Second HTTP request, returns logs itself
+	resp, err := clients.http.Do(req)
+	if err != nil {
+		panic(err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		panic(err)
+	}
+
+	return getDate(purl.String()), regexes.Error().Match(body)
+}
+
+// Given the URL of a package, it returns the URL of the latest log.
+//
+// It does this by parsing the fetched HTML and getting the latest link.
+//
+// Therefore, it makes 1 HTTP request.
+//
+// TODO: return string
+func fetchLatestLogURL(url string) *url.URL {
 	req, err := newReqWithUA(url)
 	if err != nil {
 		panic(err)
@@ -264,29 +306,14 @@ func fetchLastLog(url string) (date string, hasError bool) {
 	if err != nil {
 		panic(err)
 	}
-	fullURL := parsedURL.JoinPath(href)
+	return parsedURL.JoinPath(href)
+}
 
-	_, date = getComponents(fullURL.String())
+// Given a URL of a package, it returns the date of the latest log.
+func fetchLatestLogDate(url string) string {
+	lurl := fetchLatestLogURL(url)
 
-	slog.Debug("fetching log", "url", fullURL)
-
-	req, err = newReqWithUA(fullURL.String())
-	if err != nil {
-		panic(err)
-	}
-
-	resp, err = clients.http.Do(req)
-	if err != nil {
-		panic(err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		panic(err)
-	}
-
-	return date, regexes.Error().Match(body)
+	return getDate(lurl.String())
 }
 
 func notifySubscribers(attr_path, date string) {
