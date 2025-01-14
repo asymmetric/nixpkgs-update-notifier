@@ -245,7 +245,13 @@ func handleUnfollow(mps []string, evt *event.Event) {
 		l = append(l, fmt.Sprintf("- %s", ap))
 	}
 
-	msg := fmt.Sprintf("Unsubscribed from packages:\n %s", strings.Join(l, "\n"))
+	var msg string
+	if len(l) > 0 {
+		msg = fmt.Sprintf("Unsubscribed from packages:\n %s", strings.Join(l, "\n"))
+	} else {
+		msg = "No packages to unsubscribe from"
+	}
+
 	if _, err := h.sender(msg, evt.RoomID); err != nil {
 		panic(err)
 	}
