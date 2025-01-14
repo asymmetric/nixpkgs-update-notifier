@@ -28,10 +28,52 @@ func handleSubUnsub(msg string, evt *event.Event) {
 	// matches[1] is the optional "un" prefix
 	if matches[1] != "" {
 		handleUnsub(pattern, evt)
+	} else {
+		handleSub(pattern, evt)
+	}
+}
 
-		return
+func handleUnsub(pattern string, evt *event.Event) {
+	rows, err := clients.db.Query("DELETE FROM subscriptions WHERE roomid = ? AND attr_path GLOB ? RETURNING attr_path", evt.RoomID, pattern)
+	if err != nil {
+		panic(err)
+	}
+	defer rows.Close()
+
+	var aps []string
+	for rows.Next() {
+		var ap string
+		if err := rows.Scan(&ap); err != nil {
+			panic(err)
+		}
+
+		aps = append(aps, ap)
+	}
+	if err := rows.Err(); err != nil {
+		panic(err)
 	}
 
+	var msg string
+	if len(aps) == 0 {
+		msg = fmt.Sprintf("Could not find subscriptions for pattern `%s`", pattern)
+	} else {
+		var l []string
+		for _, ap := range aps {
+			l = append(l, fmt.Sprintf("- %s", ap))
+		}
+
+		msg = fmt.Sprintf("Unsubscribed from packages:\n %s", strings.Join(l, "\n"))
+	}
+
+	// send confirmation message
+	if _, err := h.sender(msg, evt.RoomID); err != nil {
+		slog.Error(err.Error())
+	}
+
+	slog.Info("received unsub", "pkg", pattern, "sender", evt.Sender, "deleted", len(aps))
+}
+
+func handleSub(pattern string, evt *event.Event) {
 	rows, err := clients.db.Query("SELECT attr_path FROM packages WHERE attr_path GLOB ? ORDER BY attr_path", pattern)
 	if err != nil {
 		panic(err)
@@ -81,46 +123,6 @@ func handleSubUnsub(msg string, evt *event.Event) {
 			slog.Info("added sub", "ap", ap, "sender", evt.Sender)
 		}
 	}
-}
-
-func handleUnsub(pattern string, evt *event.Event) {
-	rows, err := clients.db.Query("DELETE FROM subscriptions WHERE roomid = ? AND attr_path GLOB ? RETURNING attr_path", evt.RoomID, pattern)
-	if err != nil {
-		panic(err)
-	}
-	defer rows.Close()
-
-	var aps []string
-	for rows.Next() {
-		var ap string
-		if err := rows.Scan(&ap); err != nil {
-			panic(err)
-		}
-
-		aps = append(aps, ap)
-	}
-	if err := rows.Err(); err != nil {
-		panic(err)
-	}
-
-	var msg string
-	if len(aps) == 0 {
-		msg = fmt.Sprintf("Could not find subscriptions for pattern `%s`", pattern)
-	} else {
-		var l []string
-		for _, ap := range aps {
-			l = append(l, fmt.Sprintf("- %s", ap))
-		}
-
-		msg = fmt.Sprintf("Unsubscribed from packages:\n %s", strings.Join(l, "\n"))
-	}
-
-	// send confirmation message
-	if _, err := h.sender(msg, evt.RoomID); err != nil {
-		slog.Error(err.Error())
-	}
-
-	slog.Info("received unsub", "pkg", pattern, "sender", evt.Sender, "deleted", len(aps))
 }
 
 // TODO find ways to test this
