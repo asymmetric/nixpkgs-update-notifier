@@ -258,7 +258,10 @@ func checkIfSubExists(attr_path, roomid string) (exists bool, err error) {
 // 2. finds list of packages maintained by handle
 // 3. uses SQL to intersect with list of tracked packages
 func findPackagesForHandle(jsobj map[string]any, handle string) ([]string, error) {
-	query, err := gojq.Parse(fmt.Sprintf(`.packages|to_entries[]|select(.value.meta.maintainers[]?|.github|test("^%s$"))|.key`, handle))
+	// The query needs to handle:
+	// missing maintainers
+	// missing github field
+	query, err := gojq.Parse(fmt.Sprintf(`.packages|to_entries[]|select(.value.meta.maintainers[]?|.github // "" |test("^%s$"))|.key`, handle))
 	if err != nil {
 		slog.Error("gojq parse", "error", err)
 
