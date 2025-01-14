@@ -528,8 +528,6 @@ func TestFindPackagesForHandle(t *testing.T) {
 	})
 
 	t.Run("substring handle match", func(t *testing.T) {
-		t.Skip("skip while we investigate why gojq match fails")
-
 		if err := setupDB(ctx, ":memory:"); err != nil {
 			panic(err)
 		}
