@@ -937,12 +937,6 @@
         "mainProgram": "nix",
         "maintainers": [
           {
-            "email": "edolstra+nixpkgs@gmail.com",
-            "github": "edolstra",
-            "githubId": 1148549,
-            "name": "Eelco Dolstra"
-          },
-          {
             "email": "meurerbernardo@gmail.com",
             "github": "lovesegfault",
             "githubId": 7243783,
@@ -1762,6 +1756,12 @@
             "github": "edolstra",
             "githubId": 1148549,
             "name": "Eelco Dolstra"
+          },
+          {
+            "email": "lorenzo@mailbox.org",
+            "github": "foo-asymmetric",
+            "githubId": 101816,
+            "name": "Lorenzo Manacorda"
           }
         ],
         "name": "valgrind-3.23.0",
@@ -1837,6 +1837,12 @@
             "github": "edolstra",
             "githubId": 1148549,
             "name": "Eelco Dolstra"
+          },
+          {
+            "email": "lorenzo@mailbox.org",
+            "github": "asymmetric-foo",
+            "githubId": 101816,
+            "name": "Lorenzo Manacorda"
           }
         ],
         "name": "valgrind-3.23.0",

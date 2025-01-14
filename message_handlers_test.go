@@ -477,12 +477,12 @@ func TestUnfollow(t *testing.T) {
 }
 
 func TestFindPackagesForHandle(t *testing.T) {
-	if err := setupDB(ctx, ":memory:"); err != nil {
-		panic(err)
-	}
-
 	h.packagesJSONFetcher = stubJSONFetcher
 	t.Run("existing handle", func(t *testing.T) {
+		if err := setupDB(ctx, ":memory:"); err != nil {
+			panic(err)
+		}
+
 		expected := []string{
 			"asc-key-to-qr-code-gif",
 			"btrbk",
@@ -507,6 +507,10 @@ func TestFindPackagesForHandle(t *testing.T) {
 	})
 
 	t.Run("non-existing handle", func(t *testing.T) {
+		if err := setupDB(ctx, ":memory:"); err != nil {
+			panic(err)
+		}
+
 		got := findPackagesForHandle(h.packagesJSONFetcher(), "foobar")
 
 		expected := []string{}
@@ -514,6 +518,37 @@ func TestFindPackagesForHandle(t *testing.T) {
 		if !slices.Equal(expected, got) {
 			t.Errorf("expected: %v\ngot: %v", expected, got)
 		}
+	})
+
+	t.Run("substring handle match", func(t *testing.T) {
+		if err := setupDB(ctx, ":memory:"); err != nil {
+			panic(err)
+		}
+
+		expected := []string{
+			"asc-key-to-qr-code-gif",
+			"btrbk",
+			"btrfs-list",
+			"diceware",
+			"evmdis",
+			"ledger-udev-rules",
+			"python312Packages.diceware",
+			"python313Packages.diceware",
+			"siji",
+			"ssb-patchwork",
+		}
+		all := append([]string{"valgrind", "valgrind-light"}, expected...)
+		addPackages(all...)
+
+		got := findPackagesForHandle(h.packagesJSONFetcher(), "asymmetric")
+
+		// the former has maiintaner asymmetric-foo, the latter foo-asymmetric
+		for _, s := range []string{"valgrind", "valgrind-light"} {
+			if slices.Contains(got, s) {
+				t.Errorf("should not have subscribed to %s", s)
+			}
+		}
+
 	})
 }
 

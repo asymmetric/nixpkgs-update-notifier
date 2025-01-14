@@ -73,8 +73,8 @@ These are the available commands:
 
 - **sub foo**: subscribe to package <code>foo</code>
 - **unsub foo**: unsubscribe from package <code>foo</code>
-- **follow foo**: subscribe to all packages maintained by Nixpkgs maintainer <code>foo</code>
-- **unfollow foo**: unsubscribe to all packages maintained by Nixpkgs maintainer <code>foo</code>
+- **follow foo**: subscribe to all packages maintained by GitHub handle <code>foo</code>
+- **unfollow foo**: unsubscribe to all packages maintained by GitHub handle <code>foo</code>
 - **subs**: list subscriptions
 - **help**: show this help message
 
