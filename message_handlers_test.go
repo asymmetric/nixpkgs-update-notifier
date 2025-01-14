@@ -397,7 +397,12 @@ func TestFollow(t *testing.T) {
 
 		var exists bool
 		var err error
-		for _, p := range findPackagesForHandle(h.packagesJSONFetcher(), "asymmetric") {
+		aps, err := findPackagesForHandle(h.packagesJSONFetcher(), "asymmetric")
+		if err != nil {
+			panic(err)
+		}
+
+		for _, p := range aps {
 			exists, err = checkIfSubExists(p, evt.RoomID.String())
 			if err != nil {
 				panic(err)
@@ -495,7 +500,10 @@ func TestFindPackagesForHandle(t *testing.T) {
 
 		addPackages(all...)
 
-		got := findPackagesForHandle(h.packagesJSONFetcher(), "asymmetric")
+		got, err := findPackagesForHandle(h.packagesJSONFetcher(), "asymmetric")
+		if err != nil {
+			panic(err)
+		}
 
 		if !slices.Equal(expected, got) {
 			t.Errorf("expected: %v\ngot: %v", expected, got)
@@ -507,7 +515,10 @@ func TestFindPackagesForHandle(t *testing.T) {
 			panic(err)
 		}
 
-		got := findPackagesForHandle(h.packagesJSONFetcher(), "foobar")
+		got, err := findPackagesForHandle(h.packagesJSONFetcher(), "foobar")
+		if err != nil {
+			panic(err)
+		}
 
 		expected := []string{}
 
@@ -536,7 +547,10 @@ func TestFindPackagesForHandle(t *testing.T) {
 		all := append([]string{"valgrind", "valgrind-light"}, expected...)
 		addPackages(all...)
 
-		got := findPackagesForHandle(h.packagesJSONFetcher(), "asymmetric")
+		got, err := findPackagesForHandle(h.packagesJSONFetcher(), "asymmetric")
+		if err != nil {
+			panic(err)
+		}
 
 		// the former has maiintaner asymmetric-foo, the latter foo-asymmetric
 		for _, s := range []string{"valgrind", "valgrind-light"} {
