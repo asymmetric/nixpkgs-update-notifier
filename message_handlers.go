@@ -219,7 +219,7 @@ func handleFollowUnfollow(msg string, evt *event.Event) {
 			l = append(l, fmt.Sprintf("- %s", ap))
 		}
 
-		msg := fmt.Sprintf("Succesfully unsubscribed from the following packages:\n %s", strings.Join(l, "\n"))
+		msg := fmt.Sprintf("Unsubscribed from packages:\n %s", strings.Join(l, "\n"))
 		if _, err := h.sender(msg, evt.RoomID); err != nil {
 			panic(err)
 		}
@@ -341,8 +341,7 @@ func fetchPackagesJSON() (jsobj map[string]any) {
 func subscribe(ap string, evt *event.Event) error {
 	slog.Debug("Subscribing", "attr_path", ap)
 
-	purl := packageURL(ap)
-	date, _ := h.logFetcher(purl)
+	date, _ := h.logFetcher(packageURL(ap))
 	if _, err := clients.db.Exec("UPDATE packages SET last_visited = ? WHERE attr_path = ?", date, ap); err != nil {
 		return err
 	}
