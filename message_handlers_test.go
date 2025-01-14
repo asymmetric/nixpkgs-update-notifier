@@ -39,19 +39,16 @@ func TestSub(t *testing.T) {
 	}
 
 	tt := []struct {
-		ap  string
-		lv  string
-		err bool
+		ap string
+		lv string
 	}{
 		{
-			ap:  "foo",
-			lv:  "1970-01-01",
-			err: false,
+			ap: "foo",
+			lv: "1970-01-01",
 		},
 		{
-			ap:  "python312Packages.foo",
-			lv:  "1980-01-01",
-			err: true,
+			ap: "python312Packages.foo",
+			lv: "1980-01-01",
 		},
 	}
 
@@ -91,6 +88,11 @@ func TestSub(t *testing.T) {
 			t.Errorf("Wrong last_visited date: %s", lv)
 		}
 	}
+}
+
+func TestDuplicates(t *testing.T) {
+	t.Skip()
+
 }
 
 // TODO: test non-existent package
