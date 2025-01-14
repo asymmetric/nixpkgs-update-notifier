@@ -416,11 +416,7 @@ func TestFollow(t *testing.T) {
 
 		last := ps[len(ps)-1]
 
-		for _, p := range ps[:len(ps)-2] {
-			if _, err := clients.db.Exec("INSERT INTO packages(attr_path, last_visited) VALUES (?, ?)", p, "1999"); err != nil {
-				panic(err)
-			}
-		}
+		addPackages(ps[:len(ps)-2]...)
 
 		fillEventContent(evt, fmt.Sprintf("follow %s", "asymmetric"))
 		handleMessage(ctx, evt)
