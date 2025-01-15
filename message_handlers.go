@@ -136,7 +136,7 @@ func handleSub(pattern string, evt *event.Event) {
 
 // TODO find ways to test this
 func handleSubs(evt *event.Event) {
-	rows, err := clients.db.Query("SELECT attr_path FROM subscriptions WHERE roomid = ?", evt.RoomID)
+	rows, err := clients.db.Query("SELECT attr_path FROM subscriptions WHERE roomid = ? ORDER BY attr_path", evt.RoomID)
 	if err != nil {
 		panic(err)
 	}
@@ -328,7 +328,7 @@ func findPackagesForHandle(jsobj map[string]any, handle string) ([]string, error
 	}
 	placeholders := strings.Join(qmarks, ",")
 
-	rows, err := clients.db.Query(fmt.Sprintf("SELECT attr_path FROM packages WHERE attr_path IN (%s)", placeholders), args...)
+	rows, err := clients.db.Query(fmt.Sprintf("SELECT attr_path FROM packages WHERE attr_path IN (%s) ORDER BY attr_path", placeholders), args...)
 	if err != nil {
 		panic(err)
 	}
