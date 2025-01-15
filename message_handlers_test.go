@@ -372,23 +372,28 @@ func TestCheckIfSubExists(t *testing.T) {
 		panic(err)
 	}
 
-	addPackages("foo")
+	ap := "foo"
+	addPackages(ap)
 
-	exists, err := checkIfSubExists("foo", evt.RoomID.String())
-	if err != nil {
-		panic(err)
-	} else if exists {
-		t.Errorf("should not exist")
-	}
+	t.Run("should not exist", func(t *testing.T) {
+		exists, err := checkIfSubExists(ap, evt.RoomID.String())
+		if err != nil {
+			panic(err)
+		} else if exists {
+			t.Errorf("should not exist")
+		}
+	})
 
-	sub("foo")
+	t.Run("should exist", func(t *testing.T) {
+		sub(ap)
 
-	exists, err = checkIfSubExists("foo", evt.RoomID.String())
-	if err != nil {
-		panic(err)
-	} else if !exists {
-		t.Error("should exist")
-	}
+		exists, err := checkIfSubExists(ap, evt.RoomID.String())
+		if err != nil {
+			panic(err)
+		} else if !exists {
+			t.Error("should exist")
+		}
+	})
 }
 
 func TestFollow(t *testing.T) {
@@ -418,8 +423,7 @@ func TestFollow(t *testing.T) {
 			}
 		}
 
-		fillEventContent(evt, fmt.Sprintf("follow %s", "asymmetric"))
-		handleMessage(ctx, evt)
+		fol("asymmetric")
 
 		var exists bool
 		var err error
@@ -442,8 +446,7 @@ func TestFollow(t *testing.T) {
 		// NOTE: no last_visited
 		addPackages(ps...)
 
-		fillEventContent(evt, fmt.Sprintf("follow %s", "asymmetric"))
-		handleMessage(ctx, evt)
+		fol("asymmetric")
 
 		var exists bool
 		var err error
@@ -473,8 +476,7 @@ func TestFollow(t *testing.T) {
 
 		addPackages(ps[:len(ps)-2]...)
 
-		fillEventContent(evt, fmt.Sprintf("follow %s", "asymmetric"))
-		handleMessage(ctx, evt)
+		fol("asymmetric")
 
 		if exists, _ := checkIfSubExists(last, evt.RoomID.String()); exists {
 			t.Errorf("should not be subscribed to %s", last)
@@ -509,12 +511,10 @@ func TestUnfollow(t *testing.T) {
 	sub("foo")
 
 	// First follow...
-	fillEventContent(evt, fmt.Sprintf("follow %s", "asymmetric"))
-	handleMessage(ctx, evt)
+	fol("asymmetric")
 
 	// Then unfollow
-	fillEventContent(evt, fmt.Sprintf("unfollow %s", "asymmetric"))
-	handleMessage(ctx, evt)
+	unfol("asymmetric")
 
 	for _, p := range mps {
 		if exists, _ := checkIfSubExists(p, evt.RoomID.String()); exists {
@@ -637,6 +637,16 @@ func sub(ap string) {
 
 func unsub(ap string) {
 	fillEventContent(evt, fmt.Sprintf("unsub %s", ap))
+	handleMessage(ctx, evt)
+}
+
+func fol(handle string) {
+	fillEventContent(evt, fmt.Sprintf("follow %s", handle))
+	handleMessage(ctx, evt)
+}
+
+func unfol(handle string) {
+	fillEventContent(evt, fmt.Sprintf("unfollow %s", handle))
 	handleMessage(ctx, evt)
 }
 
