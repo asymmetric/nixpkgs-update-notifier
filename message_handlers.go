@@ -203,28 +203,7 @@ func handleFollowUnfollow(msg string, evt *event.Event) {
 	if un != "" {
 		handleUnfollow(mps, evt)
 	} else {
-		// used for output message
-		var l []string
-
-		var esErr existingSubscriptionError
-		for _, ap := range mps {
-			if err := subscribe(ap, evt); err != nil {
-				if errors.As(err, &esErr) {
-					slog.Debug("skipped already existing subscription", "ap", ap)
-
-					continue
-				} else {
-					panic(err)
-				}
-			}
-
-			l = append(l, fmt.Sprintf("- %s", ap))
-		}
-
-		msg = fmt.Sprintf("Subscribed to packages:\n %s", strings.Join(l, "\n"))
-		if _, err := h.sender(msg, evt.RoomID); err != nil {
-			slog.Error(err.Error())
-		}
+		handleFollow(mps, evt)
 	}
 }
 
@@ -274,10 +253,35 @@ func handleUnfollow(mps []string, evt *event.Event) {
 	if _, err := h.sender(msg, evt.RoomID); err != nil {
 		panic(err)
 	}
+}
+
+func handleFollow(mps []string, evt *event.Event) {
+	// used for output message
+	var l []string
+
+	var esErr existingSubscriptionError
+	for _, ap := range mps {
+		if err := subscribe(ap, evt); err != nil {
+			if errors.As(err, &esErr) {
+				slog.Debug("skipped already existing subscription", "ap", ap)
+
+				continue
+			} else {
+				panic(err)
+			}
+		}
+
+		l = append(l, fmt.Sprintf("- %s", ap))
+	}
+
+	msg := fmt.Sprintf("Subscribed to packages:\n %s", strings.Join(l, "\n"))
+	if _, err := h.sender(msg, evt.RoomID); err != nil {
+		slog.Error(err.Error())
+	}
 
 }
 
-// Checks if the user is already subscribed to the package
+// Checks, via an SQL query, if the user is already subscribed to the package
 func checkIfSubExists(attr_path, roomid string) (exists bool, err error) {
 	err = clients.db.QueryRow("SELECT EXISTS (SELECT 1 FROM subscriptions WHERE roomid = ? AND attr_path = ? LIMIT 1)", roomid, attr_path).Scan(&exists)
 
@@ -371,8 +375,13 @@ func fetchPackagesJSON() (jsobj map[string]any) {
 
 // subscribe fetches a last_visited date, adds it to the packages table, and adds an entry into the subscriptions table.
 //
-// before adding subscription, add the date of the last available log for the package, so that if the program stops for any reason, we don't notify the user of a stale error log.
-// we want to avoid e.g.:
+// If the subscription already exists, it returns an existingSubscriptionError.
+//
+// Before adding a subscription, add the date of the last available log for the
+// package, so that if the program stops for any reason, we don't notify the
+// user of a stale error log.
+//
+// i.e. we want to avoid e.g.:
 // - we add a subscription for package foo at time t
 // - package foo has a failure that predates the subscription, t - 1
 // - program stops before the next tick
