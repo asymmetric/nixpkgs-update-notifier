@@ -90,9 +90,57 @@ func TestSub(t *testing.T) {
 	}
 }
 
-func TestDuplicates(t *testing.T) {
-	t.Skip()
+func TestSubDuplicates(t *testing.T) {
+	h = handlers{
+		packagesJSONFetcher: stubJSONFetcher,
+		dateFetcher: func(string) string {
+			return "1999"
+		},
+		sender: testSender,
+	}
 
+	t.Run("double subscribe", func(t *testing.T) {
+		if err := setupDB(ctx, ":memory:"); err != nil {
+			panic(err)
+		}
+
+		p := "foo"
+		addPackages(p)
+
+		sub(p)
+		sub(p)
+
+		var count int
+		if err := clients.db.QueryRow(`SELECT COUNT(*) FROM subscriptions WHERE attr_path = ?`, p).Scan(&count); err != nil {
+			panic(err)
+		}
+
+		if expected := 1; count != expected {
+			t.Errorf("expected: %d; got: %d", expected, count)
+		}
+	})
+
+	t.Run("subscribe and follow", func(t *testing.T) {
+		if err := setupDB(ctx, ":memory:"); err != nil {
+			panic(err)
+		}
+
+		p := "btrbk"
+		h := "asymmetric"
+		addPackages(p)
+
+		sub(p)
+		fol(h)
+
+		var count int
+		if err := clients.db.QueryRow(`SELECT COUNT(*) FROM subscriptions WHERE attr_path = ?`, p).Scan(&count); err != nil {
+			panic(err)
+		}
+
+		if expected := 1; count != expected {
+			t.Errorf("expected: %d; got: %d", expected, count)
+		}
+	})
 }
 
 // TODO: test non-existent package

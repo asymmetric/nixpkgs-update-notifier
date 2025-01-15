@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -13,6 +14,12 @@ import (
 	"github.com/itchyny/gojq"
 	"maunium.net/go/mautrix/event"
 )
+
+type existingSubscriptionError string
+
+func (e existingSubscriptionError) Error() string {
+	return fmt.Sprintf("Subscription already present: %s", string(e))
+}
 
 func handleSubUnsub(msg string, evt *event.Event) {
 	// TODO move this to caller
@@ -102,26 +109,28 @@ func handleSub(pattern string, evt *event.Event) {
 		return
 	}
 
+	var esErr existingSubscriptionError
 	for _, ap := range aps {
-		if exists, err := checkIfSubExists(ap, evt.RoomID.String()); err != nil {
-			panic(err)
-		} else if exists {
-			if _, err := h.sender(fmt.Sprintf("Already subscribed to package `%s`", ap), evt.RoomID); err != nil {
-				slog.Error(err.Error())
-			}
-		} else {
-			// TODO: should we notify here already if the log has an error?
-			if err := subscribe(ap, evt); err != nil {
+		// TODO: should we notify here already if the log has an error?
+		if err := subscribe(ap, evt); err != nil {
+			if errors.As(err, &esErr) {
+				if _, err := h.sender(esErr.Error(), evt.RoomID); err != nil {
+					slog.Error(err.Error())
+				}
+
+				// skip this ap
+				continue
+			} else {
 				panic(err)
 			}
-
-			// send confirmation message
-			if _, err := h.sender(fmt.Sprintf("Subscribed to package `%s`", ap), evt.RoomID); err != nil {
-				slog.Error(err.Error())
-			}
-
-			slog.Info("added sub", "ap", ap, "sender", evt.Sender)
 		}
+
+		// send confirmation message
+		if _, err := h.sender(fmt.Sprintf("Subscribed to package `%s`", ap), evt.RoomID); err != nil {
+			slog.Error(err.Error())
+		}
+
+		slog.Info("added sub", "ap", ap, "sender", evt.Sender)
 	}
 }
 
@@ -197,10 +206,18 @@ func handleFollowUnfollow(msg string, evt *event.Event) {
 		// used for output message
 		var l []string
 
+		var esErr existingSubscriptionError
 		for _, ap := range mps {
 			if err := subscribe(ap, evt); err != nil {
-				panic(err)
+				if errors.As(err, &esErr) {
+					slog.Debug("skipped already existing subscription", "ap", ap)
+
+					continue
+				} else {
+					panic(err)
+				}
 			}
+
 			l = append(l, fmt.Sprintf("- %s", ap))
 		}
 
@@ -366,7 +383,13 @@ func fetchPackagesJSON() (jsobj map[string]any) {
 //
 // NOTE: this invariant is also enforced via an SQL trigger.
 func subscribe(ap string, evt *event.Event) error {
-	slog.Debug("Subscribing", "attr_path", ap)
+	slog.Debug("subscribing", "attr_path", ap)
+
+	if exists, err := checkIfSubExists(ap, evt.RoomID.String()); err != nil {
+		return err
+	} else if exists {
+		return existingSubscriptionError(ap)
+	}
 
 	date := h.dateFetcher(packageURL(ap))
 	if _, err := clients.db.Exec("UPDATE packages SET last_visited = ? WHERE attr_path = ?", date, ap); err != nil {

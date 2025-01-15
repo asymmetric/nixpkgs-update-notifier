@@ -3,7 +3,8 @@ CREATE TABLE IF NOT EXISTS subscriptions (
   roomid TEXT NOT NULL,
   mxid TEXT NOT NULL,
   attr_path TEXT NOT NULL,
-  FOREIGN KEY(attr_path) REFERENCES packages(attr_path)
+  FOREIGN KEY(attr_path) REFERENCES packages(attr_path),
+  UNIQUE (attr_path,mxid,roomid)
 ) STRICT;
 
 CREATE TABLE IF NOT EXISTS packages (
