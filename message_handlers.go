@@ -355,20 +355,24 @@ func findPackagesForHandle(jsobj map[string]any, handle string) ([]string, error
 
 // Fetches the packages.json.br, unpacks it and returns it as serialized JSON.
 func fetchPackagesJSON() (jsobj map[string]any) {
+	slog.Debug("downloading packages.json.br")
 	resp, err := http.Get(packagesURL)
 	if err != nil {
 		panic(err)
 	}
 	defer resp.Body.Close()
+	slog.Debug("downloaded packages.json.br")
 
 	data, err := io.ReadAll(brotli.NewReader(resp.Body))
 	if err != nil {
 		panic(err)
 	}
 
+	slog.Debug("parsing packages.json")
 	if err := json.Unmarshal(data, &jsobj); err != nil {
 		panic(err)
 	}
+	slog.Debug("done parsing packages.json")
 
 	return
 }
