@@ -262,11 +262,13 @@ func fetchLatestLogState(url string) (string, bool) {
 	}
 
 	// Second HTTP request, returns logs itself
+	slog.Debug("http req", "state", "start", "req", req)
 	resp, err := clients.http.Do(req)
 	if err != nil {
 		panic(err)
 	}
 	defer resp.Body.Close()
+	slog.Debug("http req", "state", "done", "req", req)
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -289,11 +291,13 @@ func fetchLatestLogURL(url string) *url.URL {
 		panic(err)
 	}
 
+	slog.Debug("http req", "state", "start", "req", req)
 	resp, err := clients.http.Do(req)
 	if err != nil {
 		panic(err)
 	}
 	defer resp.Body.Close()
+	slog.Debug("http req", "state", "done", "req", req)
 
 	doc, err := html.Parse(resp.Body)
 	if err != nil {
