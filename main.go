@@ -65,7 +65,7 @@ type handlers struct {
 	// Sends messages to  a user via Matrix.
 	sender func(string, id.RoomID) (*mautrix.RespSendEvent, error)
 	// Fetches packages.json from nixos.org.
-	packagesJSONFetcher func() map[string]any
+	packagesJSONFetcher func() any
 }
 
 var h handlers

@@ -650,7 +650,7 @@ func unfol(handle string) {
 	handleMessage(ctx, evt)
 }
 
-func stubJSONFetcher() (jsobj map[string]any) {
+func stubJSONFetcher() (jsobj any) {
 	data, err := os.ReadFile("testdata/packages.json")
 	if err != nil {
 		panic(err)

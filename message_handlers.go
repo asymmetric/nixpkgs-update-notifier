@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -291,7 +290,7 @@ func checkIfSubExists(attr_path, roomid string) (exists bool, err error) {
 // 1. uses jquery to parse the JSON blob
 // 2. finds list of packages maintained by handle
 // 3. uses SQL to intersect with list of tracked packages
-func findPackagesForHandle(jsobj map[string]any, handle string) ([]string, error) {
+func findPackagesForHandle(jsobj any, handle string) ([]string, error) {
 	// The query needs to handle:
 	// missing maintainers
 	// missing github field
@@ -302,7 +301,7 @@ func findPackagesForHandle(jsobj map[string]any, handle string) ([]string, error
 		return nil, err
 	}
 
-	slog.Debug("gojq query", "query", query, "jsobj len", len(jsobj))
+	slog.Debug("gojq query", "query", query)
 
 	// list of maintained packages
 	var mps []string
@@ -354,7 +353,7 @@ func findPackagesForHandle(jsobj map[string]any, handle string) ([]string, error
 }
 
 // Fetches the packages.json.br, unpacks it and returns it as serialized JSON.
-func fetchPackagesJSON() (jsobj map[string]any) {
+func fetchPackagesJSON() (jsobj any) {
 	slog.Debug("downloading packages.json.br")
 	resp, err := http.Get(packagesURL)
 	if err != nil {
@@ -363,13 +362,8 @@ func fetchPackagesJSON() (jsobj map[string]any) {
 	defer resp.Body.Close()
 	slog.Debug("downloaded packages.json.br")
 
-	data, err := io.ReadAll(brotli.NewReader(resp.Body))
-	if err != nil {
-		panic(err)
-	}
-
 	slog.Debug("parsing packages.json")
-	if err := json.Unmarshal(data, &jsobj); err != nil {
+	if err := json.NewDecoder(brotli.NewReader(resp.Body)).Decode(&jsobj); err != nil {
 		panic(err)
 	}
 	slog.Debug("done parsing packages.json")
