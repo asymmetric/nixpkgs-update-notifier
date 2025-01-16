@@ -196,7 +196,7 @@ func storeAttrPaths(url string) {
 // Iterates over subscribed-to packages, and fetches their latest log, printing out whether it contained an error.
 // It also updates the packages.last_visited column.
 func updateSubs() {
-	rows, err := clients.db.Query("SELECT attr_path FROM subscriptions")
+	rows, err := clients.db.Query("SELECT attr_path FROM subscriptions ORDER BY attr_path")
 	if err != nil {
 		fatal(err)
 	}
