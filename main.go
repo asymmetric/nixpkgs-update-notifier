@@ -9,7 +9,6 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"net/url"
 	u "net/url"
 	"strings"
 	"time"
@@ -285,7 +284,7 @@ func fetchLatestLogState(url string) (string, bool) {
 // Therefore, it makes 1 HTTP request.
 //
 // TODO: return string
-func fetchLatestLogURL(url string) *url.URL {
+func fetchLatestLogURL(url string) *u.URL {
 	req, err := newReqWithUA(url)
 	if err != nil {
 		panic(err)
