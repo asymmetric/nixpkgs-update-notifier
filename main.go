@@ -262,7 +262,7 @@ func fetchLatestLogState(url string) (string, bool) {
 
 	slog.Debug("fetching log", "url", purl)
 
-	req, err := newReqWithUA(purl.String())
+	req, err := newReqWithUA(purl)
 	if err != nil {
 		panic(err)
 	}
@@ -281,7 +281,7 @@ func fetchLatestLogState(url string) (string, bool) {
 		panic(err)
 	}
 
-	return getDate(purl.String()), regexes.Error().Match(body)
+	return getDate(purl), regexes.Error().Match(body)
 }
 
 // Given the URL of a package, it returns the URL of the latest log.
@@ -291,7 +291,7 @@ func fetchLatestLogState(url string) (string, bool) {
 // Therefore, it makes 1 HTTP request.
 //
 // TODO: return string
-func fetchLatestLogURL(url string) *u.URL {
+func fetchLatestLogURL(url string) string {
 	req, err := newReqWithUA(url)
 	if err != nil {
 		panic(err)
@@ -316,14 +316,14 @@ func fetchLatestLogURL(url string) *u.URL {
 	if err != nil {
 		panic(err)
 	}
-	return parsedURL.JoinPath(href)
+	return fmt.Sprintf("%s/%s", parsedURL, href)
 }
 
 // Given a URL of a package, it returns the date of the latest log.
 func fetchLatestLogDate(url string) string {
 	lurl := fetchLatestLogURL(url)
 
-	return getDate(lurl.String())
+	return getDate(lurl)
 }
 
 func notifySubscribers(attr_path, date string) {

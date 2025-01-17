@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	u "net/url"
 	"os"
 	"strings"
 	"time"
@@ -48,19 +47,12 @@ func getDate(url string) (date string) {
 
 // Returns the full package URL by appending its attr_path to the base URL.
 func packageURL(attr_path string) string {
-	parsedURL, err := u.Parse(*mainURL)
-	if err != nil {
-		panic(err)
-	}
-
-	return parsedURL.JoinPath(attr_path).String()
+	return fmt.Sprintf("%s/%s", strings.Trim(*mainURL, "/"), strings.Trim(attr_path, "/"))
 }
 
 func logURL(attr_path, date string) string {
 	purl := packageURL(attr_path)
 
-	// it's safe to just use string concatenation here because we're sure any
-	// trailing / has been removed by call to packageURL
 	return fmt.Sprintf("%s/%s.log", purl, date)
 }
 
