@@ -144,6 +144,7 @@ func main() {
 
 	slog.Info("initialized", "delay", updateTickerOpt)
 
+
 	storeAttrPaths(*mainURL)
 	updateSubs()
 	fetchPackagesJSON()
@@ -267,13 +268,13 @@ func fetchLatestLogState(url string) (string, bool) {
 	}
 
 	// Second HTTP request, returns logs itself
-	slog.Debug("http req", "state", "start", "req", req)
+	slog.Debug("http req", "state", "start", "req", req.URL)
 	resp, err := clients.http.Do(req)
 	if err != nil {
 		panic(err)
 	}
 	defer resp.Body.Close()
-	slog.Debug("http req", "state", "done", "req", req)
+	slog.Debug("http req", "state", "done", "req", req.URL)
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
