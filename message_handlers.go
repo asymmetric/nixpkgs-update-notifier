@@ -247,7 +247,7 @@ func handleUnfollow(mps []string, evt *event.Event) {
 	}
 
 	if _, err := h.sender(msg, evt.RoomID); err != nil {
-		panic(err)
+		slog.Error(err.Error())
 	}
 }
 
