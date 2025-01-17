@@ -9,6 +9,7 @@ import (
 	u "net/url"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/andybalholm/brotli"
 	"maunium.net/go/mautrix"
@@ -69,9 +70,12 @@ func fatal(err error) {
 	os.Exit(restartExitCode)
 }
 
+// TODO: log duration of the whole thing to Info
 // Fetches the packages.json.br, unpacks it and parses it.
 func fetchPackagesJSON() {
 	slog.Debug("downloading packages.json.br")
+
+	start := time.Now()
 	resp, err := http.Get(packagesURL)
 	if err != nil {
 		panic(err)
@@ -83,5 +87,6 @@ func fetchPackagesJSON() {
 	if err := json.NewDecoder(brotli.NewReader(resp.Body)).Decode(&jsblob); err != nil {
 		panic(err)
 	}
-	slog.Debug("done parsing packages.json")
+
+	slog.Info("package.json handling completed", "elapsed", time.Since(start))
 }
