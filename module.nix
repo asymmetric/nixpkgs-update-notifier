@@ -14,9 +14,20 @@
         type = lib.types.path;
         default = "/var/lib/nixpkgs-update-notifier";
       };
-      ticker = lib.mkOption {
-        type = lib.types.nullOr lib.types.str;
-        default = null;
+      timers = lib.mkOption {
+        description = "Timers";
+        type = lib.types.submodule {
+          options = {
+            update = lib.mkOption {
+              type = lib.types.nullOr lib.types.str;
+              default = null;
+            };
+            jsblob = lib.mkOption {
+              type = lib.types.nullOr lib.types.str;
+              default = null;
+            };
+          };
+        };
       };
       debug = lib.mkOption {
         type = lib.types.bool;
@@ -42,7 +53,8 @@
             (lib.getExe pkgs.nixpkgs-update-notifier)
             "-matrix.username ${cfg.username}"
             "-db ${cfg.dataDir}/data.db"
-            (lib.optionalString (cfg.ticker != null) "-ticker ${cfg.ticker}")
+            (lib.optionalString (cfg.timers.update != null) "-timers.update ${cfg.timers.update}")
+            (lib.optionalString (cfg.timers.jsblob != null) "-timers.jsblob ${cfg.timers.jsblob}")
             (lib.optionalString cfg.debug "-debug")
           ];
           StateDirectory = "nixpkgs-update-notifier";

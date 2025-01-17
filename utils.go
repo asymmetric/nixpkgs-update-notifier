@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/andybalholm/brotli"
 	"maunium.net/go/mautrix"
 	"maunium.net/go/mautrix/event"
 	"maunium.net/go/mautrix/format"
@@ -61,7 +63,25 @@ func logURL(attr_path, date string) string {
 	return fmt.Sprintf("%s/%s.log", purl, date)
 }
 
+// This one should be used if there's an irrecoverable problem, e.g. IO with the DB.
 func fatal(err error) {
 	slog.Error("error", err)
 	os.Exit(restartExitCode)
+}
+
+// Fetches the packages.json.br, unpacks it and parses it.
+func fetchPackagesJSON() {
+	slog.Debug("downloading packages.json.br")
+	resp, err := http.Get(packagesURL)
+	if err != nil {
+		panic(err)
+	}
+	defer resp.Body.Close()
+	slog.Debug("downloaded packages.json.br")
+
+	slog.Debug("parsing packages.json")
+	if err := json.NewDecoder(brotli.NewReader(resp.Body)).Decode(&jsblob); err != nil {
+		panic(err)
+	}
+	slog.Debug("done parsing packages.json")
 }

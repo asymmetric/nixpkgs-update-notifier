@@ -91,8 +91,8 @@ func TestSub(t *testing.T) {
 }
 
 func TestSubDuplicates(t *testing.T) {
+	stubJSONBlob()
 	h = handlers{
-		packagesJSONFetcher: stubJSONFetcher,
 		dateFetcher: func(string) string {
 			return "1999"
 		},
@@ -397,8 +397,8 @@ func TestCheckIfSubExists(t *testing.T) {
 }
 
 func TestFollow(t *testing.T) {
+	stubJSONBlob()
 	h = handlers{
-		packagesJSONFetcher: stubJSONFetcher,
 		dateFetcher: func(string) string {
 			return "1999"
 		},
@@ -450,7 +450,7 @@ func TestFollow(t *testing.T) {
 
 		var exists bool
 		var err error
-		aps, err := findPackagesForHandle(h.packagesJSONFetcher(), "asymmetric")
+		aps, err := findPackagesForHandle("asymmetric")
 		if err != nil {
 			panic(err)
 		}
@@ -485,8 +485,8 @@ func TestFollow(t *testing.T) {
 }
 
 func TestUnfollow(t *testing.T) {
+	stubJSONBlob()
 	h = handlers{
-		packagesJSONFetcher: stubJSONFetcher,
 		dateFetcher: func(string) string {
 			return "1999"
 		},
@@ -528,7 +528,8 @@ func TestUnfollow(t *testing.T) {
 }
 
 func TestFindPackagesForHandle(t *testing.T) {
-	h.packagesJSONFetcher = stubJSONFetcher
+	stubJSONBlob()
+
 	t.Run("existing handle", func(t *testing.T) {
 		if err := setupDB(ctx, ":memory:"); err != nil {
 			panic(err)
@@ -550,7 +551,7 @@ func TestFindPackagesForHandle(t *testing.T) {
 
 		addPackages(all...)
 
-		got, err := findPackagesForHandle(h.packagesJSONFetcher(), "asymmetric")
+		got, err := findPackagesForHandle("asymmetric")
 		if err != nil {
 			panic(err)
 		}
@@ -565,7 +566,7 @@ func TestFindPackagesForHandle(t *testing.T) {
 			panic(err)
 		}
 
-		got, err := findPackagesForHandle(h.packagesJSONFetcher(), "foobar")
+		got, err := findPackagesForHandle("foobar")
 		if err != nil {
 			panic(err)
 		}
@@ -597,7 +598,7 @@ func TestFindPackagesForHandle(t *testing.T) {
 		all := append([]string{"valgrind", "valgrind-light"}, expected...)
 		addPackages(all...)
 
-		got, err := findPackagesForHandle(h.packagesJSONFetcher(), "asymmetric")
+		got, err := findPackagesForHandle("asymmetric")
 		if err != nil {
 			panic(err)
 		}
@@ -650,15 +651,13 @@ func unfol(handle string) {
 	handleMessage(ctx, evt)
 }
 
-func stubJSONFetcher() (jsobj any) {
+func stubJSONBlob() {
 	data, err := os.ReadFile("testdata/packages.json")
 	if err != nil {
 		panic(err)
 	}
 
-	if err := json.Unmarshal(data, &jsobj); err != nil {
+	if err := json.Unmarshal(data, &jsblob); err != nil {
 		panic(err)
 	}
-
-	return
 }

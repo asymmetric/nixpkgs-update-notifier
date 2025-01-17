@@ -1,14 +1,11 @@
 package main
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"strings"
 
-	"github.com/andybalholm/brotli"
 	"github.com/asymmetric/nixpkgs-update-notifier/regexes"
 	"github.com/itchyny/gojq"
 	"maunium.net/go/mautrix/event"
@@ -182,7 +179,7 @@ func handleFollowUnfollow(msg string, evt *event.Event) {
 		slog.Info("received unfollow", "handle", handle, "sender", evt.Sender)
 	}
 
-	mps, err := findPackagesForHandle(h.packagesJSONFetcher(), handle)
+	mps, err := findPackagesForHandle(handle)
 	if err != nil {
 		if _, err = h.sender("There was a problem processing your request, sorry.", evt.RoomID); err != nil {
 			slog.Error(err.Error())
@@ -290,7 +287,7 @@ func checkIfSubExists(attr_path, roomid string) (exists bool, err error) {
 // 1. uses jquery to parse the JSON blob
 // 2. finds list of packages maintained by handle
 // 3. uses SQL to intersect with list of tracked packages
-func findPackagesForHandle(jsobj any, handle string) ([]string, error) {
+func findPackagesForHandle(handle string) ([]string, error) {
 	// The query needs to handle:
 	// missing maintainers
 	// missing github field
@@ -304,8 +301,9 @@ func findPackagesForHandle(jsobj any, handle string) ([]string, error) {
 	slog.Debug("gojq query", "query", query)
 
 	// list of maintained packages
+	// jsblob is populated and updated out-of-band.
 	var mps []string
-	iter := query.Run(jsobj)
+	iter := query.Run(jsblob)
 	for {
 		v, ok := iter.Next()
 		if !ok {
@@ -350,25 +348,6 @@ func findPackagesForHandle(jsobj any, handle string) ([]string, error) {
 	}
 
 	return aps, nil
-}
-
-// Fetches the packages.json.br, unpacks it and returns it as serialized JSON.
-func fetchPackagesJSON() (jsobj any) {
-	slog.Debug("downloading packages.json.br")
-	resp, err := http.Get(packagesURL)
-	if err != nil {
-		panic(err)
-	}
-	defer resp.Body.Close()
-	slog.Debug("downloaded packages.json.br")
-
-	slog.Debug("parsing packages.json")
-	if err := json.NewDecoder(brotli.NewReader(resp.Body)).Decode(&jsobj); err != nil {
-		panic(err)
-	}
-	slog.Debug("done parsing packages.json")
-
-	return
 }
 
 // subscribe fetches a last_visited date, adds it to the packages table, and adds an entry into the subscriptions table.

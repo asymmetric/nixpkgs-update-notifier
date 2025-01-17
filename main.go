@@ -27,7 +27,8 @@ var matrixUsername = flag.String("matrix.username", "", "Matrix bot username")
 
 var mainURL = flag.String("url", "https://nixpkgs-update-logs.nix-community.org", "Webpage with logs")
 var dbPath = flag.String("db", "data.db", "Path to the DB file")
-var tickerOpt = flag.Duration("ticker", 24*time.Hour, "How often to check url")
+var updateTickerOpt = flag.Duration("timers.update", 24*time.Hour, "How often to check for new errors")
+var jsonTickerOpt = flag.Duration("timers.jsblob", 5*time.Minute, "How often to fetch packages.json.br")
 var debug = flag.Bool("debug", false, "Enable debug logging")
 
 var clients = struct {
@@ -63,11 +64,11 @@ type handlers struct {
 	dateFetcher func(string) string
 	// Sends messages to  a user via Matrix.
 	sender func(string, id.RoomID) (*mautrix.RespSendEvent, error)
-	// Fetches packages.json from nixos.org.
-	packagesJSONFetcher func() any
 }
 
 var h handlers
+
+var jsblob any
 
 const helpText = `Welcome to the nixpkgs-update-notifier bot!
 
@@ -98,10 +99,9 @@ The code for the bot is [here](https://github.com/asymmetric/nixpkgs-update-noti
 func init() {
 	// default handlers
 	h = handlers{
-		logFetcher:          fetchLatestLogState,
-		dateFetcher:         fetchLatestLogDate,
-		sender:              sendMarkdown,
-		packagesJSONFetcher: fetchPackagesJSON,
+		logFetcher:  fetchLatestLogState,
+		dateFetcher: fetchLatestLogDate,
+		sender:      sendMarkdown,
 	}
 }
 
@@ -125,9 +125,10 @@ func main() {
 		}
 	}()
 
-	ticker := time.NewTicker(*tickerOpt)
+	updateTicker := time.NewTicker(*updateTickerOpt)
 	optimizeTicker := time.NewTicker(24 * time.Hour)
-	slog.Debug("delay set", "value", *tickerOpt)
+	jsonTicker := time.NewTicker(*jsonTickerOpt)
+	slog.Debug("delay set", "value", *updateTickerOpt)
 
 	// - fetch main page, add list of packages to mem
 	// - fetch last log of subscribed packages
@@ -141,17 +142,22 @@ func main() {
 	// - new sub
 	// - new broken package, send to subbers
 
-	slog.Info("initialized", "delay", tickerOpt)
+	slog.Info("initialized", "delay", updateTickerOpt)
 
 	storeAttrPaths(*mainURL)
 	updateSubs()
+	fetchPackagesJSON()
 
 	for {
 		select {
-		case <-ticker.C:
+		case <-updateTicker.C:
 			slog.Info("new ticker run")
 			storeAttrPaths(*mainURL)
 			updateSubs()
+		case <-jsonTicker.C:
+			// NOTE: in theory, this could be done in a goroutine, but in practice,
+			// the program is idling so often that it's not really necessary.
+			fetchPackagesJSON()
 		case <-optimizeTicker.C:
 			slog.Info("optimizing DB")
 			if _, err := clients.db.Exec("PRAGMA optimize;"); err != nil {
