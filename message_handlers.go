@@ -249,6 +249,8 @@ func handleUnfollow(mps []string, evt *event.Event) {
 	if _, err := h.sender(msg, evt.RoomID); err != nil {
 		slog.Error(err.Error())
 	}
+
+	slog.Info("sent unfollow response", "sender", evt.Sender)
 }
 
 func handleFollow(mps []string, evt *event.Event) {
@@ -275,6 +277,7 @@ func handleFollow(mps []string, evt *event.Event) {
 		slog.Error(err.Error())
 	}
 
+	slog.Info("sent unfollow response", "sender", evt.Sender)
 }
 
 // Checks, via an SQL query, if the user is already subscribed to the package
