@@ -70,32 +70,6 @@ var h handlers
 // jsblob stores the unmarshaled packages.json.
 var jsblob any
 
-const helpText = `Welcome to the nixpkgs-update-notifier bot!
-
-These are the available commands:
-
-- **sub foo**: subscribe to package <code>foo</code>
-- **unsub foo**: unsubscribe from package <code>foo</code>
-- **follow foo**: subscribe to all packages maintained by GitHub handle <code>foo</code>
-- **unfollow foo**: unsubscribe to all packages maintained by GitHub handle <code>foo</code>
-- **subs**: list subscriptions
-- **help**: show this help message
-
-You can use the <code>*</code> and <code>?</code> globs in queries. Things you can do:
-
-- <code>sub python31?Packages.acme</code>
-- <code>sub *.acme</code>
-
-Things you cannot do:
-
-- <code>sub *</code>
-- <code>sub ?</code>
-- <code>sub foo.*</code>
-- <code>follow *</code>
-
-The code for the bot is [here](https://github.com/asymmetric/nixpkgs-update-notifier).
-`
-
 func init() {
 	// default handlers
 	h = handlers{
