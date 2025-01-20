@@ -9,7 +9,6 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	u "net/url"
 	"strings"
 	"time"
 
@@ -68,6 +67,7 @@ type handlers struct {
 
 var h handlers
 
+// jsblob stores the unmarshaled packages.json.
 var jsblob any
 
 const helpText = `Welcome to the nixpkgs-update-notifier bot!
@@ -312,11 +312,8 @@ func fetchLatestLogURL(url string) string {
 
 	n := htmlquery.FindOne(doc, "//a[contains(@href, '.log')][last()]/@href")
 	href := htmlquery.InnerText(n)
-	parsedURL, err := u.Parse(url)
-	if err != nil {
-		panic(err)
-	}
-	return fmt.Sprintf("%s/%s", parsedURL, href)
+
+	return fmt.Sprintf("%s/%s", url, href)
 }
 
 // Given a URL of a package, it returns the date of the latest log.
