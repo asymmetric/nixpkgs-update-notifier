@@ -1,12 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	_ "embed"
 	"flag"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -58,9 +58,9 @@ const packagesURL = "https://channels.nixos.org/nixos-unstable/packages.json.br"
 // These are abstracted so that we can pass a different function in tests.
 type handlers struct {
 	// Fetches logs for a URL.
-	logFetcher func(string) (string, bool)
+	logFetcher func(string) (string, bool, error)
 	// Fetches last log date for a URL.
-	dateFetcher func(string) string
+	dateFetcher func(string) (string, error)
 	// Sends messages to  a user via Matrix.
 	sender func(string, id.RoomID) (*mautrix.RespSendEvent, error)
 }
@@ -118,7 +118,6 @@ func main() {
 
 	slog.Info("initialized", "delay", updateTickerOpt)
 
-
 	storeAttrPaths(*mainURL)
 	updateSubs()
 	fetchPackagesJSON()
@@ -144,18 +143,12 @@ func main() {
 
 // scrapes the main page, saving package names to db
 func storeAttrPaths(url string) {
-	req, err := newReqWithUA(url)
+	body, err := makeRequest(url)
 	if err != nil {
 		panic(err)
 	}
 
-	resp, err := clients.http.Do(req)
-	if err != nil {
-		panic(err)
-	}
-	defer resp.Body.Close()
-
-	doc, err := html.Parse(resp.Body)
+	doc, err := html.Parse(bytes.NewReader(body))
 	if err != nil {
 		panic(err)
 	}
@@ -198,7 +191,24 @@ func updateSubs() {
 		url := packageURL(ap)
 		// TODO: make async
 		// TODO: we could sometimes avoid fetching altogether if we passed last_visited
-		logDate, hasError := h.logFetcher(url)
+		logDate, hasLogError, err := h.logFetcher(url)
+		if err != nil {
+			if httpErr, ok := err.(*HTTPError); ok {
+				if httpErr.StatusCode == http.StatusNotFound {
+					slog.Info("non-existent package detected, deleting it", "attr_path", ap)
+
+					if _, err := clients.db.Exec("DELETE FROM packages WHERE attr_path = ?", ap); err != nil {
+						panic(err)
+					}
+				} else {
+					slog.Error("http error while updating, skipping", "ap", ap, "status", httpErr.StatusCode)
+
+					continue
+				}
+			} else {
+				panic(err)
+			}
+		}
 
 		// avoid duplicate notifications by ensuring we haven't already notified for this log
 		var lv string
@@ -206,7 +216,7 @@ func updateSubs() {
 			fatal(err)
 		}
 		if logDate > lv {
-			if hasError {
+			if hasLogError {
 				slog.Info("new log", "err", true, "url", logURL(ap, logDate))
 				notifySubscribers(ap, logDate)
 			} else {
@@ -230,32 +240,21 @@ func updateSubs() {
 // - fetching latest log
 //
 // Therefore, it makes 2 HTTP requests.
-func fetchLatestLogState(url string) (string, bool) {
+func fetchLatestLogState(url string) (string, bool, error) {
 	// First HTTP request, returns URL of latest log
-	purl := fetchLatestLogURL(url)
+	purl, err := fetchLatestLogURL(url)
+	if err != nil {
+		return "", false, err
+	}
 
 	slog.Debug("fetching log", "url", purl)
 
-	req, err := newReqWithUA(purl)
+	body, err := makeRequest(purl)
 	if err != nil {
-		panic(err)
+		return "", false, err
 	}
 
-	// Second HTTP request, returns logs itself
-	slog.Debug("http req", "state", "start", "req", req.URL)
-	resp, err := clients.http.Do(req)
-	if err != nil {
-		panic(err)
-	}
-	defer resp.Body.Close()
-	slog.Debug("http req", "state", "done", "req", req.URL)
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		panic(err)
-	}
-
-	return getDate(purl), regexes.Error().Match(body)
+	return getDate(purl), regexes.Error().Match(body), nil
 }
 
 // Given the URL of a package, it returns the URL of the latest log.
@@ -263,38 +262,32 @@ func fetchLatestLogState(url string) (string, bool) {
 // It does this by parsing the fetched HTML and getting the latest link.
 //
 // Therefore, it makes 1 HTTP request.
-//
-// TODO: return string
-func fetchLatestLogURL(url string) string {
-	req, err := newReqWithUA(url)
+func fetchLatestLogURL(url string) (string, error) {
+	body, err := makeRequest(url)
 	if err != nil {
-		panic(err)
+		return "", err
 	}
 
-	slog.Debug("http req", "state", "start", "req", req)
-	resp, err := clients.http.Do(req)
+	doc, err := html.Parse(bytes.NewReader(body))
 	if err != nil {
-		panic(err)
-	}
-	defer resp.Body.Close()
-	slog.Debug("http req", "state", "done", "req", req)
-
-	doc, err := html.Parse(resp.Body)
-	if err != nil {
-		panic(err)
+		return "", err
 	}
 
 	n := htmlquery.FindOne(doc, "//a[contains(@href, '.log')][last()]/@href")
 	href := htmlquery.InnerText(n)
 
-	return fmt.Sprintf("%s/%s", url, href)
+	return fmt.Sprintf("%s/%s", url, href), nil
 }
 
 // Given a URL of a package, it returns the date of the latest log.
-func fetchLatestLogDate(url string) string {
-	lurl := fetchLatestLogURL(url)
+func fetchLatestLogDate(url string) (string, error) {
+	slog.Debug("fetching latest log date", "url", url)
+	lurl, err := fetchLatestLogURL(url)
+	if err != nil {
+		return "", err
+	}
 
-	return getDate(lurl)
+	return getDate(lurl), nil
 }
 
 func notifySubscribers(attr_path, date string) {

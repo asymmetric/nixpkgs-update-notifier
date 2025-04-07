@@ -380,7 +380,15 @@ func subscribe(ap string, evt *event.Event) error {
 		return existingSubscriptionError(ap)
 	}
 
-	date := h.dateFetcher(packageURL(ap))
+	date, err := h.dateFetcher(packageURL(ap))
+	if err != nil {
+		if httpErr, ok := err.(*HTTPError); ok {
+			return fmt.Errorf("http errow while fetching date: %w", httpErr)
+		} else {
+			return err
+		}
+	}
+
 	if _, err := clients.db.Exec("UPDATE packages SET last_visited = ? WHERE attr_path = ?", date, ap); err != nil {
 		return err
 	}

@@ -2,8 +2,7 @@ CREATE TABLE IF NOT EXISTS subscriptions (
   id INTEGER PRIMARY KEY,
   roomid TEXT NOT NULL,
   mxid TEXT NOT NULL,
-  attr_path TEXT NOT NULL,
-  FOREIGN KEY(attr_path) REFERENCES packages(attr_path),
+  attr_path TEXT NOT NULL REFERENCES packages(attr_path) ON DELETE CASCADE,
   UNIQUE (attr_path,mxid,roomid)
 ) STRICT;
 

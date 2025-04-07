@@ -56,8 +56,8 @@ func TestSub(t *testing.T) {
 	var lv string
 	for _, v := range tt {
 		h = handlers{
-			dateFetcher: func(string) string {
-				return v.lv
+			dateFetcher: func(string) (string, error) {
+				return v.lv, nil
 			},
 			sender: testSender,
 		}
@@ -93,8 +93,8 @@ func TestSub(t *testing.T) {
 func TestSubDuplicates(t *testing.T) {
 	stubJSONBlob()
 	h = handlers{
-		dateFetcher: func(string) string {
-			return "1999"
+		dateFetcher: func(string) (string, error) {
+			return "1999", nil
 		},
 		sender: testSender,
 	}
@@ -170,8 +170,8 @@ func TestUnsub(t *testing.T) {
 	var count int
 	for _, v := range tt {
 		h = handlers{
-			dateFetcher: func(string) string {
-				return v.lv
+			dateFetcher: func(string) (string, error) {
+				return v.lv, nil
 			},
 			sender: testSender,
 		}
@@ -204,8 +204,8 @@ func TestSubUnsub(t *testing.T) {
 	}
 
 	h = handlers{
-		dateFetcher: func(string) string {
-			return "1999"
+		dateFetcher: func(string) (string, error) {
+			return "1999", nil
 		},
 		sender: testSender,
 	}
@@ -302,8 +302,8 @@ func TestOverlapping(t *testing.T) {
 	}
 
 	h = handlers{
-		dateFetcher: func(string) string {
-			return "1999"
+		dateFetcher: func(string) (string, error) {
+			return "1999", nil
 		},
 		sender: testSender,
 	}
@@ -340,8 +340,8 @@ func TestSubscribeSetsLastVisited(t *testing.T) {
 	}
 	today := "2000-01-01"
 	h = handlers{
-		dateFetcher: func(string) string {
-			return today
+		dateFetcher: func(string) (string, error) {
+			return today, nil
 		},
 		sender: testSender,
 	}
@@ -399,8 +399,8 @@ func TestCheckIfSubExists(t *testing.T) {
 func TestFollow(t *testing.T) {
 	stubJSONBlob()
 	h = handlers{
-		dateFetcher: func(string) string {
-			return "1999"
+		dateFetcher: func(string) (string, error) {
+			return "1999", nil
 		},
 		sender: testSender,
 	}
@@ -487,8 +487,8 @@ func TestFollow(t *testing.T) {
 func TestUnfollow(t *testing.T) {
 	stubJSONBlob()
 	h = handlers{
-		dateFetcher: func(string) string {
-			return "1999"
+		dateFetcher: func(string) (string, error) {
+			return "1999", nil
 		},
 		sender: testSender,
 	}
