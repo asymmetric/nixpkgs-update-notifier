@@ -2,3 +2,4 @@
 *.db-*
 .secrets
 nixpkgs-update-notifier
+.direnv
