@@ -198,7 +198,7 @@ func updateSubs() {
 					slog.Info("non-existent package detected, deleting it", "attr_path", ap)
 
 					if _, err := clients.db.Exec("DELETE FROM packages WHERE attr_path = ?", ap); err != nil {
-						panic(err)
+						fatal(err)
 					}
 
 					continue
