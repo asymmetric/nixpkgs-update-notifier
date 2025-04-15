@@ -45,7 +45,7 @@
         wantedBy = [ "multi-user.target" ];
         after = [ "network.target" ];
         startLimitIntervalSec = 60;
-        startLimitBurst = 10;
+        startLimitBurst = 5;
         serviceConfig = {
           Restart = "on-failure";
           # emitted by `fatal`
