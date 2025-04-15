@@ -200,6 +200,8 @@ func updateSubs() {
 					if _, err := clients.db.Exec("DELETE FROM packages WHERE attr_path = ?", ap); err != nil {
 						panic(err)
 					}
+
+					continue
 				} else {
 					slog.Error("http error while updating, skipping", "ap", ap, "status", httpErr.StatusCode)
 
