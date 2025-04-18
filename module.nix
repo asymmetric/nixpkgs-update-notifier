@@ -41,12 +41,12 @@
           options = {
             startLimitIntervalSec = lib.mkOption {
               description = "StartLimitIntervalSec";
-              type = lib.types.int;
+              type = with lib.types; nullOr int;
               default = 60;
             };
             startLimitBurst = lib.mkOption {
               description = "StartLimitBurst";
-              type = lib.types.int;
+              type = with lib.types; nullOr int;
               default = 10;
             };
           };
