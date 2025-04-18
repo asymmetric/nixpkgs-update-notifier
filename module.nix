@@ -35,7 +35,7 @@
         default = false;
       };
 
-      service = lib.mkOption {
+      systemdService = lib.mkOption {
         description = "Systemd service config";
         type = lib.types.submodule {
           options = {
@@ -63,8 +63,8 @@
       systemd.services.nixpkgs-update-notifier = {
         wantedBy = [ "multi-user.target" ];
         after = [ "network.target" ];
-        startLimitIntervalSec = cfg.service.startLimitIntervalSec;
-        startLimitBurst = cfg.service.startLimitBurst;
+        startLimitIntervalSec = cfg.systemdService.startLimitIntervalSec;
+        startLimitBurst = cfg.systemdService.startLimitBurst;
         serviceConfig = {
           Restart = "on-failure";
           # emitted by `fatal`
