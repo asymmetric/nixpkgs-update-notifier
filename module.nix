@@ -29,19 +29,23 @@
           };
         };
       };
+
       debug = lib.mkOption {
         type = lib.types.bool;
         default = false;
       };
 
       service = lib.mkOption {
+        description = "Systemd service config";
         type = lib.types.submodule {
           options = {
             startLimitIntervalSec = lib.mkOption {
+              description = "StartLimitIntervalSec";
               type = lib.types.int;
               default = 60;
             };
             startLimitBurst = lib.mkOption {
+              description = "StartLimitBurst";
               type = lib.types.int;
               default = 10;
             };
