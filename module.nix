@@ -33,6 +33,21 @@
         type = lib.types.bool;
         default = false;
       };
+
+      service = lib.mkOption {
+        type = lib.types.submodule {
+          options = {
+            startLimitIntervalSec = lib.mkOption {
+              type = lib.types.int;
+              default = 60;
+            };
+            startLimitBurst = lib.mkOption {
+              type = lib.types.int;
+              default = 10;
+            };
+          };
+        };
+      };
     };
   };
 
@@ -44,8 +59,8 @@
       systemd.services.nixpkgs-update-notifier = {
         wantedBy = [ "multi-user.target" ];
         after = [ "network.target" ];
-        startLimitIntervalSec = 60;
-        startLimitBurst = 5;
+        startLimitIntervalSec = cfg.service.startLimitIntervalSec;
+        startLimitBurst = cfg.service.startLimitBurst;
         serviceConfig = {
           Restart = "on-failure";
           # emitted by `fatal`
