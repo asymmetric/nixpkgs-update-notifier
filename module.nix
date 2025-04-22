@@ -37,8 +37,8 @@
 
       systemdService = lib.mkOption {
         description = "Systemd service config";
+        default = { };
         type = lib.types.submodule {
-          default = { };
           options = {
             restartSec = lib.mkOption {
               description = "RestartSec";
