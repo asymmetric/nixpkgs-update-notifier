@@ -56,16 +56,16 @@
               default = 300;
             };
 
-            # startLimitIntervalSec = lib.mkOption {
-            #   description = "StartLimitIntervalSec";
-            #   type = with lib.types; nullOr int;
-            #   default = 60;
-            # };
-            # startLimitBurst = lib.mkOption {
-            #   description = "StartLimitBurst";
-            #   type = with lib.types; nullOr int;
-            #   default = 10;
-            # };
+            startLimitIntervalSec = lib.mkOption {
+              description = "StartLimitIntervalSec";
+              type = with lib.types; nullOr int;
+              default = 3600;
+            };
+            startLimitBurst = lib.mkOption {
+              description = "StartLimitBurst";
+              type = with lib.types; nullOr int;
+              default = 13;
+            };
           };
         };
       };
@@ -86,8 +86,8 @@
           RestartSteps = cfg.systemdService.restartSteps;
           RestartMaxDelaySec = cfg.systemdService.restartMaxDelaySec;
 
-          # startLimitIntervalSec = cfg.systemdService.startLimitIntervalSec;
-          # startLimitBurst = cfg.systemdService.startLimitBurst;
+          startLimitIntervalSec = cfg.systemdService.startLimitIntervalSec;
+          startLimitBurst = cfg.systemdService.startLimitBurst;
 
           # emitted by `fatal`
           RestartPreventExitStatus = [ 100 ];
