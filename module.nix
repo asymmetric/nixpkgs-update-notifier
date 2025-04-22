@@ -38,17 +38,34 @@
       systemdService = lib.mkOption {
         description = "Systemd service config";
         type = lib.types.submodule {
+          default = { };
           options = {
-            startLimitIntervalSec = lib.mkOption {
-              description = "StartLimitIntervalSec";
-              type = with lib.types; nullOr int;
-              default = 60;
-            };
-            startLimitBurst = lib.mkOption {
-              description = "StartLimitBurst";
+            restartSec = lib.mkOption {
+              description = "RestartSec";
               type = with lib.types; nullOr int;
               default = 10;
             };
+            restartSteps = lib.mkOption {
+              description = "RestartSteps";
+              type = with lib.types; nullOr int;
+              default = 10;
+            };
+            restartMaxDelaySec = lib.mkOption {
+              description = "RestartMaxDelaySec";
+              type = with lib.types; nullOr int;
+              default = 300;
+            };
+
+            # startLimitIntervalSec = lib.mkOption {
+            #   description = "StartLimitIntervalSec";
+            #   type = with lib.types; nullOr int;
+            #   default = 60;
+            # };
+            # startLimitBurst = lib.mkOption {
+            #   description = "StartLimitBurst";
+            #   type = with lib.types; nullOr int;
+            #   default = 10;
+            # };
           };
         };
       };
@@ -63,10 +80,15 @@
       systemd.services.nixpkgs-update-notifier = {
         wantedBy = [ "multi-user.target" ];
         after = [ "network.target" ];
-        startLimitIntervalSec = cfg.systemdService.startLimitIntervalSec;
-        startLimitBurst = cfg.systemdService.startLimitBurst;
         serviceConfig = {
           Restart = "on-failure";
+          RestartSec = cfg.systemdService.restartSec;
+          RestartSteps = cfg.systemdService.restartSteps;
+          RestartMaxDelaySec = cfg.systemdService.restartMaxDelaySec;
+
+          # startLimitIntervalSec = cfg.systemdService.startLimitIntervalSec;
+          # startLimitBurst = cfg.systemdService.startLimitBurst;
+
           # emitted by `fatal`
           RestartPreventExitStatus = [ 100 ];
           EnvironmentFile = cfg.passwordFile;
