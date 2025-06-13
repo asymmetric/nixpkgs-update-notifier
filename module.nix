@@ -86,8 +86,8 @@
           RestartSteps = cfg.systemdService.restartSteps;
           RestartMaxDelaySec = cfg.systemdService.restartMaxDelaySec;
 
-          startLimitIntervalSec = cfg.systemdService.startLimitIntervalSec;
-          startLimitBurst = cfg.systemdService.startLimitBurst;
+          StartLimitIntervalSec = cfg.systemdService.startLimitIntervalSec;
+          StartLimitBurst = cfg.systemdService.startLimitBurst;
 
           # emitted by `fatal`
           RestartPreventExitStatus = [ 100 ];
