@@ -15,5 +15,4 @@ This is obviously fallible, and can lead to false positives and false negatives 
 ## TODO
 
 - Subscribe to multiple packages at once
-- Subscribe to packages by maintainer
 - Subscribe to packages by team
