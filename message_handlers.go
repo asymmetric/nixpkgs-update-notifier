@@ -8,6 +8,7 @@ import (
 
 	"github.com/asymmetric/nixpkgs-update-notifier/regexes"
 	"github.com/itchyny/gojq"
+	"maunium.net/go/mautrix"
 	"maunium.net/go/mautrix/event"
 )
 
@@ -144,25 +145,25 @@ func handleSubs(evt *event.Event) {
 	}
 	defer rows.Close()
 
-	names := make([]string, 0)
+	mps := make([]string, 0)
 	for rows.Next() {
-		var name string
-		if err := rows.Scan(&name); err != nil {
+		var mp string
+		if err := rows.Scan(&mp); err != nil {
 			panic(err)
 		}
-		names = append(names, name)
+		mps = append(mps, mp)
 	}
 	if err := rows.Err(); err != nil {
 		panic(err)
 	}
 
 	var msg string
-	if len(names) == 0 {
+	if len(mps) == 0 {
 		msg = "no subs"
 	} else {
 		sts := []string{"Your subscriptions:\n"}
 
-		for _, n := range names {
+		for _, n := range mps {
 			sts = append(sts, fmt.Sprintf("- %s", n))
 		}
 
@@ -170,6 +171,14 @@ func handleSubs(evt *event.Event) {
 	}
 	if _, err = h.sender(msg, evt.RoomID); err != nil {
 		slog.Error(err.Error())
+
+		if errors.Is(err, mautrix.MTooLarge) {
+			msg = fmt.Sprintf("Subscribed to %d packages", len(mps))
+
+			if _, err := h.sender(msg, evt.RoomID); err != nil {
+				slog.Error(err.Error())
+			}
+		}
 	}
 }
 
@@ -254,6 +263,18 @@ func handleUnfollow(mps []string, evt *event.Event) {
 
 	if _, err := h.sender(msg, evt.RoomID); err != nil {
 		slog.Error(err.Error())
+
+		if errors.Is(err, mautrix.MTooLarge) {
+			msg = fmt.Sprintf("Unsubscribed from %d packages", len(mps))
+
+			if _, err := h.sender(msg, evt.RoomID); err != nil {
+				slog.Error(err.Error())
+
+				return
+			}
+		}
+
+		return
 	}
 
 	slog.Info("sent unfollow response", "sender", evt.Sender)
@@ -283,12 +304,26 @@ func handleFollow(mps []string, evt *event.Event) {
 		l = append(l, fmt.Sprintf("- %s", ap))
 	}
 
-	msg := fmt.Sprintf("Subscribed to packages:\n %s", strings.Join(l, "\n"))
+	var msg string
+	msg = fmt.Sprintf("Subscribed to packages:\n %s", strings.Join(l, "\n"))
+
 	if _, err := h.sender(msg, evt.RoomID); err != nil {
 		slog.Error(err.Error())
+
+		if errors.Is(err, mautrix.MTooLarge) {
+			msg = fmt.Sprintf("Subscribed to %d packages", len(mps))
+
+			if _, err := h.sender(msg, evt.RoomID); err != nil {
+				slog.Error(err.Error())
+
+				return
+			}
+		}
+
+		return
 	}
 
-	slog.Info("sent unfollow response", "sender", evt.Sender)
+	slog.Info("sent follow response", "sender", evt.Sender)
 }
 
 // Checks, via an SQL query, if the user is already subscribed to the package
