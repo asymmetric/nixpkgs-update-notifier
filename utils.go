@@ -71,13 +71,11 @@ func makeRequest(url string) ([]byte, error) {
 		return nil, err
 	}
 
-	slog.Debug("http req", "state", "start", "req", req)
 	resp, err := clients.http.Do(req)
 	if err != nil {
 		panic(err)
 	}
 	defer resp.Body.Close()
-	slog.Debug("http req", "state", "done", "req", req)
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
