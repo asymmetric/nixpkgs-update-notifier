@@ -106,6 +106,8 @@ func handleSub(pattern string, evt *event.Event) {
 	}
 
 	var esErr existingSubscriptionError
+	var httpErr *HTTPError
+
 	for _, ap := range aps {
 		// TODO: should we notify here already if the log has an error?
 		if err := subscribe(ap, evt); err != nil {
@@ -115,6 +117,10 @@ func handleSub(pattern string, evt *event.Event) {
 				}
 
 				// skip this ap
+				continue
+			} else if errors.As(err, &httpErr) {
+				slog.Warn("HTTP error while subscribing to package", "ap", ap, "error", httpErr)
+
 				continue
 			} else {
 				panic(err)
@@ -258,10 +264,15 @@ func handleFollow(mps []string, evt *event.Event) {
 	var l []string
 
 	var esErr existingSubscriptionError
+	var httpErr *HTTPError
 	for _, ap := range mps {
 		if err := subscribe(ap, evt); err != nil {
 			if errors.As(err, &esErr) {
 				slog.Debug("skipped already existing subscription", "ap", ap)
+
+				continue
+			} else if errors.As(err, &httpErr) {
+				slog.Warn("HTTP error while subscribing to package", "ap", ap, "error", httpErr)
 
 				continue
 			} else {
@@ -383,7 +394,7 @@ func subscribe(ap string, evt *event.Event) error {
 	date, err := h.dateFetcher(packageURL(ap))
 	if err != nil {
 		if httpErr, ok := err.(*HTTPError); ok {
-			return fmt.Errorf("http errow while fetching date: %w", httpErr)
+			return fmt.Errorf("http error while fetching date for %s: %w", ap, httpErr)
 		} else {
 			return err
 		}
