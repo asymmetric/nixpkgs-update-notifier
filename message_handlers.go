@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"time"
 
 	"github.com/asymmetric/nixpkgs-update-notifier/regexes"
 	"github.com/itchyny/gojq"
@@ -120,7 +121,7 @@ func handleSub(pattern string, evt *event.Event) {
 				// skip this ap
 				continue
 			} else if errors.As(err, &httpErr) {
-				slog.Warn("HTTP error while subscribing to package", "ap", ap, "error", httpErr)
+				slog.Warn("HTTP error while subscribing to package", "ap", ap, "error", httpErr.StatusCode)
 
 				continue
 			} else {
@@ -280,12 +281,22 @@ func handleUnfollow(mps []string, evt *event.Event) {
 	slog.Info("sent unfollow response", "sender", evt.Sender)
 }
 
+// TODO: if this is taking long, we could let the user know stuff is happening while they wait.
 func handleFollow(mps []string, evt *event.Event) {
 	// used for output message
 	var l []string
 
 	var esErr existingSubscriptionError
 	var httpErr *HTTPError
+
+	// Start timer to notify user if processing takes too long
+	timer := time.AfterFunc(10*time.Second, func() {
+		msg := fmt.Sprintf("Subscribing to %d packages, this may take a moment...", len(mps))
+		if _, err := h.sender(msg, evt.RoomID); err != nil {
+			slog.Error(err.Error())
+		}
+	})
+
 	for _, ap := range mps {
 		if err := subscribe(ap, evt); err != nil {
 			if errors.As(err, &esErr) {
@@ -293,7 +304,7 @@ func handleFollow(mps []string, evt *event.Event) {
 
 				continue
 			} else if errors.As(err, &httpErr) {
-				slog.Warn("HTTP error while subscribing to package", "ap", ap, "error", httpErr)
+				slog.Warn("HTTP error while subscribing to package", "ap", ap, "error", httpErr.StatusCode)
 
 				continue
 			} else {
@@ -303,6 +314,8 @@ func handleFollow(mps []string, evt *event.Event) {
 
 		l = append(l, fmt.Sprintf("- %s", ap))
 	}
+
+	timer.Stop()
 
 	var msg string
 	msg = fmt.Sprintf("Subscribed to packages:\n %s", strings.Join(l, "\n"))
