@@ -482,6 +482,7 @@ func TestFollow(t *testing.T) {
 			t.Errorf("should not be subscribed to %s", last)
 		}
 	})
+
 }
 
 func TestUnfollow(t *testing.T) {
@@ -551,14 +552,26 @@ func TestFindPackagesForHandle(t *testing.T) {
 
 		addPackages(all...)
 
-		got, err := findPackagesForHandle("asymmetric")
-		if err != nil {
-			panic(err)
-		}
+		t.Run("case match", func(t *testing.T) {
+			got, err := findPackagesForHandle("asymmetric")
+			if err != nil {
+				panic(err)
+			}
 
-		if !slices.Equal(expected, got) {
-			t.Errorf("expected: %v\ngot: %v", expected, got)
-		}
+			if !slices.Equal(expected, got) {
+				t.Errorf("expected: %v\ngot: %v", expected, got)
+			}
+		})
+		t.Run("case mismatch", func(t *testing.T) {
+			got, err := findPackagesForHandle("ASYMMETRIC")
+			if err != nil {
+				panic(err)
+			}
+
+			if !slices.Equal(expected, got) {
+				t.Errorf("expected: %v\ngot: %v", expected, got)
+			}
+		})
 	})
 
 	t.Run("non-existing handle", func(t *testing.T) {
@@ -578,7 +591,7 @@ func TestFindPackagesForHandle(t *testing.T) {
 		}
 	})
 
-	t.Run("substring handle match", func(t *testing.T) {
+	t.Run("substring package match", func(t *testing.T) {
 		if err := setupDB(ctx, ":memory:"); err != nil {
 			panic(err)
 		}
@@ -609,7 +622,6 @@ func TestFindPackagesForHandle(t *testing.T) {
 				t.Errorf("should not have subscribed to %s", s)
 			}
 		}
-
 	})
 }
 

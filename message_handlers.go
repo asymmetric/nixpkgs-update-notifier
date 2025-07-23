@@ -355,7 +355,7 @@ func findPackagesForHandle(handle string) ([]string, error) {
 	// The query needs to handle:
 	// missing maintainers
 	// missing github field
-	query, err := gojq.Parse(fmt.Sprintf(`.packages|to_entries[]|select(.value.meta.maintainers[]?|.github // "" |test("^%s$"))|.key`, handle))
+	query, err := gojq.Parse(fmt.Sprintf(`.packages|to_entries[]|select(.value.meta.maintainers[]?|.github // "" |test("^%s$"; "i"))|.key`, handle))
 	if err != nil {
 		slog.Error("gojq parse", "error", err)
 
