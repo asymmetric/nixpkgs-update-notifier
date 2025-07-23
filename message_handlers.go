@@ -15,6 +15,8 @@ import (
 
 type existingSubscriptionError string
 
+const NOTIFY_THRESHOLD = 10 * time.Second
+
 func (e existingSubscriptionError) Error() string {
 	return fmt.Sprintf("Subscription already present: %s", string(e))
 }
@@ -290,7 +292,7 @@ func handleFollow(mps []string, evt *event.Event) {
 	var httpErr *HTTPError
 
 	// Start timer to notify user if processing takes too long
-	timer := time.AfterFunc(10*time.Second, func() {
+	timer := time.AfterFunc(NOTIFY_THRESHOLD, func() {
 		msg := fmt.Sprintf("Subscribing to %d packages, this may take a moment...", len(mps))
 		if _, err := h.sender(msg, evt.RoomID); err != nil {
 			slog.Error(err.Error())
@@ -364,8 +366,11 @@ func findPackagesForHandle(handle string) ([]string, error) {
 
 	// list of maintained packages
 	// jsblob is populated and updated out-of-band.
+	mu.Lock()
+	defer mu.Unlock()
 	var mps []string
 	iter := query.Run(jsblob)
+
 	for {
 		v, ok := iter.Next()
 		if !ok {

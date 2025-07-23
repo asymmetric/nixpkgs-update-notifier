@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/antchfx/htmlquery"
@@ -68,7 +69,8 @@ type handlers struct {
 var h handlers
 
 // jsblob stores the unmarshaled packages.json.
-var jsblob any
+var jsblob map[string]any
+var mu sync.RWMutex
 
 func init() {
 	// default handlers

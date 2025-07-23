@@ -136,8 +136,9 @@ func fetchPackagesJSON() {
 		panic(err)
 	}
 	defer resp.Body.Close()
-	slog.Debug("downloaded packages.json.br")
 
+	mu.Lock()
+	defer mu.Unlock()
 	slog.Debug("parsing packages.json")
 	if err := json.NewDecoder(brotli.NewReader(resp.Body)).Decode(&jsblob); err != nil {
 		panic(err)
