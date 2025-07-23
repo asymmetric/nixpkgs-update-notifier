@@ -16,7 +16,7 @@ import (
 
 var ctx context.Context
 var evt *event.Event
-var testSender = func(text string, _ id.RoomID) (*mautrix.RespSendEvent, error) {
+var testSender = func(ctx context.Context, text string, _ id.RoomID) (*mautrix.RespSendEvent, error) {
 	return nil, nil
 }
 
@@ -56,7 +56,7 @@ func TestSub(t *testing.T) {
 	var lv string
 	for _, v := range tt {
 		h = handlers{
-			dateFetcher: func(string) (string, error) {
+			dateFetcher: func(ctx context.Context, url string) (string, error) {
 				return v.lv, nil
 			},
 			sender: testSender,
@@ -93,7 +93,7 @@ func TestSub(t *testing.T) {
 func TestSubDuplicates(t *testing.T) {
 	stubJSONBlob()
 	h = handlers{
-		dateFetcher: func(string) (string, error) {
+		dateFetcher: func(ctx context.Context, url string) (string, error) {
 			return "1999", nil
 		},
 		sender: testSender,
@@ -170,7 +170,7 @@ func TestUnsub(t *testing.T) {
 	var count int
 	for _, v := range tt {
 		h = handlers{
-			dateFetcher: func(string) (string, error) {
+			dateFetcher: func(ctx context.Context, url string) (string, error) {
 				return v.lv, nil
 			},
 			sender: testSender,
@@ -204,7 +204,7 @@ func TestSubUnsub(t *testing.T) {
 	}
 
 	h = handlers{
-		dateFetcher: func(string) (string, error) {
+		dateFetcher: func(ctx context.Context, url string) (string, error) {
 			return "1999", nil
 		},
 		sender: testSender,
@@ -302,7 +302,7 @@ func TestOverlapping(t *testing.T) {
 	}
 
 	h = handlers{
-		dateFetcher: func(string) (string, error) {
+		dateFetcher: func(ctx context.Context, url string) (string, error) {
 			return "1999", nil
 		},
 		sender: testSender,
@@ -340,7 +340,7 @@ func TestSubscribeSetsLastVisited(t *testing.T) {
 	}
 	today := "2000-01-01"
 	h = handlers{
-		dateFetcher: func(string) (string, error) {
+		dateFetcher: func(ctx context.Context, url string) (string, error) {
 			return today, nil
 		},
 		sender: testSender,
@@ -376,7 +376,7 @@ func TestCheckIfSubExists(t *testing.T) {
 	addPackages(ap)
 
 	t.Run("should not exist", func(t *testing.T) {
-		exists, err := checkIfSubExists(ap, evt.RoomID.String())
+		exists, err := checkIfSubExists(ctx, ap, evt.RoomID.String())
 		if err != nil {
 			panic(err)
 		} else if exists {
@@ -387,7 +387,7 @@ func TestCheckIfSubExists(t *testing.T) {
 	t.Run("should exist", func(t *testing.T) {
 		sub(ap)
 
-		exists, err := checkIfSubExists(ap, evt.RoomID.String())
+		exists, err := checkIfSubExists(ctx, ap, evt.RoomID.String())
 		if err != nil {
 			panic(err)
 		} else if !exists {
@@ -399,7 +399,7 @@ func TestCheckIfSubExists(t *testing.T) {
 func TestFollow(t *testing.T) {
 	stubJSONBlob()
 	h = handlers{
-		dateFetcher: func(string) (string, error) {
+		dateFetcher: func(ctx context.Context, url string) (string, error) {
 			return "1999", nil
 		},
 		sender: testSender,
@@ -428,7 +428,7 @@ func TestFollow(t *testing.T) {
 		var exists bool
 		var err error
 		for _, p := range ps {
-			exists, err = checkIfSubExists(p, evt.RoomID.String())
+			exists, err = checkIfSubExists(ctx, p, evt.RoomID.String())
 			if err != nil {
 				panic(err)
 			}
@@ -450,13 +450,13 @@ func TestFollow(t *testing.T) {
 
 		var exists bool
 		var err error
-		aps, err := findPackagesForHandle("asymmetric")
+		aps, err := findPackagesForHandle(ctx, "asymmetric")
 		if err != nil {
 			panic(err)
 		}
 
 		for _, p := range aps {
-			exists, err = checkIfSubExists(p, evt.RoomID.String())
+			exists, err = checkIfSubExists(ctx, p, evt.RoomID.String())
 			if err != nil {
 				panic(err)
 			}
@@ -478,7 +478,7 @@ func TestFollow(t *testing.T) {
 
 		fol("asymmetric")
 
-		if exists, _ := checkIfSubExists(last, evt.RoomID.String()); exists {
+		if exists, _ := checkIfSubExists(ctx, last, evt.RoomID.String()); exists {
 			t.Errorf("should not be subscribed to %s", last)
 		}
 	})
@@ -488,7 +488,7 @@ func TestFollow(t *testing.T) {
 func TestUnfollow(t *testing.T) {
 	stubJSONBlob()
 	h = handlers{
-		dateFetcher: func(string) (string, error) {
+		dateFetcher: func(ctx context.Context, url string) (string, error) {
 			return "1999", nil
 		},
 		sender: testSender,
@@ -518,12 +518,12 @@ func TestUnfollow(t *testing.T) {
 	unfol("asymmetric")
 
 	for _, p := range mps {
-		if exists, _ := checkIfSubExists(p, evt.RoomID.String()); exists {
+		if exists, _ := checkIfSubExists(ctx, p, evt.RoomID.String()); exists {
 			t.Errorf("should not be subscribed to %s", p)
 		}
 	}
 
-	if exists, _ := checkIfSubExists("foo", evt.RoomID.String()); !exists {
+	if exists, _ := checkIfSubExists(ctx, "foo", evt.RoomID.String()); !exists {
 		t.Errorf("should be subscribed to %s", "foo")
 	}
 }
@@ -553,7 +553,7 @@ func TestFindPackagesForHandle(t *testing.T) {
 		addPackages(all...)
 
 		t.Run("case match", func(t *testing.T) {
-			got, err := findPackagesForHandle("asymmetric")
+			got, err := findPackagesForHandle(ctx, "asymmetric")
 			if err != nil {
 				panic(err)
 			}
@@ -563,7 +563,7 @@ func TestFindPackagesForHandle(t *testing.T) {
 			}
 		})
 		t.Run("case mismatch", func(t *testing.T) {
-			got, err := findPackagesForHandle("ASYMMETRIC")
+			got, err := findPackagesForHandle(ctx, "ASYMMETRIC")
 			if err != nil {
 				panic(err)
 			}
@@ -579,7 +579,7 @@ func TestFindPackagesForHandle(t *testing.T) {
 			panic(err)
 		}
 
-		got, err := findPackagesForHandle("foobar")
+		got, err := findPackagesForHandle(ctx, "foobar")
 		if err != nil {
 			panic(err)
 		}
@@ -611,7 +611,7 @@ func TestFindPackagesForHandle(t *testing.T) {
 		all := append([]string{"valgrind", "valgrind-light"}, expected...)
 		addPackages(all...)
 
-		got, err := findPackagesForHandle("asymmetric")
+		got, err := findPackagesForHandle(ctx, "asymmetric")
 		if err != nil {
 			panic(err)
 		}

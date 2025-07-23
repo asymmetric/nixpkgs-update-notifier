@@ -55,8 +55,8 @@ func (e *HTTPError) Error() string {
 	return fmt.Sprintf("HTTP error: %d - %s", e.StatusCode, e.Body)
 }
 
-func newReqWithUA(url string) (*http.Request, error) {
-	req, err := http.NewRequest("GET", url, nil)
+func newReqWithUA(ctx context.Context, url string) (*http.Request, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -65,8 +65,8 @@ func newReqWithUA(url string) (*http.Request, error) {
 	return req, nil
 }
 
-func makeRequest(url string) ([]byte, error) {
-	req, err := newReqWithUA(url)
+func makeRequest(ctx context.Context, url string) ([]byte, error) {
+	req, err := newReqWithUA(ctx, url)
 	if err != nil {
 		return nil, err
 	}
@@ -92,9 +92,9 @@ func makeRequest(url string) ([]byte, error) {
 	return body, nil
 }
 
-func sendMarkdown(text string, rid id.RoomID) (*mautrix.RespSendEvent, error) {
+func sendMarkdown(ctx context.Context, text string, rid id.RoomID) (*mautrix.RespSendEvent, error) {
 	md := format.RenderMarkdown(text, true, true)
-	return clients.matrix.SendMessageEvent(context.TODO(), rid, event.EventMessage, md)
+	return clients.matrix.SendMessageEvent(ctx, rid, event.EventMessage, md)
 }
 
 // Given a log url, returns its date.
@@ -127,11 +127,15 @@ func fatal(err error) {
 
 // TODO: log duration of the whole thing to Info
 // Fetches the packages.json.br, unpacks it and parses it.
-func fetchPackagesJSON() {
+func fetchPackagesJSON(ctx context.Context) {
 	slog.Debug("downloading packages.json.br")
 
 	start := time.Now()
-	resp, err := http.Get(packagesURL)
+	req, err := http.NewRequestWithContext(ctx, "GET", packagesURL, nil)
+	if err != nil {
+		panic(err)
+	}
+	resp, err := clients.http.Do(req)
 	if err != nil {
 		panic(err)
 	}

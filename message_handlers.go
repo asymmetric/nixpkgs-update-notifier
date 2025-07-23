@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -21,7 +22,7 @@ func (e existingSubscriptionError) Error() string {
 	return fmt.Sprintf("Subscription already present: %s", string(e))
 }
 
-func handleSubUnsub(msg string, evt *event.Event) {
+func handleSubUnsub(ctx context.Context, msg string, evt *event.Event) {
 	// TODO move this to caller
 	matches := regexes.Subscribe().FindStringSubmatch(msg)
 	if matches == nil {
@@ -34,14 +35,14 @@ func handleSubUnsub(msg string, evt *event.Event) {
 
 	// matches[1] is the optional "un" prefix
 	if matches[1] != "" {
-		handleUnsub(pattern, evt)
+		handleUnsub(ctx, pattern, evt)
 	} else {
-		handleSub(pattern, evt)
+		handleSub(ctx, pattern, evt)
 	}
 }
 
-func handleUnsub(pattern string, evt *event.Event) {
-	rows, err := clients.db.Query("DELETE FROM subscriptions WHERE roomid = ? AND attr_path GLOB ? RETURNING attr_path", evt.RoomID, pattern)
+func handleUnsub(ctx context.Context, pattern string, evt *event.Event) {
+	rows, err := clients.db.QueryContext(ctx, "DELETE FROM subscriptions WHERE roomid = ? AND attr_path GLOB ? RETURNING attr_path", evt.RoomID, pattern)
 	if err != nil {
 		panic(err)
 	}
@@ -73,15 +74,15 @@ func handleUnsub(pattern string, evt *event.Event) {
 	}
 
 	// send confirmation message
-	if _, err := h.sender(msg, evt.RoomID); err != nil {
+	if _, err := h.sender(ctx, msg, evt.RoomID); err != nil {
 		slog.Error(err.Error())
 	}
 
 	slog.Info("received unsub", "pkg", pattern, "sender", evt.Sender, "deleted", len(aps))
 }
 
-func handleSub(pattern string, evt *event.Event) {
-	rows, err := clients.db.Query("SELECT attr_path FROM packages WHERE attr_path GLOB ? ORDER BY attr_path", pattern)
+func handleSub(ctx context.Context, pattern string, evt *event.Event) {
+	rows, err := clients.db.QueryContext(ctx, "SELECT attr_path FROM packages WHERE attr_path GLOB ? ORDER BY attr_path", pattern)
 	if err != nil {
 		panic(err)
 	}
@@ -102,7 +103,7 @@ func handleSub(pattern string, evt *event.Event) {
 	slog.Info("received sub", "pattern", pattern, "sender", evt.Sender, "matches", len(aps))
 
 	if len(aps) == 0 {
-		if _, err = h.sender(fmt.Sprintf("No matches for `%s`. The list of packages is [here](https://nixpkgs-update-logs.nix-community.org/)", pattern), evt.RoomID); err != nil {
+		if _, err = h.sender(ctx, fmt.Sprintf("No matches for `%s`. The list of packages is [here](https://nixpkgs-update-logs.nix-community.org/)", pattern), evt.RoomID); err != nil {
 			slog.Error(err.Error())
 		}
 
@@ -114,9 +115,9 @@ func handleSub(pattern string, evt *event.Event) {
 
 	for _, ap := range aps {
 		// TODO: should we notify here already if the log has an error?
-		if err := subscribe(ap, evt); err != nil {
+		if err := subscribe(ctx, ap, evt); err != nil {
 			if errors.As(err, &esErr) {
-				if _, err := h.sender(esErr.Error(), evt.RoomID); err != nil {
+				if _, err := h.sender(ctx, esErr.Error(), evt.RoomID); err != nil {
 					slog.Error(err.Error())
 				}
 
@@ -132,7 +133,7 @@ func handleSub(pattern string, evt *event.Event) {
 		}
 
 		// send confirmation message
-		if _, err := h.sender(fmt.Sprintf("Subscribed to package `%s`", ap), evt.RoomID); err != nil {
+		if _, err := h.sender(ctx, fmt.Sprintf("Subscribed to package `%s`", ap), evt.RoomID); err != nil {
 			slog.Error(err.Error())
 		}
 
@@ -141,8 +142,8 @@ func handleSub(pattern string, evt *event.Event) {
 }
 
 // TODO find ways to test this
-func handleSubs(evt *event.Event) {
-	rows, err := clients.db.Query("SELECT attr_path FROM subscriptions WHERE roomid = ? ORDER BY attr_path", evt.RoomID)
+func handleSubs(ctx context.Context, evt *event.Event) {
+	rows, err := clients.db.QueryContext(ctx, "SELECT attr_path FROM subscriptions WHERE roomid = ? ORDER BY attr_path", evt.RoomID)
 	if err != nil {
 		panic(err)
 	}
@@ -172,20 +173,20 @@ func handleSubs(evt *event.Event) {
 
 		msg = strings.Join(sts, "\n")
 	}
-	if _, err = h.sender(msg, evt.RoomID); err != nil {
+	if _, err = h.sender(ctx, msg, evt.RoomID); err != nil {
 		slog.Error(err.Error())
 
 		if errors.Is(err, mautrix.MTooLarge) {
 			msg = fmt.Sprintf("Subscribed to %d packages", len(mps))
 
-			if _, err := h.sender(msg, evt.RoomID); err != nil {
+			if _, err := h.sender(ctx, msg, evt.RoomID); err != nil {
 				slog.Error(err.Error())
 			}
 		}
 	}
 }
 
-func handleFollowUnfollow(msg string, evt *event.Event) {
+func handleFollowUnfollow(ctx context.Context, msg string, evt *event.Event) {
 	matches := regexes.Follow().FindStringSubmatch(msg)
 	un := matches[1]
 	handle := matches[2]
@@ -197,9 +198,9 @@ func handleFollowUnfollow(msg string, evt *event.Event) {
 		slog.Info("received unfollow", "handle", handle, "sender", evt.Sender)
 	}
 
-	mps, err := findPackagesForHandle(handle)
+	mps, err := findPackagesForHandle(ctx, handle)
 	if err != nil {
-		if _, err = h.sender("There was a problem processing your request, sorry.", evt.RoomID); err != nil {
+		if _, err = h.sender(ctx, "There was a problem processing your request, sorry.", evt.RoomID); err != nil {
 			slog.Error(err.Error())
 		}
 
@@ -207,7 +208,7 @@ func handleFollowUnfollow(msg string, evt *event.Event) {
 	}
 
 	if len(mps) == 0 {
-		if _, err := h.sender(fmt.Sprintf("No packages found for maintainer `%s`", handle), evt.RoomID); err != nil {
+		if _, err := h.sender(ctx, fmt.Sprintf("No packages found for maintainer `%s`", handle), evt.RoomID); err != nil {
 			slog.Error(err.Error())
 		}
 
@@ -215,13 +216,13 @@ func handleFollowUnfollow(msg string, evt *event.Event) {
 	}
 
 	if un != "" {
-		handleUnfollow(mps, evt)
+		handleUnfollow(ctx, mps, evt)
 	} else {
-		handleFollow(mps, evt)
+		handleFollow(ctx, mps, evt)
 	}
 }
 
-func handleUnfollow(mps []string, evt *event.Event) {
+func handleUnfollow(ctx context.Context, mps []string, evt *event.Event) {
 	// Create the right number of placeholders: "(?,?,?)"
 	qmarks := make([]string, len(mps))
 	args := make([]any, len(mps))
@@ -234,7 +235,7 @@ func handleUnfollow(mps []string, evt *event.Event) {
 	query := fmt.Sprintf("DELETE FROM subscriptions WHERE mxid = ? AND attr_path IN (%s) RETURNING attr_path", placeholders)
 	// We need to stash evt.Sender in args, because we can onlu pass two arguments to db.Exec
 	args = append([]any{evt.Sender}, args...)
-	rows, err := clients.db.Query(query, args...)
+	rows, err := clients.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		panic(err)
 	}
@@ -264,13 +265,13 @@ func handleUnfollow(mps []string, evt *event.Event) {
 		msg = "No packages to unsubscribe from"
 	}
 
-	if _, err := h.sender(msg, evt.RoomID); err != nil {
+	if _, err := h.sender(ctx, msg, evt.RoomID); err != nil {
 		slog.Error(err.Error())
 
 		if errors.Is(err, mautrix.MTooLarge) {
 			msg = fmt.Sprintf("Unsubscribed from %d packages", len(mps))
 
-			if _, err := h.sender(msg, evt.RoomID); err != nil {
+			if _, err := h.sender(ctx, msg, evt.RoomID); err != nil {
 				slog.Error(err.Error())
 
 				return
@@ -284,7 +285,7 @@ func handleUnfollow(mps []string, evt *event.Event) {
 }
 
 // TODO: if this is taking long, we could let the user know stuff is happening while they wait.
-func handleFollow(mps []string, evt *event.Event) {
+func handleFollow(ctx context.Context, mps []string, evt *event.Event) {
 	// used for output message
 	var l []string
 
@@ -294,13 +295,13 @@ func handleFollow(mps []string, evt *event.Event) {
 	// Start timer to notify user if processing takes too long
 	timer := time.AfterFunc(NOTIFY_THRESHOLD, func() {
 		msg := fmt.Sprintf("Subscribing to %d packages, this may take a moment...", len(mps))
-		if _, err := h.sender(msg, evt.RoomID); err != nil {
+		if _, err := h.sender(ctx, msg, evt.RoomID); err != nil {
 			slog.Error(err.Error())
 		}
 	})
 
 	for _, ap := range mps {
-		if err := subscribe(ap, evt); err != nil {
+		if err := subscribe(ctx, ap, evt); err != nil {
 			if errors.As(err, &esErr) {
 				slog.Debug("skipped already existing subscription", "ap", ap)
 
@@ -322,13 +323,13 @@ func handleFollow(mps []string, evt *event.Event) {
 	var msg string
 	msg = fmt.Sprintf("Subscribed to packages:\n %s", strings.Join(l, "\n"))
 
-	if _, err := h.sender(msg, evt.RoomID); err != nil {
+	if _, err := h.sender(ctx, msg, evt.RoomID); err != nil {
 		slog.Error(err.Error())
 
 		if errors.Is(err, mautrix.MTooLarge) {
 			msg = fmt.Sprintf("Subscribed to %d packages", len(mps))
 
-			if _, err := h.sender(msg, evt.RoomID); err != nil {
+			if _, err := h.sender(ctx, msg, evt.RoomID); err != nil {
 				slog.Error(err.Error())
 
 				return
@@ -342,8 +343,8 @@ func handleFollow(mps []string, evt *event.Event) {
 }
 
 // Checks, via an SQL query, if the user is already subscribed to the package
-func checkIfSubExists(attr_path, roomid string) (exists bool, err error) {
-	err = clients.db.QueryRow("SELECT EXISTS (SELECT 1 FROM subscriptions WHERE roomid = ? AND attr_path = ? LIMIT 1)", roomid, attr_path).Scan(&exists)
+func checkIfSubExists(ctx context.Context, attr_path, roomid string) (exists bool, err error) {
+	err = clients.db.QueryRowContext(ctx, "SELECT EXISTS (SELECT 1 FROM subscriptions WHERE roomid = ? AND attr_path = ? LIMIT 1)", roomid, attr_path).Scan(&exists)
 
 	return exists, err
 }
@@ -351,7 +352,7 @@ func checkIfSubExists(attr_path, roomid string) (exists bool, err error) {
 // 1. uses jquery to parse the JSON blob
 // 2. finds list of packages maintained by handle
 // 3. uses SQL to intersect with list of tracked packages
-func findPackagesForHandle(handle string) ([]string, error) {
+func findPackagesForHandle(ctx context.Context, handle string) ([]string, error) {
 	// The query needs to handle:
 	// missing maintainers
 	// missing github field
@@ -369,7 +370,7 @@ func findPackagesForHandle(handle string) ([]string, error) {
 	mu.Lock()
 	defer mu.Unlock()
 	var mps []string
-	iter := query.Run(jsblob)
+	iter := query.RunWithContext(ctx, jsblob)
 
 	for {
 		v, ok := iter.Next()
@@ -396,7 +397,7 @@ func findPackagesForHandle(handle string) ([]string, error) {
 	}
 	placeholders := strings.Join(qmarks, ",")
 
-	rows, err := clients.db.Query(fmt.Sprintf("SELECT attr_path FROM packages WHERE attr_path IN (%s) ORDER BY attr_path", placeholders), args...)
+	rows, err := clients.db.QueryContext(ctx, fmt.Sprintf("SELECT attr_path FROM packages WHERE attr_path IN (%s) ORDER BY attr_path", placeholders), args...)
 	if err != nil {
 		panic(err)
 	}
@@ -435,16 +436,16 @@ func findPackagesForHandle(handle string) ([]string, error) {
 // - but the log predates the subscription, so we notified on a stale log
 //
 // NOTE: this invariant is also enforced via an SQL trigger.
-func subscribe(ap string, evt *event.Event) error {
+func subscribe(ctx context.Context, ap string, evt *event.Event) error {
 	slog.Debug("subscribing", "attr_path", ap)
 
-	if exists, err := checkIfSubExists(ap, evt.RoomID.String()); err != nil {
+	if exists, err := checkIfSubExists(ctx, ap, evt.RoomID.String()); err != nil {
 		return err
 	} else if exists {
 		return existingSubscriptionError(ap)
 	}
 
-	date, err := h.dateFetcher(packageURL(ap))
+	date, err := h.dateFetcher(ctx, packageURL(ap))
 	if err != nil {
 		if httpErr, ok := err.(*HTTPError); ok {
 			return fmt.Errorf("http error while fetching date for %s: %w", ap, httpErr)
@@ -453,11 +454,11 @@ func subscribe(ap string, evt *event.Event) error {
 		}
 	}
 
-	if _, err := clients.db.Exec("UPDATE packages SET last_visited = ? WHERE attr_path = ?", date, ap); err != nil {
+	if _, err := clients.db.ExecContext(ctx, "UPDATE packages SET last_visited = ? WHERE attr_path = ?", date, ap); err != nil {
 		return err
 	}
 
-	if _, err := clients.db.Exec("INSERT INTO subscriptions(attr_path, roomid, mxid) VALUES (?, ?, ?)", ap, evt.RoomID, evt.Sender); err != nil {
+	if _, err := clients.db.ExecContext(ctx, "INSERT INTO subscriptions(attr_path, roomid, mxid) VALUES (?, ?, ?)", ap, evt.RoomID, evt.Sender); err != nil {
 		return err
 	}
 
