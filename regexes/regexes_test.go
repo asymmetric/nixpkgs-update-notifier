@@ -38,25 +38,48 @@ func TestErrRegexp(t *testing.T) {
 }
 
 func TestSubUnsubRegexp(t *testing.T) {
-	ss := []string{
-		"sub foo",
-		"sub foo.bar",
-		"sub fooPackages.bar_baz",
-		"sub fooPackages.bar-baz",
-		"unsub foo",
-		"sub f?o",
-		"sub *.foo",
-		"unsub fo?",
-		"unsub foo*.foo",
-		"unsub *",
-		"unsub fooPackages.*",
-	}
-
-	for _, s := range ss {
-		if Subscribe().FindString(s) == "" {
-			t.Errorf("should have matched: %s", s)
+	t.Run("should match", func(t *testing.T) {
+		ss := []string{
+			"sub foo",
+			"sub foo.bar",
+			"sub fooPackages.bar_baz",
+			"sub fooPackages.bar-baz",
+			"unsub foo",
+			"sub f?o",
+			"sub *.foo",
+			"unsub fo?",
+			"unsub foo*.foo",
+			"unsub *",
+			"unsub fooPackages.*",
+			// Case insensitive tests
+			"Sub foo",
+			"SUB foo",
+			"sUb foo",
+			"Unsub foo",
+			"UNSUB foo",
+			"uNsUb foo",
+			"UnSuB foo",
 		}
-	}
+
+		for _, s := range ss {
+			if Subscribe().FindString(s) == "" {
+				t.Errorf("should have matched: %s", s)
+			}
+		}
+	})
+
+	t.Run("should not match", func(t *testing.T) {
+		ss := []string{
+			"subx foo",
+			"unsuby foo",
+		}
+
+		for _, s := range ss {
+			if Subscribe().FindString(s) != "" {
+				t.Errorf("should not have matched: %s", s)
+			}
+		}
+	})
 }
 
 func TestDangerousRegexp(t *testing.T) {
@@ -67,6 +90,11 @@ func TestDangerousRegexp(t *testing.T) {
 		"sub ?",
 		"sub ??",
 		"sub pythonPackages.*",
+		// Case insensitive tests
+		"Sub *",
+		"SUB *",
+		"sUb pythonPackages.*",
+		"Sub pythonPackages.*",
 	}
 
 	for _, s := range ss {
@@ -81,6 +109,14 @@ func TestFollowRegexp(t *testing.T) {
 		ss := []string{
 			"follow foo",
 			"unfollow bar",
+			// Case insensitive tests
+			"Follow foo",
+			"FOLLOW foo",
+			"fOlLoW foo",
+			"Unfollow bar",
+			"UNFOLLOW bar",
+			"uNfOlLoW bar",
+			"UnFoLlOw bar",
 		}
 		for _, s := range ss {
 			if !Follow().MatchString(s) {
@@ -97,6 +133,10 @@ func TestFollowRegexp(t *testing.T) {
 			"unfollow *",
 			"follow ?",
 			"unfollow ?",
+			"followx foo",
+			"unfollowy bar",
+			"follows foo",
+			"unfollows bar",
 		}
 
 		for _, s := range ss {

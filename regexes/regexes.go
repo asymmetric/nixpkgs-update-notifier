@@ -10,9 +10,9 @@ import "regexp"
 //
 // Unsubbing with the same queries is OK, because it it has different semantics and doesn't spam upstream.
 var (
-	dangerous = regexp.MustCompile(`^sub (?:[*?]+|\w+\.\*)$`)
-	subscribe = regexp.MustCompile(`^(un)?sub ([\w_?*.-]+)$`)
-	follow    = regexp.MustCompile(`^(un)?follow (\w+)$`)
+	dangerous = regexp.MustCompile(`^(?i:sub) (?:[*?]+|\w+\.\*)$`)
+	subscribe = regexp.MustCompile(`^(?i:(un)?sub) ([\w_?*.-]+)$`)
+	follow    = regexp.MustCompile(`^(?i:(un)?follow) (\w+)$`)
 )
 
 // These two regexps are for parsing logs.
