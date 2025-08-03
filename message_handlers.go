@@ -168,7 +168,7 @@ func handleSubs(ctx context.Context, evt *event.Event) {
 		sts := []string{"Your subscriptions:\n"}
 
 		for _, n := range mps {
-			sts = append(sts, fmt.Sprintf("- %s", n))
+			sts = append(sts, fmt.Sprintf("- `%s`", n))
 		}
 
 		msg = strings.Join(sts, "\n")
