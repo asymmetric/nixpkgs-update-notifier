@@ -65,12 +65,7 @@ func handleUnsub(ctx context.Context, pattern string, evt *event.Event) {
 	if len(aps) == 0 {
 		msg = fmt.Sprintf("Could not find subscriptions for pattern `%s`", pattern)
 	} else {
-		var l []string
-		for _, ap := range aps {
-			l = append(l, fmt.Sprintf("- %s", ap))
-		}
-
-		msg = fmt.Sprintf("Unsubscribed from packages:\n %s", strings.Join(l, "\n"))
+		msg = fmt.Sprintf("Unsubscribed from packages:\n %s", strings.Join(formatPackageList(aps), "\n"))
 	}
 
 	// send confirmation message
@@ -165,13 +160,9 @@ func handleSubs(ctx context.Context, evt *event.Event) {
 	if len(mps) == 0 {
 		msg = "no subs"
 	} else {
-		sts := []string{"Your subscriptions:\n"}
+		subs := append([]string{"Your subscriptions:\n"}, formatPackageList(mps)...)
 
-		for _, n := range mps {
-			sts = append(sts, fmt.Sprintf("- `%s`", n))
-		}
-
-		msg = strings.Join(sts, "\n")
+		msg = strings.Join(subs, "\n")
 	}
 	if _, err = h.sender(ctx, msg, evt.RoomID); err != nil {
 		slog.Error(err.Error())
@@ -253,10 +244,7 @@ func handleUnfollow(ctx context.Context, mps []string, evt *event.Event) {
 		panic(err)
 	}
 
-	var l []string
-	for _, ap := range aps {
-		l = append(l, fmt.Sprintf("- %s", ap))
-	}
+	l := formatPackageList(aps)
 
 	var msg string
 	if len(l) > 0 {
@@ -315,7 +303,7 @@ func handleFollow(ctx context.Context, mps []string, evt *event.Event) {
 			}
 		}
 
-		l = append(l, fmt.Sprintf("- %s", ap))
+		l = append(l, fmt.Sprintf("- `%s`", ap))
 	}
 
 	timer.Stop()

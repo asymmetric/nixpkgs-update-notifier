@@ -150,3 +150,12 @@ func fetchPackagesJSON(ctx context.Context) {
 
 	slog.Info("package.json handling completed", "elapsed", time.Since(start))
 }
+
+// formatPackageList formats a list of package names as markdown list items with backticks
+func formatPackageList(packages []string) []string {
+	formatted := make([]string, len(packages))
+	for i, pkg := range packages {
+		formatted[i] = fmt.Sprintf("- `%s`", pkg)
+	}
+	return formatted
+}
