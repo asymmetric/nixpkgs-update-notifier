@@ -339,7 +339,8 @@ func checkIfSubExists(ctx context.Context, attr_path, roomid string) (exists boo
 
 // 1. uses jquery to parse the JSON blob
 // 2. finds list of packages maintained by handle
-// 3. uses SQL to intersect with list of tracked packages
+// 3. normalizes list of maintained packages
+// 4. uses SQL to intersect with list of tracked packages
 func findPackagesForHandle(ctx context.Context, handle string) ([]string, error) {
 	// The query needs to handle:
 	// missing maintainers
@@ -373,7 +374,7 @@ func findPackagesForHandle(ctx context.Context, handle string) ([]string, error)
 
 			return nil, err
 		}
-		mps = append(mps, v.(string))
+		mps = append(mps, regexes.NormalizeAttrPath(v.(string)))
 	}
 
 	// Create the right number of placeholders: "(?,?,?)"

@@ -409,7 +409,7 @@ func TestFollow(t *testing.T) {
 		"btrbk",
 		"btrfs-list",
 		"diceware",
-		"python312Packages.diceware",
+		"python3Packages.diceware",
 	}
 
 	t.Run("last_visited set", func(t *testing.T) {
@@ -533,7 +533,7 @@ func TestUnfollow(t *testing.T) {
 		"btrbk",
 		"btrfs-list",
 		"diceware",
-		"python312Packages.diceware",
+		"python3Packages.diceware",
 	}
 
 	all := append(mps, "foo")
@@ -574,8 +574,7 @@ func TestFindPackagesForHandle(t *testing.T) {
 			"diceware",
 			"evmdis",
 			"ledger-udev-rules",
-			"python312Packages.diceware",
-			"python313Packages.diceware",
+			"python3Packages.diceware",
 			"siji",
 			"ssb-patchwork",
 		}
@@ -634,8 +633,7 @@ func TestFindPackagesForHandle(t *testing.T) {
 			"diceware",
 			"evmdis",
 			"ledger-udev-rules",
-			"python312Packages.diceware",
-			"python313Packages.diceware",
+			"python3Packages.diceware",
 			"siji",
 			"ssb-patchwork",
 		}
