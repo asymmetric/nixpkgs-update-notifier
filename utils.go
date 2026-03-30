@@ -121,7 +121,7 @@ func logURL(attr_path, date string) string {
 
 // This one should be used if there's an irrecoverable problem, e.g. IO with the DB.
 func fatal(err error) {
-	slog.Error("error", err)
+	slog.Error("error", "err", err)
 	os.Exit(restartExitCode)
 }
 
