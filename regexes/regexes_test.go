@@ -146,3 +146,50 @@ func TestFollowRegexp(t *testing.T) {
 		}
 	})
 }
+
+func TestNormalizeAttrPath(t *testing.T) {
+	tt := []struct {
+		input string
+		want  string
+	}{
+		// beam: versioned -> beam26Packages
+		{"beam27Packages.erlang", "beam26Packages.erlang"},
+		{"beam28Packages.elixir", "beam26Packages.elixir"},
+		// linux kernel: versioned generic -> linuxPackages
+		{"linuxKernel.packages.linux_6_6.foo", "linuxPackages.foo"},
+		{"linuxKernel.packages.linux_6_12.bar", "linuxPackages.bar"},
+		// lua: versioned -> lua51Packages
+		{"lua52Packages.foo", "lua51Packages.foo"},
+		{"lua53Packages.foo", "lua51Packages.foo"},
+		{"luajitPackages.foo", "lua51Packages.foo"},
+		// llvm: versioned -> unversioned
+		{"llvmPackages_17.clang", "llvmPackages.clang"},
+		{"llvmPackages_18.lld", "llvmPackages.lld"},
+		// ocaml: _latest -> unversioned
+		{"ocamlPackages_latest.foo", "ocamlPackages.foo"},
+		// php extensions: versioned -> unversioned
+		{"php82Extensions.foo", "phpExtensions.foo"},
+		{"php83Extensions.bar", "phpExtensions.bar"},
+		// php packages: versioned -> unversioned
+		{"php82Packages.foo", "phpPackages.foo"},
+		{"php83Packages.bar", "phpPackages.bar"},
+		// postgresql: versioned -> unversioned
+		{"postgresql15Packages.foo", "postgresqlPackages.foo"},
+		// python3: versioned -> unversioned
+		{"python312Packages.foo", "python3Packages.foo"},
+		{"python313Packages.bar", "python3Packages.bar"},
+		// no match: unchanged
+		{"haskellPackages.foo", "haskellPackages.foo"},
+		{"python2Packages.foo", "python2Packages.foo"},
+		{"btrbk", "btrbk"},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.input, func(t *testing.T) {
+			got := NormalizeAttrPath(tc.input)
+			if got != tc.want {
+				t.Errorf("NormalizeAttrPath(%q) = %q, want %q", tc.input, got, tc.want)
+			}
+		})
+	}
+}

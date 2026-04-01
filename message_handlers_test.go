@@ -409,7 +409,7 @@ func TestFollow(t *testing.T) {
 		"btrbk",
 		"btrfs-list",
 		"diceware",
-		"python312Packages.diceware",
+		"python3Packages.diceware",
 	}
 
 	t.Run("last_visited set", func(t *testing.T) {
@@ -467,6 +467,37 @@ func TestFollow(t *testing.T) {
 		}
 	})
 
+	t.Run("packages stored with normalized names", func(t *testing.T) {
+		// nixpkgs-update logs use normalized names (e.g. python3Packages),
+		// but packages.json has versioned names (e.g. python312Packages).
+		// follow must normalize before looking up in the packages table.
+		if err := setupDB(ctx, ":memory:"); err != nil {
+			panic(err)
+		}
+
+		normalizedPs := []string{
+			"python3Packages.diceware",
+		}
+
+		for _, p := range normalizedPs {
+			if _, err := clients.db.Exec("INSERT INTO packages(attr_path, last_visited) VALUES (?, ?)", p, "1999"); err != nil {
+				panic(err)
+			}
+		}
+
+		fol("asymmetric")
+
+		for _, p := range normalizedPs {
+			exists, err := checkIfSubExists(ctx, p, evt.RoomID.String())
+			if err != nil {
+				panic(err)
+			}
+			if !exists {
+				t.Errorf("should be subscribed to %s", p)
+			}
+		}
+	})
+
 	t.Run("some packages not tracked by nixpkgs-update", func(t *testing.T) {
 		if err := setupDB(ctx, ":memory:"); err != nil {
 			panic(err)
@@ -502,7 +533,7 @@ func TestUnfollow(t *testing.T) {
 		"btrbk",
 		"btrfs-list",
 		"diceware",
-		"python312Packages.diceware",
+		"python3Packages.diceware",
 	}
 
 	all := append(mps, "foo")
@@ -543,8 +574,7 @@ func TestFindPackagesForHandle(t *testing.T) {
 			"diceware",
 			"evmdis",
 			"ledger-udev-rules",
-			"python312Packages.diceware",
-			"python313Packages.diceware",
+			"python3Packages.diceware",
 			"siji",
 			"ssb-patchwork",
 		}
@@ -603,8 +633,7 @@ func TestFindPackagesForHandle(t *testing.T) {
 			"diceware",
 			"evmdis",
 			"ledger-udev-rules",
-			"python312Packages.diceware",
-			"python313Packages.diceware",
+			"python3Packages.diceware",
 			"siji",
 			"ssb-patchwork",
 		}
