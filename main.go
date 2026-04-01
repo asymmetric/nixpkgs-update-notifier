@@ -331,7 +331,7 @@ func handleMessage(ctx context.Context, evt *event.Event) {
 
 	slog.Debug("received msg", "msg", msg, "sender", sender)
 
-	if sender == fmt.Sprintf("@%s:%s", *matrixUsername, *matrixHomeserver) {
+	if evt.Sender == clients.matrix.UserID {
 		slog.Debug("ignoring our own message", "msg", msg)
 
 		return
