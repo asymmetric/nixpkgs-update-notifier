@@ -77,6 +77,14 @@
       cfg = config.services.nixpkgs-update-notifier;
     in
     lib.mkIf cfg.enable {
+      users.users.nixpkgs-update-notifier = {
+        isSystemUser = true;
+        group = "nixpkgs-update-notifier";
+        description = "nixpkgs-update-notifier service user";
+      };
+
+      users.groups.nixpkgs-update-notifier = { };
+
       systemd.services.nixpkgs-update-notifier = {
         wantedBy = [ "multi-user.target" ];
         after = [ "network.target" ];
@@ -101,6 +109,8 @@
             (lib.optionalString cfg.debug "-debug")
           ];
           StateDirectory = "nixpkgs-update-notifier";
+          User = "nixpkgs-update-notifier";
+          Group = "nixpkgs-update-notifier";
         };
       };
     };
