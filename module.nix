@@ -94,9 +94,6 @@
           RestartSteps = cfg.systemdService.restartSteps;
           RestartMaxDelaySec = cfg.systemdService.restartMaxDelaySec;
 
-          StartLimitIntervalSec = cfg.systemdService.startLimitIntervalSec;
-          StartLimitBurst = cfg.systemdService.startLimitBurst;
-
           # emitted by `fatal`
           RestartPreventExitStatus = [ 100 ];
           EnvironmentFile = cfg.passwordFile;
@@ -111,6 +108,10 @@
           StateDirectory = "nixpkgs-update-notifier";
           User = "nixpkgs-update-notifier";
           Group = "nixpkgs-update-notifier";
+        };
+        unitConfig = {
+          StartLimitIntervalSec = cfg.systemdService.startLimitIntervalSec;
+          StartLimitBurst = cfg.systemdService.startLimitBurst;
         };
       };
     };
