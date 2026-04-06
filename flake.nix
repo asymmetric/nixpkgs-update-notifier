@@ -47,6 +47,10 @@
           };
         });
 
+      checks = forAllSystems (system: {
+        inherit (self.packages.${system}) nixpkgs-update-notifier;
+      });
+
       overlays.default = final: prev: {
         nixpkgs-update-notifier = self.packages.${final.system}.nixpkgs-update-notifier;
       };
