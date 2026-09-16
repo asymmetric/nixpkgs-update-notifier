@@ -19,7 +19,7 @@ pkgs.buildGo127Module rec {
       ];
     };
 
-  vendorHash = "sha256-tjY1Fl2pOs0FcVRKXzaERM18kSHAn9IdXw1BDSV7ThE=";
+  vendorHash = "sha256-guctodo8VX6HZG4OYKXPSU6eaSXGrjrvkcgPkBVyirU=";
 
   meta.mainProgram = pname;
 }

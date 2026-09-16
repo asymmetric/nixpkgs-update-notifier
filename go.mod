@@ -3,7 +3,7 @@ module github.com/asymmetric/nixpkgs-update-notifier
 go 1.27
 
 require (
-	github.com/andybalholm/brotli v1.1.1
+	github.com/andybalholm/brotli v1.2.7
 	github.com/antchfx/htmlquery v1.3.2
 	github.com/mattn/go-sqlite3 v1.14.22
 	golang.org/x/net v0.28.0
