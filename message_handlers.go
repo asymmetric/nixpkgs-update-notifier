@@ -15,7 +15,7 @@ import (
 
 type existingSubscriptionError string
 
-const NOTIFY_THRESHOLD = 10 * time.Second
+const NotifyThreshold = 10 * time.Second
 
 func (e existingSubscriptionError) Error() string {
 	return fmt.Sprintf("Subscription already present: %s", string(e))
@@ -104,20 +104,17 @@ func handleSub(ctx context.Context, pattern string, evt *event.Event) {
 		return
 	}
 
-	var esErr existingSubscriptionError
-	var httpErr *HTTPError
-
 	for _, ap := range aps {
 		// TODO: should we notify here already if the log has an error?
 		if err := subscribe(ctx, ap, evt); err != nil {
-			if errors.As(err, &esErr) {
+			if esErr, ok := errors.AsType[existingSubscriptionError](err); ok {
 				if _, err := h.sender(ctx, esErr.Error(), evt.RoomID); err != nil {
 					slog.Error(err.Error())
 				}
 
 				// skip this ap
 				continue
-			} else if errors.As(err, &httpErr) {
+			} else if httpErr, ok := errors.AsType[*HTTPError](err); ok {
 				slog.Warn("HTTP error while subscribing to package", "ap", ap, "error", httpErr.StatusCode)
 
 				continue
@@ -276,11 +273,8 @@ func handleFollow(ctx context.Context, mps []string, evt *event.Event) {
 	// used for output message
 	var l []string
 
-	var esErr existingSubscriptionError
-	var httpErr *HTTPError
-
 	// Start timer to notify user if processing takes too long
-	timer := time.AfterFunc(NOTIFY_THRESHOLD, func() {
+	timer := time.AfterFunc(NotifyThreshold, func() {
 		msg := fmt.Sprintf("Subscribing to %d packages, this may take a moment...", len(mps))
 		if _, err := h.sender(ctx, msg, evt.RoomID); err != nil {
 			slog.Error(err.Error())
@@ -289,11 +283,11 @@ func handleFollow(ctx context.Context, mps []string, evt *event.Event) {
 
 	for _, ap := range mps {
 		if err := subscribe(ctx, ap, evt); err != nil {
-			if errors.As(err, &esErr) {
+			if _, ok := errors.AsType[existingSubscriptionError](err); ok {
 				slog.Debug("skipped already existing subscription", "ap", ap)
 
 				continue
-			} else if errors.As(err, &httpErr) {
+			} else if httpErr, ok := errors.AsType[*HTTPError](err); ok {
 				slog.Warn("HTTP error while subscribing to package", "ap", ap, "error", httpErr.StatusCode)
 
 				continue
@@ -330,8 +324,8 @@ func handleFollow(ctx context.Context, mps []string, evt *event.Event) {
 }
 
 // Checks, via an SQL query, if the user is already subscribed to the package
-func checkIfSubExists(ctx context.Context, attr_path, roomid string) (exists bool, err error) {
-	err = clients.db.QueryRowContext(ctx, "SELECT EXISTS (SELECT 1 FROM subscriptions WHERE roomid = ? AND attr_path = ? LIMIT 1)", roomid, attr_path).Scan(&exists)
+func checkIfSubExists(ctx context.Context, attrPath, roomid string) (exists bool, err error) {
+	err = clients.db.QueryRowContext(ctx, "SELECT EXISTS (SELECT 1 FROM subscriptions WHERE roomid = ? AND attr_path = ? LIMIT 1)", roomid, attrPath).Scan(&exists)
 
 	return exists, err
 }

@@ -46,14 +46,6 @@ var clients = struct {
 //go:embed db/schema.sql
 var ddl string
 
-// TODO: make configurable
-var (
-	repoOwner    = "asymmetric"
-	repoName     = "nixpkgs-update-notifier"
-	githubToken  = "your-github-token"
-	artifactsURL = fmt.Sprintf("https://api.github.com/repos/%s/%s/actions/artifacts", repoOwner, repoName)
-)
-
 const packagesURL = "https://channels.nixos.org/nixos-unstable/packages.json.br"
 
 // These are abstracted so that we can pass a different function in tests.

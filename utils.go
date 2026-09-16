@@ -111,12 +111,12 @@ func getDate(url string) (date string) {
 }
 
 // Returns the full package URL by appending its attr_path to the base URL.
-func packageURL(attr_path string) string {
-	return fmt.Sprintf("%s/%s", strings.Trim(*mainURL, "/"), strings.Trim(attr_path, "/"))
+func packageURL(attrPath string) string {
+	return fmt.Sprintf("%s/%s", strings.Trim(*mainURL, "/"), strings.Trim(attrPath, "/"))
 }
 
-func logURL(attr_path, date string) string {
-	purl := packageURL(attr_path)
+func logURL(attrPath, date string) string {
+	purl := packageURL(attrPath)
 
 	return fmt.Sprintf("%s/%s.log", purl, date)
 }
