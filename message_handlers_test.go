@@ -652,6 +652,44 @@ func TestFindPackagesForHandle(t *testing.T) {
 			}
 		}
 	})
+
+	t.Run("empty maintainers list", func(t *testing.T) {
+		if err := setupDB(ctx, ":memory:"); err != nil {
+			panic(err)
+		}
+
+		// nix-generate-from-cpan has an empty meta.maintainers list
+		addPackages("nix-generate-from-cpan", "nix-serve")
+
+		got, err := findPackagesForHandle(ctx, "edolstra")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		expected := []string{"nix-serve"}
+		if !slices.Equal(expected, got) {
+			t.Errorf("expected: %v\ngot: %v", expected, got)
+		}
+	})
+
+	t.Run("maintainer without github field", func(t *testing.T) {
+		if err := setupDB(ctx, ":memory:"); err != nil {
+			panic(err)
+		}
+
+		// nixpkgs-lint has a maintainer entry missing the "github" field
+		addPackages("nixpkgs-lint", "nix-serve")
+
+		got, err := findPackagesForHandle(ctx, "edolstra")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		expected := []string{"nix-serve"}
+		if !slices.Equal(expected, got) {
+			t.Errorf("expected: %v\ngot: %v", expected, got)
+		}
+	})
 }
 
 func fillEventContent(evt *event.Event, body string) {

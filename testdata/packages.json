@@ -1032,14 +1032,7 @@
         "description": "Utility to generate a Nix expression for a Perl package from CPAN",
         "insecure": false,
         "mainProgram": "nix-generate-from-cpan",
-        "maintainers": [
-          {
-            "email": "edolstra+nixpkgs@gmail.com",
-            "github": "edolstra",
-            "githubId": 1148549,
-            "name": "Eelco Dolstra"
-          }
-        ],
+        "maintainers": [],
         "name": "nix-generate-from-cpan-3",
         "outputsToInstall": [
           "out"
@@ -1658,7 +1651,6 @@
         "maintainers": [
           {
             "email": "edolstra+nixpkgs@gmail.com",
-            "github": "edolstra",
             "githubId": 1148549,
             "name": "Eelco Dolstra"
           }
