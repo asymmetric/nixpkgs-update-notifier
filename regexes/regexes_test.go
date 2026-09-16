@@ -59,6 +59,12 @@ func TestSubUnsubRegexp(t *testing.T) {
 			"UNSUB foo",
 			"uNsUb foo",
 			"UnSuB foo",
+			// Whitespace tolerance
+			"sub   foo",
+			" sub foo",
+			"sub foo ",
+			"sub\tfoo",
+			"sub foo\n",
 		}
 
 		for _, s := range ss {
@@ -95,12 +101,80 @@ func TestDangerousRegexp(t *testing.T) {
 		"SUB *",
 		"sUb pythonPackages.*",
 		"Sub pythonPackages.*",
+		// Whitespace tolerance
+		"sub   *",
+		" sub *",
+		"sub *\n",
+		"sub\t*",
 	}
 
 	for _, s := range ss {
 		if Dangerous().FindString(s) == "" {
 			t.Errorf("should have matched: %s", s)
 		}
+	}
+}
+
+// TestDangerousSubscribeWhitespaceInvariant asserts that dangerous and
+// subscribe stay in lockstep on whitespace handling: whenever subscribe
+// matches a "sub <dangerous pattern>" input (however it is whitespace-padded),
+// dangerous must match it too, so the spam guard can never be bypassed by
+// whitespace variation alone.
+func TestDangerousSubscribeWhitespaceInvariant(t *testing.T) {
+	ss := []string{
+		"sub   *",
+		" sub *",
+		"sub\t*",
+		"sub *\n",
+		"sub  foo.*",
+	}
+
+	for _, s := range ss {
+		if !Subscribe().MatchString(s) {
+			t.Errorf("Subscribe() should have matched: %q", s)
+		}
+		if !Dangerous().MatchString(s) {
+			t.Errorf("Dangerous() should have matched: %q (subscribe would allow it through)", s)
+		}
+	}
+}
+
+func TestSubsRegexp(t *testing.T) {
+	t.Run("should match", func(t *testing.T) {
+		ss := []string{
+			"subs",
+			" subs ",
+			"subs\n",
+			"SUBS",
+		}
+		for _, s := range ss {
+			if !Subs().MatchString(s) {
+				t.Errorf("should have matched: %q", s)
+			}
+		}
+	})
+
+	t.Run("should not match", func(t *testing.T) {
+		ss := []string{
+			"subs foo",
+			"sub",
+			"subsx",
+		}
+		for _, s := range ss {
+			if Subs().MatchString(s) {
+				t.Errorf("should not have matched: %q", s)
+			}
+		}
+	})
+}
+
+func TestWhitespaceNotCaptured(t *testing.T) {
+	if got := Follow().FindStringSubmatch(" follow\tfoo-bar \n")[2]; got != "foo-bar" {
+		t.Errorf("Follow() captured group = %q, want %q", got, "foo-bar")
+	}
+
+	if got := Subscribe().FindStringSubmatch("sub  foo ")[2]; got != "foo" {
+		t.Errorf("Subscribe() captured group = %q, want %q", got, "foo")
 	}
 }
 
@@ -119,6 +193,12 @@ func TestFollowRegexp(t *testing.T) {
 			"UNFOLLOW bar",
 			"uNfOlLoW bar",
 			"UnFoLlOw bar",
+			// Whitespace tolerance
+			"follow  foo",
+			" follow foo",
+			"follow foo ",
+			"follow\tfoo",
+			"follow foo\n",
 		}
 		for _, s := range ss {
 			if !Follow().MatchString(s) {
@@ -141,6 +221,9 @@ func TestFollowRegexp(t *testing.T) {
 			"unfollowy bar",
 			"follows foo",
 			"unfollows bar",
+			// Whitespace only, no argument
+			"follow  ",
+			"follow \t",
 		}
 
 		for _, s := range ss {

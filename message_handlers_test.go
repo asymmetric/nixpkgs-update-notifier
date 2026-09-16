@@ -730,7 +730,7 @@ func TestFindPackagesForHandle(t *testing.T) {
 	})
 }
 
-func TestWhitespaceNormalization(t *testing.T) {
+func TestWhitespaceHandling(t *testing.T) {
 	h = handlers{
 		dateFetcher: func(ctx context.Context, url string) (string, error) {
 			return "1999", nil

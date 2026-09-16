@@ -326,8 +326,7 @@ func notifySubscribers(ctx context.Context, attr_path, date string) {
 
 // Decides what to do, based on the message content.
 func handleMessage(ctx context.Context, evt *event.Event) {
-	// Normalize whitespace so all command regexes see the same canonical input.
-	msg := strings.Join(strings.Fields(evt.Content.AsMessage().Body), " ")
+	msg := evt.Content.AsMessage().Body
 	sender := evt.Sender.String()
 
 	slog.Debug("received msg", "msg", msg, "sender", sender)
@@ -351,7 +350,7 @@ Type **help** for a list of allowed/forbidden patterns.`
 		handleSubUnsub(ctx, msg, evt)
 	} else if regexes.Follow().MatchString(msg) {
 		handleFollowUnfollow(ctx, msg, evt)
-	} else if msg == "subs" {
+	} else if regexes.Subs().MatchString(msg) {
 		handleSubs(ctx, evt)
 	} else {
 		// anything else, so print help

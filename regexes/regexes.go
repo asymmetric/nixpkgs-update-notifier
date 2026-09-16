@@ -3,16 +3,25 @@ package regexes
 
 import "regexp"
 
-// These regexps are for matching against user input.
+// These regexps are for matching against user input. They tolerate surrounding
+// and inter-token whitespace (spaces, tabs, newlines) so callers can match
+// against the raw message body without normalizing it first.
+//
 // We want to avoid stuff like the following, because it leads us to spam the nix-community.org server.
 // - sub *
 // - sub pythonPackages.*
 //
 // Unsubbing with the same queries is OK, because it it has different semantics and doesn't spam upstream.
+//
+// Invariant: dangerous MUST use exactly the same whitespace handling as
+// subscribe. Otherwise a whitespace-padded input (e.g. "sub   *") could match
+// subscribe while slipping past the dangerous guard, triggering a wildcard
+// subscription.
 var (
-	dangerous = regexp.MustCompile(`^(?i:sub) (?:[*?]+|\w+\.\*)$`)
-	subscribe = regexp.MustCompile(`^(?i:(un)?sub) ([\w_?*.-]+)$`)
-	follow    = regexp.MustCompile(`^(?i:(un)?follow) ([\w-]+)$`)
+	dangerous = regexp.MustCompile(`^\s*(?i:sub)\s+(?:[*?]+|\w+\.\*)\s*$`)
+	subscribe = regexp.MustCompile(`^\s*(?i:(un)?sub)\s+([\w_?*.-]+)\s*$`)
+	follow    = regexp.MustCompile(`^\s*(?i:(un)?follow)\s+([\w-]+)\s*$`)
+	subs      = regexp.MustCompile(`^\s*(?i:subs)\s*$`)
 )
 
 // These two regexps are for parsing logs.
@@ -34,6 +43,10 @@ func Subscribe() *regexp.Regexp {
 
 func Follow() *regexp.Regexp {
 	return follow
+}
+
+func Subs() *regexp.Regexp {
+	return subs
 }
 
 func Error() *regexp.Regexp {
