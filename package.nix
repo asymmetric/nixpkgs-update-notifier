@@ -1,6 +1,6 @@
 { pkgs, version, ... }:
 
-pkgs.buildGoModule rec {
+pkgs.buildGo127Module rec {
   pname = "nixpkgs-update-notifier";
   inherit version;
 
@@ -19,7 +19,7 @@ pkgs.buildGoModule rec {
       ];
     };
 
-  vendorHash = "sha256-5BMTo5/0gESGLWRDHdVGnPsQuTxH0RBFgs6TEg3rbbU=";
+  vendorHash = "sha256-tjY1Fl2pOs0FcVRKXzaERM18kSHAn9IdXw1BDSV7ThE=";
 
   meta.mainProgram = pname;
 }

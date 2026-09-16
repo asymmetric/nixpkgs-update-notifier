@@ -1,8 +1,6 @@
 module github.com/asymmetric/nixpkgs-update-notifier
 
-go 1.22.3
-
-toolchain go1.22.5
+go 1.27
 
 require (
 	github.com/andybalholm/brotli v1.1.1

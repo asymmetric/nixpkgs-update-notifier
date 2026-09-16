@@ -147,7 +147,7 @@ func fetchPackagesJSON(ctx context.Context) {
 	}
 
 	mu.Lock()
-	maintainerIndex = idx
+	mIndex = idx
 	mu.Unlock()
 
 	slog.Info("package.json handling completed", "elapsed", time.Since(start), "handles", len(idx))

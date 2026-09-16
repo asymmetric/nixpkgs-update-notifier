@@ -866,6 +866,6 @@ func stubMaintainerIndex() {
 	}
 
 	mu.Lock()
-	maintainerIndex = idx
+	mIndex = idx
 	mu.Unlock()
 }

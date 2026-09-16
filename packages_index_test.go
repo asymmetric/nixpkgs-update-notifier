@@ -152,6 +152,15 @@ func TestBuildMaintainerIndex_Inline(t *testing.T) {
 		}
 	})
 
+	t.Run("duplicate attr path in packages returns an error", func(t *testing.T) {
+		_, err := buildMaintainerIndex(strings.NewReader(
+			`{"packages": {"a": {"meta": {"maintainers": [{"github": "bar"}]}}, "a": {"meta": {}}}}`,
+		))
+		if err == nil {
+			t.Error("expected an error for duplicate attr path, got nil")
+		}
+	})
+
 	// Regression test for the encoding/json merge footgun: reusing a struct
 	// variable across loop iterations would leak maintainers from one package
 	// into the next, since json.Decode merges into existing values instead of

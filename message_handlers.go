@@ -340,7 +340,7 @@ func checkIfSubExists(ctx context.Context, attr_path, roomid string) (exists boo
 // 2. uses SQL to intersect the resulting attr paths with the list of tracked packages
 func findPackagesForHandle(ctx context.Context, handle string) ([]string, error) {
 	mu.RLock()
-	mps := maintainerIndex[strings.ToLower(handle)]
+	mps := mIndex.packages(handle)
 	mu.RUnlock()
 
 	// Create the right number of placeholders: "(?,?,?)"

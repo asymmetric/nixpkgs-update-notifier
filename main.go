@@ -68,10 +68,9 @@ type handlers struct {
 
 var h handlers
 
-// maintainerIndex maps a lowercased GitHub handle to the sorted, normalized
-// attr paths of packages it maintains. It is populated out-of-band by
-// fetchPackagesJSON.
-var maintainerIndex map[string][]string
+// Populated by fetchPackagesJSON.
+var mIndex maintainerIndex
+
 var mu sync.RWMutex
 
 func init() {

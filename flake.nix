@@ -39,7 +39,7 @@
         {
           default = pkgs.mkShell {
             buildInputs = with pkgs; [
-              go
+              go_1_27
               go-tools # staticcheck
               gopls
               gotools
