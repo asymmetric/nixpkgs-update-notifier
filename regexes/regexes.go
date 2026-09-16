@@ -12,7 +12,7 @@ import "regexp"
 var (
 	dangerous = regexp.MustCompile(`^(?i:sub) (?:[*?]+|\w+\.\*)$`)
 	subscribe = regexp.MustCompile(`^(?i:(un)?sub) ([\w_?*.-]+)$`)
-	follow    = regexp.MustCompile(`^(?i:(un)?follow) (\w+)$`)
+	follow    = regexp.MustCompile(`^(?i:(un)?follow) ([\w-]+)$`)
 )
 
 // These two regexps are for parsing logs.

@@ -109,6 +109,8 @@ func TestFollowRegexp(t *testing.T) {
 		ss := []string{
 			"follow foo",
 			"unfollow bar",
+			"follow foo-bar",
+			"unfollow foo-bar",
 			// Case insensitive tests
 			"Follow foo",
 			"FOLLOW foo",
