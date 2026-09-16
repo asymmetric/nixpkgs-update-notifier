@@ -326,7 +326,8 @@ func notifySubscribers(ctx context.Context, attr_path, date string) {
 
 // Decides what to do, based on the message content.
 func handleMessage(ctx context.Context, evt *event.Event) {
-	msg := evt.Content.AsMessage().Body
+	// Normalize whitespace so all command regexes see the same canonical input.
+	msg := strings.Join(strings.Fields(evt.Content.AsMessage().Body), " ")
 	sender := evt.Sender.String()
 
 	slog.Debug("received msg", "msg", msg, "sender", sender)

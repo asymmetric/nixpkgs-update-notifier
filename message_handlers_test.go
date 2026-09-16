@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"slices"
+	"strings"
 	"testing"
 
 	"maunium.net/go/mautrix"
@@ -728,6 +729,91 @@ func TestFindPackagesForHandle(t *testing.T) {
 		}
 	})
 }
+
+func TestWhitespaceNormalization(t *testing.T) {
+	h = handlers{
+		dateFetcher: func(ctx context.Context, url string) (string, error) {
+			return "1999", nil
+		},
+		sender: testSender,
+	}
+
+	t.Run("extra spaces in sub", func(t *testing.T) {
+		if err := setupDB(ctx, ":memory:"); err != nil {
+			panic(err)
+		}
+
+		addPackages("foo")
+
+		fillEventContent(evt, "sub   foo")
+		handleMessage(ctx, evt)
+
+		exists, err := checkIfSubExists(ctx, "foo", evt.RoomID.String())
+		if err != nil {
+			panic(err)
+		}
+		if !exists {
+			t.Errorf("should be subscribed to foo")
+		}
+	})
+
+	t.Run("leading/trailing whitespace in follow", func(t *testing.T) {
+		if err := setupDB(ctx, ":memory:"); err != nil {
+			panic(err)
+		}
+
+		stubJSONBlob()
+		addPackages("btrbk")
+
+		fillEventContent(evt, " follow\tasymmetric \n")
+		handleMessage(ctx, evt)
+
+		exists, err := checkIfSubExists(ctx, "btrbk", evt.RoomID.String())
+		if err != nil {
+			panic(err)
+		}
+		if !exists {
+			t.Errorf("should be subscribed to btrbk")
+		}
+	})
+
+	t.Run("dangerous query with extra spaces", func(t *testing.T) {
+		if err := setupDB(ctx, ":memory:"); err != nil {
+			panic(err)
+		}
+
+		// packages that a "sub *" wildcard would match against the GLOB in
+		// handleSub, if the Dangerous() guard failed to block it
+		addPackages("foo", "bar", "baz")
+
+		var sent []string
+		prevH := h
+		h = handlers{
+			dateFetcher: prevH.dateFetcher,
+			sender: func(ctx context.Context, text string, room id.RoomID) (*mautrix.RespSendEvent, error) {
+				sent = append(sent, text)
+				return nil, nil
+			},
+		}
+		t.Cleanup(func() { h = prevH })
+
+		fillEventContent(evt, "sub   *")
+		handleMessage(ctx, evt)
+
+		if len(sent) != 1 {
+			t.Errorf("expected exactly one message sent, got: %d (%v)", len(sent), sent)
+		} else if !strings.Contains(sent[0], "Pattern returns too many results") {
+			t.Errorf("expected dangerous-pattern reply, got: %q", sent[0])
+		}
+
+		var count int
+		if err := clients.db.QueryRow(`SELECT COUNT(*) FROM subscriptions`).Scan(&count); err != nil {
+			panic(err)
+		}
+		if count != 0 {
+			t.Errorf("expected no subscriptions, got: %d", count)
+		}
+	})
 }
 
 func fillEventContent(evt *event.Event, body string) {

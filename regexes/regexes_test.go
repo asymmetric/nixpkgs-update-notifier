@@ -131,6 +131,8 @@ func TestFollowRegexp(t *testing.T) {
 		ss := []string{
 			"follow",
 			"unfollow",
+			"follow ",
+			"unfollow ",
 			"follow *",
 			"unfollow *",
 			"follow ?",
