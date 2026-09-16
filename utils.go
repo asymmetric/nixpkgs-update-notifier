@@ -141,12 +141,16 @@ func fetchPackagesJSON(ctx context.Context) {
 	}
 	defer resp.Body.Close()
 
-	mu.Lock()
-	defer mu.Unlock()
+	// make a fresh map, so that we don't keep overriding the same one and getting a mix of old and new values.
+	fresh := make(map[string]any)
 	slog.Debug("parsing packages.json")
-	if err := json.NewDecoder(brotli.NewReader(resp.Body)).Decode(&jsblob); err != nil {
+	if err := json.NewDecoder(brotli.NewReader(resp.Body)).Decode(&fresh); err != nil {
 		panic(err)
 	}
+
+	mu.Lock()
+	jsblob = fresh
+	mu.Unlock()
 
 	slog.Info("package.json handling completed", "elapsed", time.Since(start))
 }
