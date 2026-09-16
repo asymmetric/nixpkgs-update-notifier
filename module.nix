@@ -18,11 +18,11 @@
         description = "Timers";
         type = lib.types.submodule {
           options = {
-            update = lib.mkOption {
+            check-errors = lib.mkOption {
               type = lib.types.nullOr lib.types.str;
               default = null;
             };
-            jsblob = lib.mkOption {
+            fetch-packages = lib.mkOption {
               type = lib.types.nullOr lib.types.str;
               default = null;
             };
@@ -101,8 +101,8 @@
             (lib.getExe pkgs.nixpkgs-update-notifier)
             "-matrix.username ${cfg.username}"
             "-db ${cfg.dataDir}/data.db"
-            (lib.optionalString (cfg.timers.update != null) "-timers.update ${cfg.timers.update}")
-            (lib.optionalString (cfg.timers.jsblob != null) "-timers.jsblob ${cfg.timers.jsblob}")
+            (lib.optionalString (cfg.timers.check-errors != null) "-timers.check-errors ${cfg.timers.check-errors}")
+            (lib.optionalString (cfg.timers.fetch-packages != null) "-timers.fetch-packages ${cfg.timers.fetch-packages}")
             (lib.optionalString cfg.debug "-debug")
           ];
           StateDirectory = "nixpkgs-update-notifier";

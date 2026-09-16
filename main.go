@@ -27,8 +27,8 @@ var matrixUsername = flag.String("matrix.username", "", "Matrix bot username")
 
 var mainURL = flag.String("url", "https://nixpkgs-update-logs.nix-community.org", "Webpage with logs")
 var dbPath = flag.String("db", "data.db", "Path to the DB file")
-var updateTickerOpt = flag.Duration("timers.update", 24*time.Hour, "How often to check for new errors")
-var jsonTickerOpt = flag.Duration("timers.jsblob", 5*time.Minute, "How often to fetch packages.json.br")
+var checkErrorsTickerOpt = flag.Duration("timers.check-errors", 24*time.Hour, "How often to check for new errors")
+var jsonTickerOpt = flag.Duration("timers.fetch-packages", 5*time.Minute, "How often to fetch packages.json.br")
 var debug = flag.Bool("debug", false, "Enable debug logging")
 
 var clients = struct {
@@ -100,10 +100,10 @@ func main() {
 		}
 	}()
 
-	updateTicker := time.NewTicker(*updateTickerOpt)
+	updateTicker := time.NewTicker(*checkErrorsTickerOpt)
 	optimizeTicker := time.NewTicker(24 * time.Hour)
 	jsonTicker := time.NewTicker(*jsonTickerOpt)
-	slog.Debug("delay set", "value", *updateTickerOpt)
+	slog.Debug("delay set", "value", *checkErrorsTickerOpt)
 
 	// - fetch main page, add list of packages to mem
 	// - fetch last log of subscribed packages
@@ -117,7 +117,7 @@ func main() {
 	// - new sub
 	// - new broken package, send to subbers
 
-	slog.Info("initialized", "delay", updateTickerOpt)
+	slog.Info("initialized", "delay", checkErrorsTickerOpt)
 
 	storeAttrPaths(ctx, *mainURL)
 	updateSubs(ctx)
