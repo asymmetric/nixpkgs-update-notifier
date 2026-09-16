@@ -343,9 +343,10 @@ func checkIfSubExists(ctx context.Context, attr_path, roomid string) (exists boo
 // 4. uses SQL to intersect with list of tracked packages
 func findPackagesForHandle(ctx context.Context, handle string) ([]string, error) {
 	// The query needs to handle:
-	// missing maintainers
-	// missing github field
-	query, err := gojq.Parse(fmt.Sprintf(`.packages|to_entries[]|select(.value.meta.maintainers[]?|.github // "" |test("^%s$"; "i"))|.key`, handle))
+	// - missing maintainers key: maintainers[]?
+	// - missing github field .github // empty, so such a maintainer yields nothing to `test`
+	// NOTE: previously we used `// ""` but that matched when `handle` was `""`, which is not possible in the live system but defense in depth ftw.
+	query, err := gojq.Parse(fmt.Sprintf(`.packages|to_entries[]|select(.value.meta.maintainers[]?|.github // empty |test("^%s$"; "i"))|.key`, handle))
 	if err != nil {
 		slog.Error("gojq parse", "error", err)
 

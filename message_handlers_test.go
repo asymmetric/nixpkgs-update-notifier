@@ -690,6 +690,44 @@ func TestFindPackagesForHandle(t *testing.T) {
 			t.Errorf("expected: %v\ngot: %v", expected, got)
 		}
 	})
+
+	t.Run("missing maintainers key", func(t *testing.T) {
+		if err := setupDB(ctx, ":memory:"); err != nil {
+			panic(err)
+		}
+
+		// nixStatic has no meta.maintainers key
+		addPackages("nixStatic", "nix-serve")
+
+		got, err := findPackagesForHandle(ctx, "edolstra")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		expected := []string{"nix-serve"}
+		if !slices.Equal(expected, got) {
+			t.Errorf("expected: %v\ngot: %v", expected, got)
+		}
+	})
+
+	t.Run("empty handle", func(t *testing.T) {
+		if err := setupDB(ctx, ":memory:"); err != nil {
+			panic(err)
+		}
+
+		// nixpkgs-lint has a maintainer without github, which must not match an empty handle
+		addPackages("nixpkgs-lint", "nix-serve")
+
+		got, err := findPackagesForHandle(ctx, "")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if len(got) != 0 {
+			t.Errorf("expected no packages, got: %v", got)
+		}
+	})
+}
 }
 
 func fillEventContent(evt *event.Event, body string) {

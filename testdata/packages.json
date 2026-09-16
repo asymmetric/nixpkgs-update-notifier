@@ -1204,33 +1204,6 @@
         },
         "longDescription": "Nix is a powerful package manager for Linux and other Unix systems that\nmakes package management reliable and reproducible. It provides atomic\nupgrades and rollbacks, side-by-side installation of multiple versions of\na package, multi-user package management and easy setup of build\nenvironments.\n",
         "mainProgram": "nix",
-        "maintainers": [
-          {
-            "email": "edolstra+nixpkgs@gmail.com",
-            "github": "edolstra",
-            "githubId": 1148549,
-            "name": "Eelco Dolstra"
-          },
-          {
-            "email": "meurerbernardo@gmail.com",
-            "github": "lovesegfault",
-            "githubId": 7243783,
-            "keys": [
-              {
-                "fingerprint": "F193 7596 57D5 6DA4 CCD4  786B F4C0 D53B 8D14 C246"
-              }
-            ],
-            "matrix": "@lovesegfault:matrix.org",
-            "name": "Bernardo Meurer"
-          },
-          {
-            "email": "artturin@artturin.com",
-            "github": "Artturin",
-            "githubId": 56650223,
-            "matrix": "@artturin:matrix.org",
-            "name": "Artturi N"
-          }
-        ],
         "name": "nix-2.24.11",
         "outputsToInstall": [
           "out",
