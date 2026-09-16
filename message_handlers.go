@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/asymmetric/nixpkgs-update-notifier/regexes"
-	"github.com/itchyny/gojq"
 	"maunium.net/go/mautrix"
 	"maunium.net/go/mautrix/event"
 )
@@ -337,46 +336,12 @@ func checkIfSubExists(ctx context.Context, attr_path, roomid string) (exists boo
 	return exists, err
 }
 
-// 1. uses jquery to parse the JSON blob
-// 2. finds list of packages maintained by handle
-// 3. normalizes list of maintained packages
-// 4. uses SQL to intersect with list of tracked packages
+// 1. looks up the handle (lowercased) in the maintainer index
+// 2. uses SQL to intersect the resulting attr paths with the list of tracked packages
 func findPackagesForHandle(ctx context.Context, handle string) ([]string, error) {
-	// The query needs to handle:
-	// - missing maintainers key: maintainers[]?
-	// - missing github field .github // empty, so such a maintainer yields nothing to `test`
-	// NOTE: previously we used `// ""` but that matched when `handle` was `""`, which is not possible in the live system but defense in depth ftw.
-	query, err := gojq.Parse(fmt.Sprintf(`.packages|to_entries[]|select(.value.meta.maintainers[]?|.github // empty |test("^%s$"; "i"))|.key`, handle))
-	if err != nil {
-		slog.Error("gojq parse", "error", err)
-
-		return nil, err
-	}
-
-	slog.Debug("gojq query", "query", query)
-
-	// list of maintained packages
-	// jsblob is populated and updated out-of-band.
-	mu.Lock()
-	defer mu.Unlock()
-	var mps []string
-	iter := query.RunWithContext(ctx, jsblob)
-
-	for {
-		v, ok := iter.Next()
-		if !ok {
-			break
-		}
-		if err, ok := v.(error); ok {
-			if err, ok := err.(*gojq.HaltError); ok && err.Value() == nil {
-				break
-			}
-			slog.Error("gojq run", "error", err)
-
-			return nil, err
-		}
-		mps = append(mps, regexes.NormalizeAttrPath(v.(string)))
-	}
+	mu.RLock()
+	mps := maintainerIndex[strings.ToLower(handle)]
+	mu.RUnlock()
 
 	// Create the right number of placeholders: "(?,?,?)"
 	qmarks := make([]string, len(mps))

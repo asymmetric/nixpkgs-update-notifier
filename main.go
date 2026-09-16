@@ -68,8 +68,10 @@ type handlers struct {
 
 var h handlers
 
-// jsblob stores the unmarshaled packages.json.
-var jsblob map[string]any
+// maintainerIndex maps a lowercased GitHub handle to the sorted, normalized
+// attr paths of packages it maintains. It is populated out-of-band by
+// fetchPackagesJSON.
+var maintainerIndex map[string][]string
 var mu sync.RWMutex
 
 func init() {

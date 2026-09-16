@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
@@ -92,7 +91,7 @@ func TestSub(t *testing.T) {
 }
 
 func TestSubDuplicates(t *testing.T) {
-	stubJSONBlob()
+	stubMaintainerIndex()
 	h = handlers{
 		dateFetcher: func(ctx context.Context, url string) (string, error) {
 			return "1999", nil
@@ -398,7 +397,7 @@ func TestCheckIfSubExists(t *testing.T) {
 }
 
 func TestFollow(t *testing.T) {
-	stubJSONBlob()
+	stubMaintainerIndex()
 	h = handlers{
 		dateFetcher: func(ctx context.Context, url string) (string, error) {
 			return "1999", nil
@@ -518,7 +517,7 @@ func TestFollow(t *testing.T) {
 }
 
 func TestUnfollow(t *testing.T) {
-	stubJSONBlob()
+	stubMaintainerIndex()
 	h = handlers{
 		dateFetcher: func(ctx context.Context, url string) (string, error) {
 			return "1999", nil
@@ -561,7 +560,7 @@ func TestUnfollow(t *testing.T) {
 }
 
 func TestFindPackagesForHandle(t *testing.T) {
-	stubJSONBlob()
+	stubMaintainerIndex()
 
 	t.Run("existing handle", func(t *testing.T) {
 		if err := setupDB(ctx, ":memory:"); err != nil {
@@ -762,7 +761,7 @@ func TestWhitespaceHandling(t *testing.T) {
 			panic(err)
 		}
 
-		stubJSONBlob()
+		stubMaintainerIndex()
 		addPackages("btrbk")
 
 		fillEventContent(evt, " follow\tasymmetric \n")
@@ -854,13 +853,19 @@ func unfol(handle string) {
 	handleMessage(ctx, evt)
 }
 
-func stubJSONBlob() {
-	data, err := os.ReadFile("testdata/packages.json")
+func stubMaintainerIndex() {
+	f, err := os.Open("testdata/packages.json")
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+
+	idx, err := buildMaintainerIndex(f)
 	if err != nil {
 		panic(err)
 	}
 
-	if err := json.Unmarshal(data, &jsblob); err != nil {
-		panic(err)
-	}
+	mu.Lock()
+	maintainerIndex = idx
+	mu.Unlock()
 }
