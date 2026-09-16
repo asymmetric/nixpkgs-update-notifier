@@ -52,7 +52,7 @@
       });
 
       overlays.default = final: prev: {
-        nixpkgs-update-notifier = self.packages.${final.system}.nixpkgs-update-notifier;
+        nixpkgs-update-notifier = prev.callPackage ./package.nix { inherit version; };
       };
 
       nixosModules.default = { config, lib, pkgs, ... }: {
