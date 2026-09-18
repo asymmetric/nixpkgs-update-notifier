@@ -157,11 +157,11 @@ func storeAttrPaths(ctx context.Context, url string) {
 	hrefs := htmlquery.Find(doc, "//a/@href")
 	slog.Info("storing attr paths", "count", len(hrefs))
 	for _, href := range hrefs {
-		attr_path := strings.TrimSuffix(htmlquery.InnerText(href), "/")
-		if regexes.Ignore().MatchString(attr_path) {
+		attrPath := strings.TrimSuffix(htmlquery.InnerText(href), "/")
+		if regexes.Ignore().MatchString(attrPath) {
 			continue
 		}
-		if _, err := clients.db.ExecContext(ctx, "INSERT OR IGNORE INTO packages(attr_path) VALUES (?)", attr_path); err != nil {
+		if _, err := clients.db.ExecContext(ctx, "INSERT OR IGNORE INTO packages(attr_path) VALUES (?)", attrPath); err != nil {
 			fatal(err)
 		}
 	}

@@ -50,6 +50,9 @@ type HTTPError struct {
 	Body       string
 }
 
+// Caches ETAG send by channels.nixos.org.
+var packagesETag string
+
 func (e *HTTPError) Error() string {
 	return fmt.Sprintf("HTTP error: %d - %s", e.StatusCode, e.Body)
 }
@@ -134,11 +137,24 @@ func fetchPackagesJSON(ctx context.Context) {
 	if err != nil {
 		panic(err)
 	}
+
+	if packagesETag != "" {
+		req.Header.Set("If-None-Match", packagesETag)
+	}
 	resp, err := clients.http.Do(req)
 	if err != nil {
 		panic(err)
 	}
 	defer resp.Body.Close()
+
+	switch resp.StatusCode {
+	case http.StatusNotModified:
+		slog.Debug("packages.json unchanged", "elapsed", time.Since(start))
+		return
+	case http.StatusOK: // just exit switch and continue
+	default:
+		panic(&HTTPError{StatusCode: resp.StatusCode})
+	}
 
 	slog.Debug("parsing packages.json")
 	idx, err := buildMaintainerIndex(brotli.NewReader(resp.Body))
@@ -146,6 +162,7 @@ func fetchPackagesJSON(ctx context.Context) {
 		panic(err)
 	}
 
+	// mIndex is read by findPackagesForHandle, so acquire lock before writing.
 	mu.Lock()
 	mIndex = idx
 	mu.Unlock()
